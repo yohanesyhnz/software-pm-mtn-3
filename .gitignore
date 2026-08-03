@@ -1,0 +1,11 @@
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+
+# Backups directory
+BACKUP/
+*.png.backup
+*.html.backup
+*.js.backup
+*.css.backup

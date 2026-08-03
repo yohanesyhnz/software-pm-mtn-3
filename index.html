@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    // Smart Mobile Auto-Redirect for HP Smartphones
+    (function() {
+      var isDesktopSite = window.innerWidth > 768 || location.search.includes('mode=desktop');
+      var isMobile = !isDesktopSite && (window.innerWidth <= 768 || location.search.includes('mode=mobile'));
+      if (isMobile && !location.pathname.endsWith('mobile.html')) {
+        window.location.href = 'mobile.html';
+      }
+    })();
+  </script>
+  <title>Preventive Maintenance System - CMMS Dashboard</title>
+  <!-- Google Fonts: Inter & JetBrains Mono for Code -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="assets/logo_data.js"></script>
+  <link rel="stylesheet" href="style.css?v=20260803_v8">
+</head>
+<body class="predictacore-theme">
+
+  <!-- Main Application Wrapper -->
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+            <div class="sidebar-logo" style="padding: 16px 12px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; border-bottom: 1px solid var(--border-color);">
+        <img id="brand-sidebar-logo" src="assets/predictacore_logo.png" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" alt="PREDICTACORE" style="width: 100%; max-width: 185px; max-height: 85px; object-fit: contain; filter: drop-shadow(0 0 14px rgba(0, 229, 255, 0.75)); transition: all 0.3s ease;">
+      </div>
+      
+      <nav class="sidebar-menu">
+        <button class="nav-item active" id="nav-dashboard" onclick="switchTab('dashboard')">
+          <span class="icon">📊</span> Dashboard
+        </button>
+        <button class="nav-item" id="nav-machines" onclick="switchTab('machines')">
+          <span class="icon">⚙️</span> Master Mesin
+        </button>
+        <button class="nav-item" id="nav-spareparts" onclick="switchTab('spareparts')">
+          <span class="icon">🔧</span> Master Spare Part
+        </button>
+        <button class="nav-item" id="nav-history" onclick="switchTab('history')">
+          <span class="icon">📜</span> Riwayat PM
+        </button>
+        <button class="nav-item" id="nav-integrations" onclick="switchTab('integrations')">
+          <span class="icon">📡</span> PLC & Integrasi
+        </button>
+        <button class="nav-item" id="nav-sql" onclick="switchTab('sql')">
+          <span class="icon">💻</span> SQL Console
+        </button>
+        <button class="nav-item" id="nav-api" onclick="switchTab('api')">
+          <span class="icon">🔌</span> REST API Sandbox
+        </button>
+        <button class="nav-item" id="nav-system" onclick="switchTab('system')">
+          <span class="icon">💾</span> Backup & Restore
+        </button>
+        <button class="nav-item" id="nav-users" onclick="switchTab('users')" style="display: none;">
+          <span class="icon">👥</span> Kelola User
+        </button>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <button class="btn btn-primary btn-block toggle-simulator-btn" onclick="toggleAndroidSimulator()">
+          📱 Android Simulator
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Top Navigation Header -->
+      <header class="header">
+        <div class="header-left">
+          <h1 id="page-title">Dashboard Analisis</h1>
+          <span class="plant-badge">🏭 PT. Dankosfarma</span>
+        </div>
+        
+        <div class="header-right">
+          <!-- Role Switcher -->
+          <div class="role-selector">
+            <span class="role-label">Access Level:</span>
+            <select id="user-role-select" onchange="changeUserRole(this.value)">
+              <option value="ADMIN">ADMIN (Full Access)</option>
+              <option value="SUPERVISOR">SUPERVISOR (Approval)</option>
+              <option value="TECHNICIAN">TECHNICIAN (Input & Replace)</option>
+            </select>
+          </div>
+
+          <!-- Notification Bell -->
+          <div class="notification-bell" onclick="toggleNotificationDropdown()">
+            <span class="bell-icon">🔔</span>
+            <span class="notification-badge" id="notification-count">0</span>
+            
+            <!-- Notification Dropdown -->
+            <div class="notification-dropdown" id="notification-dropdown">
+              <div class="dropdown-header">
+                <h3>Sistem Notifikasi</h3>
+                <button onclick="clearAllNotifications(event)">Hapus Semua</button>
+              </div>
+              <div class="dropdown-content" id="notification-list">
+                <!-- Loaded dynamically -->
+                <div class="notification-empty">Tidak ada notifikasi aktif.</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="user-profile" onclick="openLoginModal()" style="cursor: pointer;" title="Klik untuk Ganti / Login User">
+            <span class="user-avatar">👤</span>
+            <div class="user-info">
+              <span class="user-name" id="user-full-name">Danko Ariyanto</span>
+              <span class="user-role-badge" id="user-role-badge">ADMIN</span>
+            </div>
+          </div>
+
+          <!-- Kiosk Window Controls Icons -->
+          <div class="kiosk-header-controls">
+            <button class="kiosk-icon-btn" id="kiosk-fs-btn" onclick="requestKioskFullscreen()" title="Full Screen (Kiosk Mode)">🖥️</button>
+            <button class="kiosk-icon-btn" onclick="kioskMinimizeApp()" title="Minimize">➖</button>
+            <button class="kiosk-icon-btn kiosk-icon-btn-close" onclick="kioskCloseApp()" title="Matikan Panel">❌</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- TAB 1: DASHBOARD ANALISIS -->
+      <section class="tab-panel active" id="panel-dashboard">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; padding:12px 18px; background:linear-gradient(135deg, rgba(0, 229, 255, 0.06), rgba(16, 185, 129, 0.03)); border:1px solid rgba(0, 229, 255, 0.2); border-radius:10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+          <div style="display:flex; align-items:center; gap:16px;">
+            <img id="brand-dashboard-logo" src="assets/predictacore_logo.png" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" alt="PREDICTACORE" style="height:64px; width:auto; max-width:180px; object-fit:contain; filter:drop-shadow(0 0 14px rgba(0,229,255,0.7));">
+            <div style="border-left:1px solid rgba(0, 229, 255, 0.25); padding-left:16px;">
+              <h2 style="font-size:16px; font-weight:800; color:var(--text-primary); margin:0; letter-spacing:0.5px;">Dashboard Analisis &amp; Telemetri</h2>
+              <span style="font-size:11px; color:var(--text-secondary);">Real-time monitoring &amp; kesehatan suku cadang pabrik</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- KPI Counters Grid -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-icon color-blue">⚙️</div>
+            <div class="kpi-data">
+              <span class="kpi-value" id="kpi-total-machines">0</span>
+              <span class="kpi-label">TOTAL MESIN</span>
+            </div>
+          </div>
+          
+          <div class="kpi-card">
+            <div class="kpi-icon color-cyan">🔧</div>
+            <div class="kpi-data">
+              <span class="kpi-value" id="kpi-total-parts">0</span>
+              <span class="kpi-label">TOTAL SPARE PART</span>
+            </div>
+          </div>
+
+          <div class="kpi-card highlight-warning-2">
+            <div class="kpi-icon color-orange">⚠️</div>
+            <div class="kpi-data">
+              <span class="kpi-value" id="kpi-warning-parts">0</span>
+              <span class="kpi-label">WARNING PARTS</span>
+            </div>
+          </div>
+
+          <div class="kpi-card highlight-action">
+            <div class="kpi-icon color-red">🚨</div>
+            <div class="kpi-data">
+              <span class="kpi-value" id="kpi-overdue-parts">0</span>
+              <span class="kpi-label">OVERDUE / CRITICAL</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon color-green">📈</div>
+            <div class="kpi-data">
+              <span class="kpi-value" id="kpi-pm-compliance">0%</span>
+              <span class="kpi-label">PM COMPLIANCE KPI</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon color-emerald">💰</div>
+            <div class="kpi-data">
+              <span class="kpi-value" id="kpi-total-cost">Rp 0</span>
+              <span class="kpi-label">BIAYA MAINTENANCE</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Row 1 -->
+        <div class="charts-row">
+          <!-- Radial Gauges (Remaining Life Analysis of Critical Parts) -->
+          <div class="chart-card flex-2">
+            <div class="chart-header">
+              <h3>Remaining Life Analysis (Critical Parts)</h3>
+              <span class="chart-subtitle">Persentase sisa umur spare part paling krusial saat ini</span>
+            </div>
+            <div class="radial-gauges-container" id="radial-gauges-list">
+              <!-- Rendered Dynamically -->
+            </div>
+          </div>
+
+          <!-- Spare Part Distribution Pie/Donut Chart -->
+          <div class="chart-card flex-1">
+            <div class="chart-header">
+              <h3>Status Kondisi Spare Part</h3>
+            </div>
+            <div class="chart-content flex-center">
+              <div id="condition-donut-chart" class="donut-chart-wrapper">
+                <!-- SVG Donut Chart -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Row 2 -->
+        <div class="charts-row">
+          <!-- Status Kesehatan Mesin (Health Score) -->
+          <div class="chart-card flex-1">
+            <div class="chart-header">
+              <h3>Status Kesehatan Mesin (Health Score)</h3>
+              <span class="chart-subtitle">Indeks kesehatan berdasarkan sisa umur spare part & running hours</span>
+            </div>
+            <div class="chart-content">
+              <div id="machine-health-bar-chart" class="bar-chart-wrapper">
+                <!-- SVG Machine Health Bar Chart -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Machine Running Hours Trend (Line Chart) -->
+          <div class="chart-card flex-1">
+            <div class="chart-header">
+              <h3>Tren Running Hours Harian Mesin</h3>
+              <span class="chart-subtitle">Monitoring 5 hari terakhir</span>
+            </div>
+            <div class="chart-content">
+              <div id="running-hours-line-chart" class="line-chart-wrapper">
+                <!-- SVG Line Chart -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Monthly Maintenance Cost Trend (Bar Chart) -->
+          <div class="chart-card flex-1">
+            <div class="chart-header">
+              <h3>Biaya Pemeliharaan Bulanan (Historical)</h3>
+              <span class="chart-subtitle">Dalam Jutaan Rupiah (IDR)</span>
+            </div>
+            <div class="chart-content">
+              <div id="maintenance-cost-bar-chart" class="bar-chart-wrapper">
+                <!-- SVG Bar Chart -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Row: Top Replaced Spare Parts -->
+        <div class="table-section">
+          <div class="table-header">
+            <h3>Top 10 Spare Part Paling Sering Diganti</h3>
+            <span class="chart-subtitle">Data frekuensi breakdown / preventive maintenance per part</span>
+          </div>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Spare Part & Kode</th>
+                  <th>Mesin Asosiasi</th>
+                  <th>Frekuensi Penggantian</th>
+                  <th>Total Biaya (IDR)</th>
+                  <th>Rekomendasi Tindakan</th>
+                </tr>
+              </thead>
+              <tbody id="top-replaced-parts-tbody">
+                <!-- Loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Real-Time Machine Status Grid (Live Telemetry & Green Running Indicator) - Placed at Bottom of Dashboard -->
+        <div class="machine-status-section" style="margin-top:24px; padding:20px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+            <div>
+              <h3 style="font-size:15px; font-weight:700; color:var(--text-primary); margin:0; display:flex; align-items:center; gap:8px;">
+                <span style="font-size:18px;">⚡</span> Status Real-Time Mesin Pabrik
+              </h3>
+              <span style="font-size:11px; color:var(--text-secondary);">Monitoring status RUNNING / STOPPED &amp; ikon indikator live seluruh unit</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; font-size:11px; color:var(--predictacore-emerald); background:rgba(16,185,129,0.1); padding:5px 12px; border-radius:20px; border:1px solid rgba(16,185,129,0.3);">
+              <span class="pulse-dot-green"></span> TELEMETRY LIVE (SSE Stream)
+            </div>
+          </div>
+          <div class="machine-status-grid" id="dashboard-machine-status-grid">
+            <!-- Dynamically rendered by renderDashboardMachineCards() in app.js -->
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: MASTER MESIN -->
+      <section class="tab-panel" id="panel-machines">
+        <div class="action-bar">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="machine-search-input" placeholder="Cari nama mesin, asset number..." oninput="renderMachinesTable()">
+          </div>
+          <div class="filter-group" style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <select id="machine-filter-line" onchange="renderMachinesTable()" style="min-width: 170px;">
+              <option value="">Semua Line Produksi</option>
+            </select>
+          </div>
+          <button class="btn btn-orange" onclick="syncDatabaseToSynologyManual()" style="display:inline-flex; align-items:center; gap:6px;">☁️ Sync Database ke Synology</button>
+          <button class="btn btn-primary" id="import-machine-btn" onclick="openImportMachineModal()" style="display: inline-flex; align-items: center; gap: 6px;">📥 Import Excel / CSV</button>
+          <button class="btn btn-success" id="add-machine-btn" onclick="openMachineModal()">+ Tambah Mesin</button>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Nama Mesin</th>
+                <th>Asset Number</th>
+                <th>Line Produksi</th>
+                <th>Manufacturer</th>
+                <th>Tgl Install</th>
+                <th>Running Hours</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="machines-table-tbody">
+              <!-- Loaded dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB 3: MASTER SPARE PARTS -->
+      <section class="tab-panel" id="panel-spareparts">
+        <div class="action-bar">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="part-search-input" placeholder="Cari spare part, kode, mesin..." oninput="renderSparePartsTable()">
+          </div>
+          <div class="filter-group" style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <select id="part-filter-machine" onchange="renderSparePartsTable()" style="min-width: 150px;">
+              <option value="">Semua Mesin</option>
+            </select>
+            <select id="part-filter-condition" onchange="renderSparePartsTable()">
+              <option value="">Semua Kondisi</option>
+              <option value="NORMAL">NORMAL (>50%)</option>
+              <option value="WARNING LEVEL 1">WARNING LEVEL 1 (30%-50%)</option>
+              <option value="WARNING LEVEL 2">WARNING LEVEL 2 (10%-30%)</option>
+              <option value="ACTION REQUIRED">ACTION REQUIRED (&lt;10%)</option>
+              <option value="OVERDUE">OVERDUE (Expired)</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="import-part-btn" onclick="openResetAuthModal('IMPORT_PARTS', 'Import Master Spare Part (Excel / CSV)', 'Mengimpor atau memperbarui data master spare part dari berkas Excel/CSV. Membutuhkan otorisasi Password Admin.')" style="display: none;">📥 Import Excel / CSV</button>
+          <button class="btn btn-red" id="clear-parts-btn" onclick="openResetAuthModal('CLEAR_PARTS', 'Kosongkan Data Master Spare Part', 'Menghapus SELURUH data master spare part untuk proses upload ulang. Membutuhkan otorisasi Password Admin.')" style="display: none;">🗑️ Kosongkan Master Data</button>
+          <button class="btn btn-orange" id="reset-all-parts-hours-btn" onclick="openResetAuthModal('RESET_ALL_PARTS_HOURS', 'Reset Running Hours Semua Part', 'Mengosongkan jam jalan seluruh spare part terdaftar ke 0 jam.')" style="display: none;">🔄 Reset Semua Jam Part</button>
+          <button class="btn btn-orange" onclick="syncDatabaseToSynologyManual()" style="display:inline-flex; align-items:center; gap:6px;">☁️ Sync Database ke Synology</button>
+          <button class="btn btn-success" id="add-part-btn" onclick="openSparePartModal()">+ Tambah Spare Part</button>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Spare Part</th>
+                <th>Kode</th>
+                <th>Mesin</th>
+                <th>Critical Level</th>
+                <th>Lifetime (Hrs)</th>
+                <th>Running Hours</th>
+                <th>Remaining Life</th>
+                <th>Kondisi Status</th>
+                <th>Stok / Qty</th>
+                <th>Prediksi Sisa Hari</th>
+                <th>Estimasi Tgl PM</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="spareparts-table-tbody">
+              <!-- Loaded dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB 4: RIWAYAT MAINTENANCE & EXPORT -->
+      <section class="tab-panel" id="panel-history">
+        <div class="action-bar">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="history-search-input" placeholder="Cari nama part, teknisi, catatan..." oninput="renderHistoryTable()">
+          </div>
+          <div class="export-buttons">
+            <button class="btn btn-excel" onclick="exportToExcel()">📥 Export Excel Report</button>
+            <button class="btn btn-pdf" onclick="exportToPDF()">📥 Export PDF Report</button>
+            <button class="btn btn-red" id="clear-history-btn" onclick="openResetAuthModal('CLEAR_HISTORY', 'Kosongkan Riwayat Maintenance', 'Menghapus SELURUH data riwayat PM/penggantian part secara permanen. Membutuhkan otorisasi Password Admin.')" style="display: none;">🗑️ Reset / Kosongkan Riwayat</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Tgl Penggantian</th>
+                <th>Spare Part / Kode</th>
+                <th>Nama Mesin</th>
+                <th>Teknisi</th>
+                <th>Downtime (Min)</th>
+                <th>Jumlah (Qty)</th>
+                <th>Total Biaya (IDR)</th>
+                <th>Foto</th>
+                <th>Catatan</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-tbody">
+              <!-- Loaded dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB 5: PLC & AUTO-INTEGRATION PANEL -->
+      <section class="tab-panel" id="panel-integrations">
+        <!-- Machine PLC Mapping Table Card -->
+        <div class="chart-card flex-1" style="width: 100%; margin-bottom: 20px;">
+          <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <h3 style="font-size: 16px;">🔌 Konfigurasi IP &amp; Address PLC Mesin (Real-Time Telemetry Mapping)</h3>
+              <span class="chart-subtitle">Pemetaan IP PLC, Port, &amp; Bit Status Start/Stop untuk penarikan jam jalan otomatis per mesin</span>
+            </div>
+            <button class="btn btn-primary" onclick="renderPlcMappingTable()" style="font-size: 12px; padding: 6px 12px;">🔄 Refresh List PLC</button>
+          </div>
+          
+          <div class="table-container" style="margin-top: 12px; max-height: 380px; overflow-y: auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Mesin &amp; Asset SN</th>
+                  <th>Line Produksi</th>
+                  <th>Protokol</th>
+                  <th>IP Address PLC</th>
+                  <th>Port</th>
+                  <th>Address Bit RUN/STOP</th>
+                  <th>Status Telemetri</th>
+                  <th>Auto-Track</th>
+                  <th>Aksi Konfigurasi</th>
+                </tr>
+              </thead>
+              <tbody id="plc-mapping-table-tbody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Console Logger Card -->
+        <div class="chart-card flex-1" style="width: 100%;">
+          <div class="chart-header">
+            <h3>Live Data Acquisition Logs</h3>
+            <span class="chart-subtitle">Terminologi integrasi &amp; log paket real-time PLC</span>
+          </div>
+          <div class="console-log-window" id="console-logs-window">
+            <div class="console-line system">[SYSTEM]: Industrial PLC integrations logs ready. Packet logging &amp; bit status signals active below...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 6: SQL RUNNER CONSOLE -->
+      <section class="tab-panel" id="panel-sql">
+        <div class="sql-container">
+          <div class="sql-input-panel">
+            <div class="sql-input-header">
+              <h3>SQL Query Editor (In-Memory Database Analyzer)</h3>
+              <span class="chart-subtitle">Tabel tersedia: <strong>machines</strong>, <strong>spare_parts</strong>, <strong>replacement_history</strong>, <strong>running_hours_log</strong></span>
+            </div>
+            <textarea id="sql-query-text" placeholder="Tuliskan query SQL Anda di sini...&#10;Contoh: SELECT name, code, current_running_hours, lifetime_hours FROM spare_parts WHERE current_running_hours > 500 ORDER BY current_running_hours DESC"></textarea>
+            <div class="sql-actions">
+              <button class="btn btn-primary" onclick="runSqlQuery()">⚡ Execute Query</button>
+              <button class="btn btn-secondary" onclick="clearSqlQuery()">Reset</button>
+            </div>
+          </div>
+
+          <div class="sql-result-panel">
+            <h3>Query Results</h3>
+            <div class="sql-result-wrapper" id="sql-result-table-container">
+              <div class="sql-empty-state">Masukkan query SQL dan klik 'Execute Query' untuk melihat analisis data.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 7: REST API SANDBOX -->
+      <section class="tab-panel" id="panel-api">
+        <div class="api-sandbox-layout">
+          <div class="api-selector-panel">
+            <h3>Pilih Endpoint REST API</h3>
+            <div class="api-endpoints-list">
+              <button class="api-endpoint-item active" onclick="selectApiEndpoint('GET', '/api/machines')">
+                <span class="method get">GET</span> <span class="path">/api/machines</span>
+              </button>
+              <button class="api-endpoint-item" onclick="selectApiEndpoint('GET', '/api/spare-parts')">
+                <span class="method get">GET</span> <span class="path">/api/spare-parts</span>
+              </button>
+              <button class="api-endpoint-item" onclick="selectApiEndpoint('GET', '/api/analytics/dashboard')">
+                <span class="method get">GET</span> <span class="path">/api/analytics/dashboard</span>
+              </button>
+              <button class="api-endpoint-item" onclick="selectApiEndpoint('POST', '/api/machines/:id/running-hours')">
+                <span class="method post">POST</span> <span class="path">/api/machines/:id/running-hours</span>
+              </button>
+              <button class="api-endpoint-item" onclick="selectApiEndpoint('POST', '/api/spare-parts/:id/replace')">
+                <span class="method post">POST</span> <span class="path">/api/spare-parts/:id/replace</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="api-execution-panel">
+            <div class="api-execution-header">
+              <h3>API Simulator Console</h3>
+              <span class="api-url" id="api-request-url">GET http://localhost:5000/api/machines</span>
+            </div>
+            
+            <div id="api-body-section" class="api-body-editor hidden">
+              <h4>Request Body (JSON):</h4>
+              <textarea id="api-body-text" placeholder="Request body parameters..."></textarea>
+            </div>
+
+            <button class="btn btn-primary" onclick="sendApiRequest()">Kirim API Request</button>
+
+            <div class="api-response-wrapper">
+              <h4>HTTP Response:</h4>
+              <pre id="api-response-output" class="language-json">Click 'Kirim API Request' to test the JSON API response.</pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 8: BACKUP & RESTORE SYSTEM -->
+      <section class="tab-panel" id="panel-system">
+        <!-- PredictaCore Emblem System Header Banner -->
+        <div style="display:flex; align-items:center; gap:20px; background:linear-gradient(135deg, rgba(0, 229, 255, 0.08), rgba(16, 185, 129, 0.04)); border:1px solid rgba(0, 229, 255, 0.25); border-radius:12px; padding:20px 24px; margin-bottom:20px; box-shadow:0 0 25px rgba(0,229,255,0.15);">
+          <img src="assets/predictacore_logo.png" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" alt="PredictaCore Emblem" style="width:72px; height:72px; object-fit:contain; filter:drop-shadow(0 0 15px rgba(0,229,255,0.7)); border-radius:10px;">
+          <div>
+            <h2 style="font-size:18px; font-weight:800; color:var(--text-primary); margin:0; letter-spacing:0.5px;">PREDICTACORE SYSTEM DATA ARCHIVE &amp; RESTORE</h2>
+            <p style="font-size:12px; color:var(--text-secondary); margin-top:4px; margin-bottom:8px;">Manajemen cadangan database, restorasi data telemetri pabrik, dan sertifikat laporan backup resmi.</p>
+            <div style="display:flex; gap:12px; font-size:11px;">
+              <span class="badge badge-normal">🛡️ Data Encrypted</span>
+              <span class="badge badge-standby">⚡ JSON / HTML Report</span>
+              <span class="badge badge-crit-low">v3.5.0 PRO</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="system-grid">
+          <!-- Backup Card -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Backup Database (JSON)</h3>
+              <span class="chart-subtitle">Ekspor seluruh data preventif menjadi file JSON cadangan resmi</span>
+            </div>
+            <div class="system-card-content">
+              <p>Mencakup data master mesin, spare parts, riwayat penggantian, dan log running hours bertanda tangan digital PredictaCore. (Membutuhkan Konfirmasi User &amp; Password)</p>
+              <div style="display:flex; flex-direction:column; gap:10px; margin-top:14px;">
+                <button class="btn btn-primary btn-large" onclick="openResetAuthModal('BACKUP_SYSTEM', 'Backup Database (JSON)', 'Ekspor seluruh data preventif, mesin, spare part, dan riwayat telemetri ke berkas JSON cadangan.')" style="width:100%; justify-content:center;">📥 Download Backup File (JSON)</button>
+                <button class="btn btn-secondary" onclick="downloadBackupReportPDF()" style="padding:10px; font-size:12px; display:inline-flex; align-items:center; justify-content:center; gap:6px;">📄 Download Laporan Backup &amp; Telemetri (HTML/PDF)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Restore Card -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Restore Database</h3>
+              <span class="chart-subtitle">Impor database dari file JSON cadangan sebelumnya</span>
+            </div>
+            <div class="system-card-content">
+              <p class="warning-text">⚠️ Perhatian: Melakukan restorasi akan menimpa seluruh database berjalan! (Membutuhkan Konfirmasi User &amp; Password)</p>
+              <div class="file-upload-wrapper">
+                <input type="file" id="system-restore-file" accept=".json" class="file-upload-input">
+                <button class="btn btn-orange btn-large" onclick="initiateRestoreSystem()">📤 Upload &amp; Restore Database</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reset Card -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Reset Database Ke Pabrik</h3>
+              <span class="chart-subtitle">Hapus data kustom dan muat ulang seeder default</span>
+            </div>
+            <div class="system-card-content">
+              <p>Mengembalikan status mesin, spare parts, dan parameter ke data awal PredictaCore Demo. (Membutuhkan Konfirmasi User &amp; Password)</p>
+              <button class="btn btn-red btn-large" onclick="openResetAuthModal('FACTORY_RESET', 'Reset Database Ke Pabrik', 'Mengembalikan seluruh status mesin, spare part, dan parameter ke data awal seeder PredictaCore Demo.')">🔄 Reset DB to Seeder</button>
+            </div>
+          </div>
+
+          <!-- Reset Running Hours Card -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3>Reset Data Running Hours</h3>
+              <span class="chart-subtitle">Kosongkan data running hours mesin dan spare part</span>
+            </div>
+            <div class="system-card-content">
+              <p>Mengembalikan running hours total, harian, mingguan, bulanan dari semua mesin serta spare part ke 0 jam. (Membutuhkan Konfirmasi User &amp; Password)</p>
+              <button class="btn btn-orange btn-large" onclick="openResetAuthModal('RESET_ALL_HOURS', 'Reset Data Running Hours', 'Mengembalikan running hours total, harian, mingguan, dan bulanan dari semua mesin serta spare part ke 0 jam.')">🔄 Reset Semua Running Hours</button>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+
+      <!-- TAB 9: USER MANAGEMENT -->
+      <section class="tab-panel" id="panel-users">
+        <div class="action-bar">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="user-search-input" placeholder="Cari nama, username..." oninput="renderUsersTable()">
+          </div>
+          <button class="btn btn-success" onclick="openUserModal()">+ Tambah User Baru</button>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Nama Lengkap</th>
+                <th>Password/PIN</th>
+                <th>Role/Hak Akses</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-table-tbody">
+              <!-- Loaded dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+      
+    </main>
+
+    <!-- FLOATING ANDROID SIMULATOR PANEL -->
+    <div class="android-simulator-panel hidden" id="android-simulator">
+      <div class="phone-frame">
+        <div class="phone-speaker"></div>
+        <div class="phone-screen">
+          
+          <!-- Phone Status Bar -->
+          <div class="phone-status-bar">
+            <span class="phone-time" id="phone-clock">11:15</span>
+            <div class="phone-status-icons">
+              <span>📶</span>
+              <span>📶</span>
+              <span>🔋 92%</span>
+            </div>
+          </div>
+
+          <!-- Phone Web Wrapper Application -->
+          <div class="phone-app">
+            
+            <!-- Mobile App Header -->
+            <div class="phone-app-header" id="phone-header">
+              <span class="phone-back-btn hidden" id="phone-back-arrow" onclick="mobileNavigateBack()">⬅️</span>
+              <h3 id="phone-app-title">PM Mobile System</h3>
+              <span class="phone-user-icon">👤</span>
+            </div>
+
+            <!-- Mobile App Container -->
+            <div class="phone-app-content">
+              
+              <!-- Mobile Floating Notification Toast -->
+              <div id="mobile-toast-notification" class="mobile-toast-notification hidden">
+                <div class="mobile-toast-icon">✅</div>
+                <div class="mobile-toast-text">
+                  <strong id="mobile-toast-title">Update Sukses!</strong>
+                  <span id="mobile-toast-message">Data Running Hours terkirim ke Synology NAS.</span>
+                </div>
+              </div>
+
+              <!-- SCREEN 1: MOBILE LOGIN -->
+              <div class="mobile-screen active" id="mscreen-login">
+                <div class="mobile-login-box">
+                  <div class="mobile-logo">PM</div>
+                  <h2>PREVENTIVE MAINTENANCE</h2>
+                  <p>Technician Mobile Portal</p>
+                  
+                  <div class="mobile-input-group">
+                    <label>Username</label>
+                    <input type="text" id="mobile-user-input" value="tech">
+                  </div>
+                  <div class="mobile-input-group">
+                    <label>PIN Password</label>
+                    <input type="password" id="mobile-pin-input" value="tech123">
+                  </div>
+                  
+                  <button class="btn btn-primary btn-block" onclick="mobileLogin()">Log In</button>
+                  <span class="mobile-login-hint">Akses Teknisi: User: tech, PIN: tech123</span>
+                </div>
+              </div>
+
+              <!-- SCREEN 2: MOBILE HOME MENU -->
+              <div class="mobile-screen" id="mscreen-home">
+                <div class="mobile-greeting">
+                  <h4>Selamat Bekerja,</h4>
+                  <h2 id="mobile-tech-name">Agus Prayitno</h2>
+                  <span class="mobile-role-tag">TECHNICIAN</span>
+                </div>
+                
+                <div class="mobile-actions-grid">
+                  <button class="mobile-menu-btn" onclick="mobileNavigateTo('scan')">
+                    <span class="btn-icon">📷</span>
+                    <span class="btn-label">Scan QR Mesin</span>
+                  </button>
+                  <button class="mobile-menu-btn" onclick="mobileNavigateTo('hours')">
+                    <span class="btn-icon">⏱️</span>
+                    <span class="btn-label">Input Running Hours</span>
+                  </button>
+                  <button class="mobile-menu-btn" onclick="mobileNavigateTo('replace')">
+                    <span class="btn-icon">🔧</span>
+                    <span class="btn-label">Ganti Spare Part</span>
+                  </button>
+                  <button class="mobile-menu-btn" onclick="mobileNavigateTo('notifications')">
+                    <span class="btn-icon">🔔</span>
+                    <span class="btn-label">Alert Notifikasi</span>
+                    <span class="mobile-alert-badge hidden" id="mobile-alert-count">0</span>
+                  </button>
+                </div>
+
+                <div class="mobile-active-jobs">
+                  <h3>Spare Part Overdue / Critical</h3>
+                  <div class="mobile-jobs-list" id="mobile-jobs-list">
+                    <!-- Dynamic mobile list of urgent spare parts -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- SCREEN 3: SCAN QR SIMULATOR -->
+              <div class="mobile-screen" id="mscreen-scan">
+                <div class="qr-scanner-mock">
+                  <div class="qr-camera-stream">
+                    <!-- Scan lines -->
+                    <div class="qr-laser-line"></div>
+                    <div class="qr-target-box"></div>
+                    <span class="qr-scanner-text">Pindai QR Code di Mesin</span>
+                  </div>
+                  <div class="qr-selector-controls">
+                    <label>Simulasikan Scan Mesin:</label>
+                    <select id="qr-mock-select" onchange="mobileSimulateQrScan(this.value)">
+                      <option value="">-- Pilih Mesin --</option>
+                      <!-- Populated dynamically -->
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- SCREEN 4: MOBILE MACHINE DETAILS (AFTER SCAN QR) -->
+              <div class="mobile-screen" id="mscreen-machinedetails">
+                <div class="mobile-m-details-card" id="mobile-m-details">
+                  <!-- Loaded dynamically after QR scan -->
+                </div>
+              </div>
+
+              <!-- SCREEN 5: QUICK INPUT RUNNING HOURS -->
+              <div class="mobile-screen" id="mscreen-hours">
+                <div class="mobile-form">
+                  <h3>Input Running Hours (Hour Meter Mesin)</h3>
+                  
+                  <div class="mobile-input-group">
+                    <label>Pilih Mesin</label>
+                    <select id="mobile-hours-machine-id" onchange="onMobileMachineHoursSelectChange()">
+                      <!-- Loaded dynamically -->
+                    </select>
+                  </div>
+
+                  <div style="background: rgba(0, 229, 255, 0.08); border: 1px solid rgba(0, 229, 255, 0.25); border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 12px;">
+                    <div style="color: var(--text-muted);">Hour Meter Hari Sebelumnya (Previous RH):</div>
+                    <div style="font-size: 16px; font-weight: 700; color: var(--predictacore-cyan);" id="mobile-previous-rh-display">0.0 Jam</div>
+                  </div>
+
+                  <div class="mobile-input-group">
+                    <label>Angka Hour Meter Fisik Saat Ini (Current RH)</label>
+                    <input type="number" id="mobile-hours-added" placeholder="Contoh: 1212" step="0.1" oninput="calculateMobileDailyRhPreview()">
+                    <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: block;" id="mobile-daily-rh-preview">Daily RH = Current RH - Previous RH</span>
+                  </div>
+
+                  <button class="btn btn-primary btn-block" onclick="mobileSubmitRunningHours()">Kirim Update Hour Meter</button>
+                </div>
+              </div>
+
+              <!-- SCREEN 6: LOG SPARE PART REPLACEMENT -->
+              <div class="mobile-screen" id="mscreen-replace">
+                <div class="mobile-form">
+                  <h3>Pencatatan Penggantian Spare Part</h3>
+                  
+                  <div class="mobile-input-group">
+                    <label>Pilih Spare Part</label>
+                    <select id="mobile-replace-part-id">
+                      <!-- Loaded dynamically -->
+                    </select>
+                  </div>
+
+                  <div class="mobile-input-group">
+                    <label>Downtime Mesin (Menit)</label>
+                    <input type="number" id="mobile-replace-downtime" placeholder="Downtime mesin dalam menit" value="60">
+                  </div>
+
+                  <div class="mobile-input-group">
+                    <label>Biaya Spare Part (IDR)</label>
+                    <input type="number" id="mobile-replace-cost" placeholder="Kosongkan untuk harga standar">
+                  </div>
+
+                  <div class="mobile-input-group">
+                    <label>Upload Foto Suku Cadang (Simulasi)</label>
+                    <div class="mobile-photo-uploader">
+                      <input type="file" id="mobile-replace-photo" accept="image/*" onchange="mobileHandlePhotoSelect(this)">
+                      <div class="mobile-photo-preview" id="mobile-replace-photo-preview">
+                        <span>📷 Sentuh untuk Upload Foto</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="mobile-input-group">
+                    <label>Catatan Maintenance</label>
+                    <textarea id="mobile-replace-notes" placeholder="Misal: Impeller seal robek, diganti baru dan dikalibrasi..."></textarea>
+                  </div>
+
+                  <button class="btn btn-success btn-block" onclick="mobileSubmitReplacement()">Simpan Penggantian</button>
+                </div>
+              </div>
+
+              <!-- SCREEN 7: MOBILE NOTIFICATION ALERTS -->
+              <div class="mobile-screen" id="mscreen-notifications">
+                <h3>Warning & PM Alerts</h3>
+                <div class="mobile-notifications-list" id="mobile-notifications-list">
+                  <!-- Loaded dynamically -->
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Mobile Navigation Tab Bar -->
+            <div class="phone-tab-bar" id="phone-nav-bar">
+              <button class="phone-tab-item active" onclick="mobileNavigateTo('home')">🏠<br>Home</button>
+              <button class="phone-tab-item" onclick="mobileNavigateTo('scan')">📷<br>Scan QR</button>
+              <button class="phone-tab-item" onclick="mobileNavigateTo('hours')">⏱️<br>Hours</button>
+              <button class="phone-tab-item" onclick="mobileNavigateTo('replace')">🔧<br>Replace</button>
+            </div>
+            
+          </div>
+        </div>
+        <div class="phone-home-btn" onclick="mobileNavigateTo('home')"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MODALS SECTION -->
+  
+  <!-- 1. Machine Entry Modal -->
+  <div class="modal" id="machine-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="machine-modal-title">Tambah Mesin Baru</h3>
+        <button class="close-btn" onclick="closeMachineModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="modal-machine-id">
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Nama Mesin <span class="required">*</span></label>
+            <input type="text" id="modal-machine-name" placeholder="Misal: Blister Packing Line A">
+          </div>
+          <div class="form-group flex-1">
+            <label>Nomor Asset <span class="required">*</span></label>
+            <input type="text" id="modal-machine-asset" placeholder="Misal: MC-BPM-005">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Line Produksi <span class="required">*</span></label>
+            <input type="text" id="modal-machine-line" placeholder="Misal: Packaging Line 2">
+          </div>
+          <div class="form-group flex-1">
+            <label>Manufacturer <span class="required">*</span></label>
+            <input type="text" id="modal-machine-manufacturer" placeholder="Misal: Bosch GmbH">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Tanggal Install <span class="required">*</span></label>
+            <input type="date" id="modal-machine-installdate">
+          </div>
+          <div class="form-group flex-1">
+            <label>Status Operasional</label>
+            <select id="modal-machine-status">
+              <option value="Running">Running</option>
+              <option value="Standby">Standby</option>
+              <option value="Maintenance">Maintenance</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeMachineModal()">Batal</button>
+        <button class="btn btn-success" onclick="saveMachineData()">Simpan Data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Spare Part Entry Modal -->
+  <div class="modal" id="sparepart-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="sparepart-modal-title">Tambah Spare Part Baru</h3>
+        <button class="close-btn" onclick="closeSparePartModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="modal-part-id">
+        
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Pilih Mesin Asosiasi <span class="required">*</span></label>
+            <select id="modal-part-machine-id"></select>
+          </div>
+          <div class="form-group flex-1">
+            <label>Critical Level <span class="required">*</span></label>
+            <select id="modal-part-critical">
+              <option value="CRITICAL">CRITICAL (Hentikan lini jika gagal)</option>
+              <option value="MEDIUM">MEDIUM (Dapat menurunkan efisiensi)</option>
+              <option value="LOW">LOW (Tidak menghentikan lini)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Nama Spare Part <span class="required">*</span></label>
+            <input type="text" id="modal-part-name" placeholder="Misal: Carbon Brush Motor">
+          </div>
+          <div class="form-group flex-1">
+            <label>Kode Spare Part <span class="required">*</span></label>
+            <input type="text" id="modal-part-code" placeholder="Misal: SP-MOT-BRUSH-09">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Deskripsi Spare Part</label>
+          <textarea id="modal-part-description" placeholder="Spesifikasi teknis, ukuran, material..."></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Vendor / Supplier <span class="required">*</span></label>
+            <input type="text" id="modal-part-vendor" placeholder="Misal: PT. PredictaCore Indonesia">
+          </div>
+          <div class="form-group flex-1">
+            <label>Harga (IDR) <span class="required">*</span></label>
+            <input type="number" id="modal-part-price" placeholder="Nilai spare part untuk audit" value="500000">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Lifetime (Hours) <span class="required">*</span></label>
+            <input type="number" id="modal-part-lifetime" placeholder="Contoh: 1000" value="1000">
+          </div>
+          <div class="form-group flex-1">
+            <label>Running Hours <span class="required">*</span></label>
+            <input type="number" id="modal-part-currenthours" placeholder="Isi 0 untuk baru" value="0">
+          </div>
+          <div class="form-group flex-1">
+            <label>Stok Quantity (Qty) <span class="required">*</span></label>
+            <input type="number" id="modal-part-safetystock" placeholder="Misal: 5" value="5">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeSparePartModal()">Batal</button>
+        <button class="btn btn-success" onclick="saveSparePartData()">Simpan Data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Machine QR and Detail Modal -->
+  <div class="modal" id="machinedetails-modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>Master Mesin: Detail & Asset Card</h3>
+        <button class="close-btn" onclick="closeMachineDetailsModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="machine-details-modal-body">
+        <!-- Rendered dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeMachineDetailsModal()">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Master Mesin Modal -->
+  <div class="modal" id="import-machine-modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>📥 Import Master Mesin (Excel / CSV)</h3>
+        <button class="close-btn" onclick="closeImportMachineModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0, 229, 255, 0.05); border:1px solid rgba(0, 229, 255, 0.2); border-radius:8px; padding:12px 16px; margin-bottom:16px;">
+          <div>
+            <strong style="color:var(--predictacore-cyan); font-size:13px;">Format Kolom Excel / CSV yang Didukung:</strong>
+            <p style="font-size:11px; color:var(--text-secondary); margin-top:4px; line-height:1.4;">
+              Kolom wajib: <code>nama_mesin</code>, <code>asset_number</code>, <code>kategori</code>, <code>lokasi</code>, <code>manufacturer</code>, <code>running_hours_total</code>, <code>status</code> (RUNNING/STOPPED/MAINTENANCE).
+            </p>
+          </div>
+          <button class="btn btn-secondary" onclick="downloadMachineTemplate()" style="white-space:nowrap; font-size:12px; gap:6px;">📄 Unduh Template (CSV)</button>
+        </div>
+
+        <div class="form-group" style="margin-bottom:16px;">
+          <label style="font-weight:600; margin-bottom:6px; display:block;">Pilih File Excel (.xlsx, .xls) atau CSV (.csv):</label>
+          <input type="file" id="import-machine-file-input" accept=".xlsx, .xls, .csv" onchange="handleMachineFileUpload(event)" style="padding:10px; background:var(--bg-card); border:1px dashed var(--predictacore-cyan); border-radius:6px; width:100%; color:var(--text-primary); cursor:pointer;">
+        </div>
+
+        <div id="import-machine-preview-section" style="display:none; margin-top:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <h4 style="font-size:13px; font-weight:700; color:var(--text-primary);">Preview Data Siap Import (<span id="import-machine-count-badge">0</span> Mesin):</h4>
+            <span style="font-size:11px; color:var(--text-muted);" id="import-machine-file-name-label"></span>
+          </div>
+          <div class="table-container" style="max-height:240px; overflow-y:auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Nama Mesin</th>
+                  <th>Asset Number</th>
+                  <th>Kategori / Line</th>
+                  <th>Manufacturer / Lokasi</th>
+                  <th>Running Hours Total</th>
+                  <th>Status Mesin</th>
+                </tr>
+              </thead>
+              <tbody id="import-machine-preview-tbody">
+                <!-- Loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeImportMachineModal()">Batal</button>
+        <button class="btn btn-success" id="btn-execute-machine-import" onclick="executeMachineImport()" disabled style="opacity:0.5; cursor:not-allowed;">🚀 Proses Import Ke Master Mesin</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Spare Part Modal -->
+  <div class="modal" id="import-sparepart-modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>📥 Import Master Spare Part (Excel / CSV)</h3>
+        <button class="close-btn" onclick="closeImportSparePartModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0, 229, 255, 0.05); border:1px solid rgba(0, 229, 255, 0.2); border-radius:8px; padding:12px 16px; margin-bottom:16px;">
+          <div>
+            <strong style="color:var(--predictacore-cyan); font-size:13px;">Format Kolom Excel / CSV yang Didukung:</strong>
+            <p style="font-size:11px; color:var(--text-secondary); margin-top:4px; line-height:1.4;">
+              Kolom wajib: <code>nama_sparepart</code>, <code>kode_sparepart</code>, <code>asset_number</code> (SN Mesin), <code>nama_mesin</code>, <code>vendor</code>, <code>harga</code>, <code>lifetime_hours</code>, <code>safety_stock</code>, <code>critical_level</code> (CRITICAL/MEDIUM/LOW).
+            </p>
+          </div>
+          <button class="btn btn-secondary" onclick="downloadSparePartTemplate()" style="white-space:nowrap; font-size:12px; gap:6px;">📄 Unduh Template (CSV)</button>
+        </div>
+
+        <div class="form-group" style="margin-bottom:16px;">
+          <label style="font-weight:600; margin-bottom:6px; display:block;">Pilih File Excel (.xlsx, .xls) atau CSV (.csv):</label>
+          <input type="file" id="import-sparepart-file-input" accept=".xlsx, .xls, .csv" onchange="handleSparePartFileUpload(event)" style="padding:10px; background:var(--bg-card); border:1px dashed var(--predictacore-cyan); border-radius:6px; width:100%; color:var(--text-primary); cursor:pointer;">
+        </div>
+
+        <div id="import-preview-section" style="display:none; margin-top:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <h4 style="font-size:13px; font-weight:700; color:var(--text-primary);">Preview Data Siap Import (<span id="import-count-badge">0</span> Part):</h4>
+            <span style="font-size:11px; color:var(--text-muted);" id="import-file-name-label"></span>
+          </div>
+          <div class="table-container" style="max-height:240px; overflow-y:auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Nama Spare Part</th>
+                  <th>Kode</th>
+                  <th>Mesin Terdeteksi</th>
+                  <th>Lifetime</th>
+                  <th>Safety Stock</th>
+                  <th>Level</th>
+                </tr>
+              </thead>
+              <tbody id="import-preview-tbody">
+                <!-- Loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeImportSparePartModal()">Batal</button>
+        <button class="btn btn-success" id="btn-execute-import" onclick="executeSparePartImport()" disabled style="opacity:0.5; cursor:not-allowed;">🚀 Proses Import Ke Master Data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Replacement Dialog Desktop -->
+  <div class="modal" id="replacement-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Pencatatan Penggantian Suku Cadang (Desktop)</h3>
+        <button class="close-btn" onclick="closeReplacementModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="desktop-replace-part-id">
+        <div class="form-group">
+          <label>Spare Part Target</label>
+          <input type="text" id="desktop-replace-part-display" disabled class="disabled-input">
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Jumlah Diganti / Quantity (Qty) <span class="required">*</span></label>
+            <input type="number" id="desktop-replace-qty" value="1" min="1" oninput="calculateDesktopTotalCost()" style="width:100%; padding:10px 12px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-size:13px;">
+          </div>
+          <div class="form-group flex-1">
+            <label>Downtime Mesin (Menit)</label>
+            <input type="number" id="desktop-replace-downtime" value="60">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Total Biaya Maintenance (IDR) <span class="required">*</span></label>
+          <input type="number" id="desktop-replace-cost" placeholder="Otomatis terhitung (Qty x Harga)">
+          <span style="font-size:11px; color:var(--predictacore-cyan); font-weight:600; margin-top:4px; display:block;" id="desktop-replace-calc-info">✨ Total Biaya: 1 Qty × Rp 0 = Rp 0</span>
+        </div>
+
+        <div class="form-group">
+          <label>Teknisi Pengganti</label>
+          <input type="text" id="desktop-replace-user" value="Danko Ariyanto">
+        </div>
+
+        <div class="form-group">
+          <label>Catatan Penggantian</label>
+          <textarea id="desktop-replace-notes" placeholder="Catat detail penggantian dan verifikasi..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeReplacementModal()">Batal</button>
+        <button class="btn btn-success" onclick="saveReplacementDesktop()">Log Replacement</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Secure Switch Access Level Modal -->
+  <div class="modal" id="auth-modal">
+    <div class="modal-content" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3>Autentikasi Diperlukan</h3>
+        <button class="close-btn" onclick="cancelRoleSwitch()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+          Silakan masuk dengan kredensial untuk beralih ke hak akses <strong id="auth-target-role" style="color: var(--predictacore-cyan);">ADMIN</strong>.
+        </p>
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="auth-username" placeholder="Masukkan username">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="auth-password" placeholder="Masukkan password">
+        </div>
+        <div id="auth-error-msg" style="color: var(--color-red); font-size: 11px; margin-top: 4px; display: none;">
+          Username atau password tidak sesuai untuk hak akses target!
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cancelRoleSwitch()">Batal</button>
+        <button class="btn btn-primary" onclick="submitRoleSwitch()">Log In</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. User Management Modal -->
+  <div class="modal" id="user-modal">
+    <div class="modal-content" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3 id="user-modal-title">Tambah User Baru</h3>
+        <button class="close-btn" onclick="closeUserModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="modal-user-id">
+        
+        <div class="form-group">
+          <label>Username <span class="required">*</span></label>
+          <input type="text" id="modal-user-username" placeholder="Masukkan username, misal: agus.p">
+        </div>
+
+        <div class="form-group">
+          <label>Nama Lengkap <span class="required">*</span></label>
+          <input type="text" id="modal-user-fullname" placeholder="Masukkan nama lengkap, misal: Agus Prayitno">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Password/PIN <span class="required">*</span></label>
+            <input type="password" id="modal-user-password" placeholder="Masukkan password/PIN">
+          </div>
+          <div class="form-group flex-1">
+            <label>Hak Akses (Role) <span class="required">*</span></label>
+            <select id="modal-user-role">
+              <option value="ADMIN">ADMIN (Full Access)</option>
+              <option value="SUPERVISOR">SUPERVISOR (Approval)</option>
+              <option value="TECHNICIAN">TECHNICIAN (Input &amp; Replace)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeUserModal()">Batal</button>
+        <button class="btn btn-success" onclick="saveUserData()">Simpan User</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. PLC & IoT Machine Configuration Modal -->
+  <div class="modal" id="plc-config-modal">
+    <div class="modal-content" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 id="plc-config-modal-title">⚙️ Konfigurasi IP &amp; Address PLC Mesin</h3>
+        <button class="close-btn" onclick="closePlcConfigModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="modal-plc-machine-id">
+        
+        <div class="form-group">
+          <label>Mesin Target</label>
+          <input type="text" id="modal-plc-machine-name" disabled class="disabled-input" style="font-weight: 700; color: var(--predictacore-cyan);">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Protokol Komunikasi <span class="required">*</span></label>
+            <select id="modal-plc-protocol">
+              <option value="Siemens S7">Siemens S7-1200/1500 (ISO-on-TCP)</option>
+              <option value="Modbus TCP">Modbus TCP/IP</option>
+              <option value="OPC UA">OPC UA Server / Gateway</option>
+              <option value="MQTT">MQTT Telemetry Broker</option>
+              <option value="PostgreSQL">External PostgreSQL Database</option>
+            </select>
+          </div>
+          <div class="form-group flex-1">
+            <label>IP Address PLC <span class="required">*</span></label>
+            <input type="text" id="modal-plc-ip" placeholder="Misal: 192.168.1.101" value="192.168.1.100">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Port Protocol <span class="required">*</span></label>
+            <input type="number" id="modal-plc-port" placeholder="102 (S7) / 502 (Modbus) / 4840" value="102">
+          </div>
+          <div class="form-group flex-1">
+            <label>Address Bit RUN-STOP <span class="required">*</span></label>
+            <input type="text" id="modal-plc-address" placeholder="DB1.DBX0.0 / M0.0 / 40001" value="DB1.DBX0.0">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Address PLC / Tag Bit Counter (Product)</label>
+          <input type="text" id="modal-plc-counter-address" placeholder="Misal: DB5.DI114 atau nama kolom PostgreSQL" value="">
+          <span style="font-size: 10px; color: var(--text-secondary); margin-top: 2px; display: block;">
+            Opsional. Digunakan untuk membaca pencapaian hitungan produk secara otomatis.
+          </span>
+        </div>
+
+        <div class="form-group" style="background: rgba(0, 229, 255, 0.05); padding: 12px; border-radius: 6px; border: 1px solid rgba(0, 229, 255, 0.2); margin-top: 12px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; margin: 0;">
+            <input type="checkbox" id="modal-plc-enabled" checked style="width: 18px; height: 18px;">
+            <span>Aktifkan Hitung Jam Jalan Otomatis Saat Status Mesin RUNNING</span>
+          </label>
+          <span style="font-size: 11px; color: var(--text-secondary); margin-top: 4px; display: block;">
+            Jika diaktifkan, sistem CMMS secara real-time menambah jam jalan (running hours) mesin &amp; mengurai sisa usia spare part ketika PLC mengirim sinyal RUNNING.
+          </span>
+        </div>
+
+        <div class="form-group" style="background: rgba(249, 115, 22, 0.05); padding: 12px; border-radius: 6px; border: 1px solid rgba(249, 115, 22, 0.2); margin-top: 12px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; margin: 0;">
+            <input type="checkbox" id="modal-plc-inverted" style="width: 18px; height: 18px;">
+            <span style="color: var(--color-orange);">Balik Logika PLC / Invert Signal (Active Low / Normally Closed)</span>
+          </label>
+          <span style="font-size: 11px; color: var(--text-secondary); margin-top: 4px; display: block;">
+            Aktifkan jika status mesin aktual berlawanan dengan sinyal PLC (misal: mesin jalan terbaca STOP=1, atau mesin mati terbaca RUN=1). Jika aktif, nilai bit 1 diterjemahkan sebagai STOP (0), dan bit 0 sebagai RUNNING (1).
+          </span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closePlcConfigModal()">Batal</button>
+        <button class="btn btn-success" onclick="savePlcConfigData()">💾 Simpan Konfigurasi PLC</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. PLC Connection Test Diagnostic Result Modal -->
+  <div class="modal" id="plc-test-result-modal">
+    <div class="modal-content" style="max-width: 520px; border: 1px solid var(--predictacore-cyan); box-shadow: 0 0 35px rgba(0, 229, 255, 0.25);">
+      <div class="modal-header">
+        <h3 id="plc-test-modal-title">📡 Diagnostik Koneksi PLC Real-Time</h3>
+        <button class="close-btn" onclick="closePlcTestModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="plc-test-modal-body" style="text-align: left;">
+        <!-- Loaded dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closePlcTestModal()">Tutup</button>
+        <button class="btn btn-primary" id="btn-retest-plc" onclick="retestCurrentPlcConnection()">🔄 Uji Ulang Koneksi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kiosk Mode Lock Overlay -->
+  <div class="kiosk-lock-overlay hidden" id="kiosk-lock">
+    <div class="kiosk-lock-card">
+      <span style="font-size: 40px; margin-bottom: 12px;">🚨</span>
+      <h2>KIOSK MODE INTERRUPTED</h2>
+      <p>Aset HMI PredictaCore wajib berjalan dalam tampilan Full Screen untuk memantau mesin.</p>
+      <button class="btn btn-primary btn-large btn-block" onclick="lockKioskBackToFullscreen()">Kunci Kiosk (Kembali Full Screen)</button>
+      <div style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px; width: 100%;">
+        <span style="font-size: 11px; color: var(--text-secondary);">Hanya Administrator yang dapat keluar dari Kiosk Mode:</span>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <input type="password" id="kiosk-admin-pass" placeholder="Password Admin" style="flex:1; background:#0c1017; border:1px solid var(--border-color); color:white; padding:6px; border-radius:4px;">
+          <button class="btn btn-secondary" onclick="unlockKioskByAdmin()">Buka Kunci</button>
+        </div>
+        <div id="kiosk-lock-error" style="color: var(--color-red); font-size: 10px; margin-top: 4px; display: none;">Password salah!</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shutdown Black Screen Simulation -->
+  <div class="shutdown-overlay hidden" id="shutdown-screen">
+    <div class="shutdown-content">
+      <span class="shutdown-icon">📴</span>
+      <h2>PREDICTACORE PANEL SHUT DOWN</h2>
+      <p>Sistem dimatikan oleh Administrator. Hubungi supervisor teknik untuk me-reboot mesin HMI.</p>
+      <button class="btn btn-secondary" onclick="rebootAppSimulation()" style="margin-top: 16px;">🔄 Reboot System</button>
+    </div>
+  </div>
+
+  <!-- User Authentication / Login Popup Modal -->
+  <div class="modal active" id="login-modal" style="backdrop-filter: blur(12px); background: rgba(3, 5, 8, 0.92); z-index: 10000;">
+    <div class="modal-content" style="max-width: 440px; border: 1px solid var(--predictacore-cyan); box-shadow: 0 0 40px rgba(0, 229, 255, 0.25); border-radius: 12px; padding: 28px;">
+            <div style="text-align: center; margin-bottom: 24px;">
+        <img id="brand-login-logo" src="assets/predictacore_logo.png" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" alt="PREDICTACORE Emblem Logo" style="height: 100px; width: auto; max-width: 240px; object-fit: contain; filter: drop-shadow(0 0 20px rgba(0, 229, 255, 0.75)); margin: 0 auto 12px auto; display: block;">
+        <h2 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; letter-spacing: 0.5px;">AUTENTIKASI USER PREDICTACORE</h2>
+        <span style="font-size: 12px; color: var(--text-secondary);">Silakan ketik Username &amp; Password / PIN Anda untuk masuk</span>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 12px;">Username <span class="required">*</span></label>
+        <input type="text" id="login-username-input" placeholder="Masukkan Username Anda" onkeyup="if(event.key==='Enter') document.getElementById('login-password-input').focus()" style="width: 100%; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
+      </div>
+
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 12px;">Password / PIN <span class="required">*</span></label>
+        <input type="password" id="login-password-input" placeholder="Masukkan Password atau PIN" onkeyup="if(event.key==='Enter') performDesktopLogin()" style="width: 100%; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
+      </div>
+
+      <div id="login-error-msg" style="display: none; font-size: 12px; color: var(--color-red); background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; padding: 8px 12px; margin-bottom: 16px; text-align: center;">
+        ⚠️ Password / PIN yang Anda masukkan salah.
+      </div>
+
+      <button class="btn btn-primary btn-block" onclick="performDesktopLogin()" style="width: 100%; padding: 12px; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 6px; box-shadow: 0 0 15px rgba(0, 229, 255, 0.3);">
+        🚀 Masuk Ke Sistem
+      </button>
+    </div>
+  </div>
+
+  <!-- Security Reset Authentication Confirmation Modal -->
+  <div class="modal" id="reset-auth-modal" style="backdrop-filter: blur(12px); background: rgba(3, 5, 8, 0.94); z-index: 10005;">
+    <div class="modal-content" style="max-width: 480px; border: 1px solid var(--color-red); box-shadow: 0 0 40px rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 28px;">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <div style="width: 54px; height: 54px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto; font-size: 26px; color: var(--color-red);">
+          ⚠️
+        </div>
+        <h2 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; letter-spacing: 0.5px;">KONFIRMASI SECURITY RESET</h2>
+        <span style="font-size: 12px; color: var(--text-secondary);">Tindakan destruktif ini membutuhkan konfirmasi otorisasi User &amp; Password</span>
+      </div>
+
+      <!-- Reset Action Details Box -->
+      <div style="background: rgba(239, 68, 68, 0.08); border: 1px dashed rgba(239, 68, 68, 0.35); border-radius: 8px; padding: 14px; margin-bottom: 20px;">
+        <strong id="reset-action-title" style="display: block; color: var(--color-red); font-size: 14px; margin-bottom: 4px;">🔄 Reset Database Ke Pabrik</strong>
+        <p id="reset-action-desc" style="font-size: 11px; color: var(--text-primary); margin: 0; line-height: 1.4;">Mengembalikan seluruh data mesin, spare part, dan riwayat ke seeder awal demo.</p>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 12px;">Pilih User Otorisasi (Admin / Supervisor) <span class="required">*</span></label>
+        <select id="reset-user-select" style="width: 100%; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
+          <!-- Loaded dynamically -->
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 12px;">Password / PIN Konfirmasi <span class="required">*</span></label>
+        <input type="password" id="reset-auth-password" placeholder="Masukkan Password atau PIN akun" onkeyup="if(event.key==='Enter') confirmSecureReset()" style="width: 100%; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
+      </div>
+
+      <div id="reset-auth-error" style="display: none; font-size: 12px; color: var(--color-red); background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 10px 12px; margin-bottom: 16px; text-align: center;">
+        ⚠️ Password / PIN salah atau akun tidak memiliki otorisasi reset.
+      </div>
+
+      <div style="display: flex; gap: 12px;">
+        <button class="btn btn-secondary" onclick="closeResetAuthModal()" style="flex: 1; padding: 11px; font-weight: 600;">Batal</button>
+        <button class="btn btn-red" onclick="confirmSecureReset()" style="flex: 1.5; padding: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);">
+          🚨 Konfirmasi &amp; Reset
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JS Code File Link -->
+  <script src="app.js?v=20260803_v62"></script>
+</body>
+</html>
