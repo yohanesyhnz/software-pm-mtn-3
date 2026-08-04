@@ -1,7 +1,7 @@
 # SOFTWARE PM MTN 3
 
 <!-- SOFTWARE_VERSION:START -->
-**Current Version:** `v2.1.1`
+**Current Version:** `v2.1.2`
 <!-- SOFTWARE_VERSION:END -->
 
 Frontend dashboard Preventive Maintenance berbasis Next.js App Router. Selama migrasi, engine dashboard lama dipertahankan sebagai compatibility layer agar polling PHP, SSE telemetry, simulator, dan workflow CMMS tetap berfungsi.

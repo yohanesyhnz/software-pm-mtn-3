@@ -1,27 +1,26 @@
 {
-  "version": "v2.1.1",
-  "previousVersion": "v2.1.0",
-  "build": "20260804.4",
+  "version": "v2.1.2",
+  "previousVersion": "v2.1.1",
+  "build": "20260804.5",
   "releaseDate": "2026-08-04",
-  "commitType": "fix",
+  "commitType": "ci",
   "bump": "patch",
-  "summary": "Sinkronkan versi runtime CMMS dengan manifest release dan hitung jumlah file Git secara akurat.",
+  "summary": "Tambahkan workflow_dispatch untuk memulihkan publikasi GitHub Release dari tag SemVer yang sudah ada.",
   "changes": {
     "newFeatures": [],
     "improvements": [
-      "Record Codex GitHub source synchronization in audit trail"
+      "add manual GitHub Release recovery trigger",
+      "GitHub Release workflow can be rerun manually for an existing tag"
     ],
-    "fixed": [
-      "synchronize runtime version metadata and file counts",
-      "Runtime About and Version History now follow version.json",
-      "Release summary now counts staged Git files accurately"
-    ],
+    "fixed": [],
     "optimizations": [],
     "breakingChanges": [],
     "knownIssues": [
       "GitHub connector currently reports read-only repository permission"
     ],
-    "documentation": []
+    "documentation": [
+      "Document release recovery input in workflow"
+    ]
   },
   "knownIssues": [
     "GitHub connector currently reports read-only repository permission"

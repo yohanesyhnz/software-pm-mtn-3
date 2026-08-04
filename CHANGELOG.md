@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [2.1.2] - 2026-08-04
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- add manual GitHub Release recovery trigger
+- GitHub Release workflow can be rerun manually for an existing tag
+
+### Fixed
+
+- Tidak ada.
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- GitHub connector currently reports read-only repository permission
+
+### Documentation
+
+- Document release recovery input in workflow
+
 ## [2.1.1] - 2026-08-04
 
 ### New Features
