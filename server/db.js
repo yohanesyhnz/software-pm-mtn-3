@@ -115,10 +115,11 @@ db.serialize(() => {
       console.log('Seeding initial data...');
       
       // Users Seed
-      db.run("INSERT INTO users (username, password, role, full_name) VALUES ('admin', 'admin123', 'ADMIN', 'Danko Ariyanto')");
-      db.run("INSERT INTO users (username, password, role, full_name) VALUES ('spv', 'spv123', 'SUPERVISOR', 'Budi Santoso')");
-      db.run("INSERT INTO users (username, password, role, full_name) VALUES ('tech', 'tech123', 'TECHNICIAN', 'Agus Prayitno')");
-      db.run("INSERT INTO users (username, password, role, full_name) VALUES ('YAO', 'Yhnz_123', 'ADMIN', 'YAO Admin')");
+      // Passwords are intentionally empty. Provision credentials at runtime; never commit default passwords.
+      db.run("INSERT INTO users (username, password, role, full_name) VALUES ('admin', '', 'ADMIN', 'Danko Ariyanto')");
+      db.run("INSERT INTO users (username, password, role, full_name) VALUES ('spv', '', 'SUPERVISOR', 'Budi Santoso')");
+      db.run("INSERT INTO users (username, password, role, full_name) VALUES ('tech', '', 'TECHNICIAN', 'Agus Prayitno')");
+      db.run("INSERT INTO users (username, password, role, full_name) VALUES ('YAO', '', 'ADMIN', 'YAO Admin')");
 
       // Machines Seed (Industry context: mixing, granulator, blister, autoclave)
       const nowStr = new Date().toISOString();

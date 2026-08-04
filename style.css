@@ -152,6 +152,8 @@ body {
   align-items: center;
   gap: 12px;
   transition: all 0.2s ease;
+  text-decoration: none;
+  width: 100%;
 }
 
 .nav-item:hover {

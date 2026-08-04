@@ -1,0 +1,47 @@
+name: Validate source and release metadata
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Setup .NET from global.json
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Install pnpm
+        run: npm install --global pnpm@10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate Conventional Commit
+        if: github.event_name == 'push'
+        run: pnpm commit:validate
+
+      - name: Validate pull request build and release metadata
+        if: github.event_name == 'pull_request'
+        run: pnpm release:validate
+
+      - name: Validate pushed release and tag
+        if: github.event_name == 'push'
+        run: pnpm release:validate -- --require-tag-at-head

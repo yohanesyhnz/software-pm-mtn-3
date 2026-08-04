@@ -58,6 +58,12 @@
         <button class="nav-item" id="nav-system" onclick="switchTab('system')">
           <span class="icon">💾</span> Backup & Restore
         </button>
+        <a class="nav-item" href="/software-versions">
+          <span class="icon">V#</span> Software Version
+        </a>
+        <a class="nav-item" href="/about">
+          <span class="icon">i</span> About Software
+        </a>
         <button class="nav-item" id="nav-users" onclick="switchTab('users')" style="display: none;">
           <span class="icon">👥</span> Kelola User
         </button>
@@ -696,11 +702,11 @@
                   </div>
                   <div class="mobile-input-group">
                     <label>PIN Password</label>
-                    <input type="password" id="mobile-pin-input" value="tech123">
+                    <input type="password" id="mobile-pin-input" value="" placeholder="Masukkan PIN yang dikonfigurasi Administrator">
                   </div>
                   
                   <button class="btn btn-primary btn-block" onclick="mobileLogin()">Log In</button>
-                  <span class="mobile-login-hint">Akses Teknisi: User: tech, PIN: tech123</span>
+                  <span class="mobile-login-hint">Gunakan akun yang telah dikonfigurasi Administrator.</span>
                 </div>
               </div>
 

@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+set -eu
+
+echo "[pre-push] Validating Conventional Commit..."
+node scripts/validate-commit.mjs
+
+echo "[pre-push] Running build, tests, version, changelog, conflict, and secret checks..."
+node scripts/validate-release.mjs --require-tag-at-head

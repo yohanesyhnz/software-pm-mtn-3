@@ -1,0 +1,35 @@
+{
+  "name": "software-pm-mtn-3",
+  "version": "2.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.15.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "check": "tsc --noEmit",
+    "test": "node --test scripts/tests/*.test.mjs",
+    "commit:validate": "node scripts/validate-commit.mjs",
+    "release:validate": "node scripts/validate-release.mjs",
+    "release:sync": "node scripts/release-sync.mjs",
+    "hooks:install": "node scripts/setup-git-hooks.mjs"
+  },
+  "dependencies": {
+    "jspdf": "^3.0.1",
+    "next": "16.3.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.9.0"
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "core-js"
+    ]
+  }
+}

@@ -9,3 +9,28 @@ BACKUP/
 *.html.backup
 *.js.backup
 *.css.backup
+
+# Next.js
+node_modules/
+.next/
+.env*.local
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials/
+secrets/
+backend/appsettings.Production.json
+*.tsbuildinfo
+
+# Local .NET SDK and build output
+.dotnet/
+.dotnet-sdk.zip
+dotnet-install.ps1
+backend/bin/
+backend/obj/
+backend/data/
+data/

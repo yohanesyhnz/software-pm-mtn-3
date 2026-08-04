@@ -1,0 +1,12 @@
+{
+  "version": "v2.1.0",
+  "previousVersion": "v2.0.0",
+  "build": "20260804.3",
+  "releaseDate": "2026-08-04",
+  "commitType": "feat",
+  "bump": "minor",
+  "summary": "Otomatisasi Semantic Versioning, validasi keamanan, changelog, commit, tag, dan GitHub Release untuk setiap sinkronisasi Codex.",
+  "knownIssues": [
+    "GitHub connector currently reports read-only repository permission"
+  ]
+}
