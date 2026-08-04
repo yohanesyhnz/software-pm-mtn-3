@@ -146,7 +146,7 @@ async function main() {
       }), snapshots);
       writeTransactional(join(root, "version.json"), `${JSON.stringify({
         version: tag, previousVersion: `v${previousVersion}`, build: buildNumber(date, hasHead), releaseDate: date,
-        commitType: options.type, bump: level, summary, knownIssues: changes.knownIssues
+        commitType: options.type, bump: level, summary, changes, knownIssues: changes.knownIssues
       }, null, 2)}\n`, snapshots);
 
       if (options.databaseChange) {
@@ -161,9 +161,10 @@ async function main() {
     throw error;
   }
 
-  const changedBeforeCommit = git(["status", "--porcelain"]).stdout.split(/\r?\n/).filter(Boolean).length;
-  if (!changedBeforeCommit) throw new Error("Tidak ada perubahan untuk disinkronkan.");
+  const pendingChanges = git(["status", "--porcelain"]).stdout;
+  if (!pendingChanges) throw new Error("Tidak ada perubahan untuk disinkronkan.");
   git(["add", "--all"]);
+  const changedFiles = git(["diff", "--cached", "--name-only"]).stdout.split(/\r?\n/).filter(Boolean).length;
   git(["commit", "-m", commitMessage], { inherit: true });
   git(["tag", "-a", tag, "-m", `Release ${tag}`]);
   const commitHash = git(["rev-parse", "--short", "HEAD"]).stdout;
@@ -178,7 +179,7 @@ async function main() {
 
   console.log(JSON.stringify({
     currentVersion: tag, previousVersion: options.bootstrap ? null : `v${previousVersion}`, commitHash, branch,
-    changedFiles: changedBeforeCommit, commitCount, changelog: "CHANGELOG.md", gitTag: tag, synchronizationStatus: status, summary
+    changedFiles, commitCount, changelog: "CHANGELOG.md", gitTag: tag, synchronizationStatus: status, summary
   }, null, 2));
 }
 

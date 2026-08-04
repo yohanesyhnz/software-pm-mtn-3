@@ -199,6 +199,8 @@ public sealed class VersionManagementStore(IWebHostEnvironment environment)
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly string _versionsPath = Path.Combine(environment.ContentRootPath, "data", "software-versions.json");
     private readonly string _auditPath = Path.Combine(environment.ContentRootPath, "data", "software-version-audit.json");
+    private readonly string _releaseManifestPath = Path.Combine(environment.ContentRootPath, "version.json");
+    private bool _initialized;
 
     public async Task<IReadOnlyList<SoftwareVersion>> GetVersionsAsync(CancellationToken cancellationToken)
     {
@@ -318,22 +320,97 @@ public sealed class VersionManagementStore(IWebHostEnvironment environment)
 
     private async Task EnsureSeededAsync(CancellationToken cancellationToken)
     {
-        if (File.Exists(_versionsPath))
+        if (_initialized)
             return;
 
         await _gate.WaitAsync(cancellationToken);
         try
         {
+            if (_initialized)
+                return;
+
             if (!File.Exists(_versionsPath))
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(_versionsPath)!);
                 await WriteAsync(_versionsPath, SeedVersions.Create(), cancellationToken);
             }
+
+            if (File.Exists(_releaseManifestPath))
+                await ReconcileReleaseManifestAsync(cancellationToken);
+
+            _initialized = true;
         }
         finally
         {
             _gate.Release();
         }
+    }
+
+    private async Task ReconcileReleaseManifestAsync(CancellationToken cancellationToken)
+    {
+        var manifest = await ReadAsync<ReleaseVersionManifest>(_releaseManifestPath, cancellationToken);
+        if (manifest is null || !SemanticVersion.TryParse(manifest.Version, out _))
+            return;
+
+        var versions = await ReadAsync<List<SoftwareVersion>>(_versionsPath, cancellationToken) ?? [];
+        var normalized = VersionRules.Normalize(manifest.Version);
+        var existing = versions.FirstOrDefault(item => item.Version.Equals(normalized, StringComparison.OrdinalIgnoreCase));
+        var previous = versions.FirstOrDefault(item => item.Status == "Current");
+        var releaseDate = DateOnly.TryParse(manifest.ReleaseDate, out var parsedDate)
+            ? parsedDate
+            : DateOnly.FromDateTime(File.GetLastWriteTime(_releaseManifestPath));
+        var releaseTime = TimeOnly.FromDateTime(File.GetLastWriteTime(_releaseManifestPath));
+
+        foreach (var item in versions.Where(item => item.Status == "Current" && !item.Version.Equals(normalized, StringComparison.OrdinalIgnoreCase)))
+            item.Status = "Superseded";
+
+        if (existing is null)
+        {
+            existing = new SoftwareVersion
+            {
+                Version = normalized,
+                Build = manifest.Build,
+                ReleaseDate = releaseDate,
+                ReleaseTime = releaseTime,
+                Status = "Current",
+                Description = manifest.Summary,
+                ChangeLog = new ChangeLog
+                {
+                    NewFeatures = manifest.Changes.NewFeatures,
+                    Improvements = manifest.Changes.Improvements,
+                    BugFixes = manifest.Changes.Fixed,
+                    SecurityUpdates = [],
+                    DatabaseChanges = manifest.Bump == "major" ? manifest.Changes.BreakingChanges : [],
+                    ApiChanges = [],
+                    UiChanges = [],
+                    PerformanceImprovements = manifest.Changes.Optimizations,
+                    KnownIssues = manifest.Changes.KnownIssues
+                }
+            };
+            versions.Add(existing);
+
+            var audit = await ReadAsync<List<VersionAuditEntry>>(_auditPath, cancellationToken) ?? [];
+            audit.Add(new VersionAuditEntry
+            {
+                Date = releaseDate,
+                Time = releaseTime,
+                User = "Codex / GitHub",
+                OldVersion = previous?.Version ?? manifest.PreviousVersion,
+                NewVersion = normalized,
+                Action = "Source Synchronization",
+                Notes = manifest.Summary,
+                Status = "Success"
+            });
+            await WriteAsync(_auditPath, audit, cancellationToken);
+        }
+        else
+        {
+            existing.Status = "Current";
+            existing.Build = manifest.Build;
+            existing.Description = manifest.Summary;
+        }
+
+        await WriteAsync(_versionsPath, versions, cancellationToken);
     }
 
     private static async Task<T?> ReadAsync<T>(string path, CancellationToken cancellationToken)
@@ -461,6 +538,29 @@ public sealed class ChangeLog
     public string[] UiChanges { get; set; } = [];
     public string[] PerformanceImprovements { get; set; } = [];
     public string[] KnownIssues { get; set; } = [];
+}
+
+public sealed class ReleaseVersionManifest
+{
+    public string Version { get; set; } = "v1.0.0";
+    public string PreviousVersion { get; set; } = string.Empty;
+    public string Build { get; set; } = string.Empty;
+    public string ReleaseDate { get; set; } = string.Empty;
+    public string CommitType { get; set; } = string.Empty;
+    public string Bump { get; set; } = string.Empty;
+    public string Summary { get; set; } = string.Empty;
+    public ReleaseManifestChanges Changes { get; set; } = new();
+}
+
+public sealed class ReleaseManifestChanges
+{
+    public string[] NewFeatures { get; set; } = [];
+    public string[] Improvements { get; set; } = [];
+    public string[] Fixed { get; set; } = [];
+    public string[] Optimizations { get; set; } = [];
+    public string[] BreakingChanges { get; set; } = [];
+    public string[] KnownIssues { get; set; } = [];
+    public string[] Documentation { get; set; } = [];
 }
 
 public sealed class VersionAuditEntry

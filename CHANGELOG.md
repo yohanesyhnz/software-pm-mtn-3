@@ -2,6 +2,38 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [2.1.1] - 2026-08-04
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Record Codex GitHub source synchronization in audit trail
+
+### Fixed
+
+- synchronize runtime version metadata and file counts
+- Runtime About and Version History now follow version.json
+- Release summary now counts staged Git files accurately
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- GitHub connector currently reports read-only repository permission
+
+### Documentation
+
+- Tidak ada.
+
 ## [2.1.0] - 2026-08-04
 
 ### New Features
