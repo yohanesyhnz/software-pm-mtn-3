@@ -2578,9 +2578,22 @@ input:checked + .slider:before {
     background-color: #0c1017 !important;
   }
 
-  .app-container,
   #login-modal,
   .modal-overlay {
+    display: none !important;
+  }
+
+  /* Keep the simulator's parent rendered on narrow viewports. Hiding the
+     parent also hides its fixed-position children, regardless of their own
+     display value. Only the desktop UI is suppressed in mobile mode. */
+  .app-container {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .app-container > .sidebar,
+  .app-container > .main-content {
     display: none !important;
   }
 

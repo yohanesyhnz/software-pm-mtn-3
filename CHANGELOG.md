@@ -2,6 +2,38 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [2.1.3] - 2026-08-04
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- enforce mandatory Next.js and .NET 10 architecture rules
+
+### Fixed
+
+- fix responsive rendering and secure local authentication
+- restore responsive rendering across mobile and desktop resolutions
+- authenticate local users through the ASP.NET Core Web API
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Synology NAS synchronization still requires the external service to be reachable
+
+### Documentation
+
+- document frontend, backend, security, and validation requirements
+
 ## [2.1.2] - 2026-08-04
 
 ### New Features

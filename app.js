@@ -104,19 +104,23 @@ window.onload = function() {
 };
 
 function checkAndEnableMobileMode() {
-  const isExplicitDesktop = window.innerWidth > 768 || window.location.search.includes('mode=desktop');
-  if (isExplicitDesktop) {
-    // If in Desktop Mode on Chrome HP, preserve desktop app-container layout
-    return;
-  }
-  const isMobile = window.innerWidth <= 768 || window.location.search.includes('mode=mobile');
   const simulator = document.getElementById('android-simulator');
   const desktopContainer = document.querySelector('.app-container');
   const loginModal = document.getElementById('login-modal');
+  const isExplicitDesktop = window.innerWidth > 768 || window.location.search.includes('mode=desktop');
+  if (isExplicitDesktop) {
+    // Restore desktop state when crossing back from a mobile viewport.
+    if (desktopContainer) desktopContainer.style.removeProperty('display');
+    if (simulator) {
+      simulator.classList.add('hidden');
+      simulator.style.removeProperty('display');
+    }
+    return;
+  }
+  const isMobile = window.innerWidth <= 768 || window.location.search.includes('mode=mobile');
 
   if (isMobile) {
     if (loginModal) loginModal.classList.add('hidden');
-    if (desktopContainer) desktopContainer.style.display = 'none';
     if (simulator) {
       simulator.classList.remove('hidden');
       simulator.style.display = 'block';
@@ -853,7 +857,7 @@ function populateLoginUserDropdown() {
   // Legacy stub - now using manual username text input
 }
 
-function performDesktopLogin() {
+async function performDesktopLogin() {
   const userInput = document.getElementById('login-username-input');
   const pwdIn = document.getElementById('login-password-input');
   const errEl = document.getElementById('login-error-msg');
@@ -896,15 +900,24 @@ function performDesktopLogin() {
     return;
   }
 
-  // Validate strict Password / PIN
-  const isMatch = Boolean(user.password) && password === user.password;
+  try {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: usernameVal, password })
+    });
+    const result = await response.json();
 
-  if (isMatch) {
+    if (!response.ok || result.status !== 'success' || !result.user) {
+      throw new Error(result.message || 'Username atau password tidak sesuai.');
+    }
+
+    const authenticatedUser = result.user;
     activeUser = {
-      id: user.id,
-      username: user.username,
-      role: user.role,
-      full_name: user.full_name
+      id: authenticatedUser.id,
+      username: authenticatedUser.username,
+      role: authenticatedUser.role,
+      full_name: authenticatedUser.full_name
     };
 
     localStorage.setItem('pm_active_user', JSON.stringify(activeUser));
@@ -926,7 +939,7 @@ function performDesktopLogin() {
     } catch(err) {
       console.error('Error during post-login execution:', err);
     }
-  } else {
+  } catch (error) {
     if (errEl) {
       errEl.innerText = `⚠️ Password / PIN salah untuk akun ${user.full_name}.`;
       errEl.style.display = 'block';

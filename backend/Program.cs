@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -22,6 +23,43 @@ app.MapGet("/api/health", (StateStore store) => Results.Ok(new
     database_exists = store.Exists,
     message = "PredictaCore ASP.NET Core Web API is ready."
 }));
+
+app.MapPost("/api/auth/login", async (
+    LoginRequest credentials,
+    StateStore store,
+    IConfiguration configuration,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(credentials.Username) || string.IsNullOrWhiteSpace(credentials.Password))
+        return Results.BadRequest(new { status = "error", message = "Username dan password wajib diisi." });
+
+    var state = await store.ReadAsync(cancellationToken);
+    var user = state["users"]?.AsArray()
+        .Select(item => item as JsonObject)
+        .FirstOrDefault(item =>
+            string.Equals(item?["username"]?.GetValue<string>(), credentials.Username.Trim(), StringComparison.OrdinalIgnoreCase) ||
+            (item?["full_name"]?.GetValue<string>()?.Contains(credentials.Username.Trim(), StringComparison.OrdinalIgnoreCase) ?? false));
+
+    if (user is null)
+        return Results.Json(new { status = "error", message = "Username atau password tidak sesuai." }, statusCode: StatusCodes.Status401Unauthorized);
+
+    var username = user["username"]?.GetValue<string>() ?? string.Empty;
+    var passwordHash = configuration[$"LocalAuthentication:Users:{username}:PasswordHash"];
+    if (!VerifyPassword(credentials.Password, passwordHash))
+        return Results.Json(new { status = "error", message = "Username atau password tidak sesuai." }, statusCode: StatusCodes.Status401Unauthorized);
+
+    return Results.Ok(new
+    {
+        status = "success",
+        user = new
+        {
+            id = user["id"]?.GetValue<int>() ?? 0,
+            username,
+            role = user["role"]?.GetValue<string>() ?? "TECHNICIAN",
+            full_name = user["full_name"]?.GetValue<string>() ?? username
+        }
+    });
+});
 
 app.MapGet("/api/state", async (StateStore store, CancellationToken cancellationToken) =>
     Results.Json(await store.ReadAsync(cancellationToken)));
@@ -202,6 +240,30 @@ static async Task<JsonObject?> ReadJsonObjectAsync(HttpRequest request, Cancella
         return null;
     }
 }
+
+static bool VerifyPassword(string password, string? encodedHash)
+{
+    if (string.IsNullOrWhiteSpace(encodedHash))
+        return false;
+
+    var parts = encodedHash.Split('$');
+    if (parts.Length != 4 || parts[0] != "pbkdf2-sha256" || !int.TryParse(parts[1], out var iterations))
+        return false;
+
+    try
+    {
+        var salt = Convert.FromBase64String(parts[2]);
+        var expected = Convert.FromBase64String(parts[3]);
+        var actual = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, HashAlgorithmName.SHA256, expected.Length);
+        return CryptographicOperations.FixedTimeEquals(actual, expected);
+    }
+    catch (FormatException)
+    {
+        return false;
+    }
+}
+
+sealed record LoginRequest(string Username, string Password);
 
 sealed class StateStore(IWebHostEnvironment environment)
 {
