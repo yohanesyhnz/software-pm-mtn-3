@@ -16,7 +16,7 @@ function getLegacyDashboardMarkup() {
 export default function HomePage() {
   return (
     <>
-      <div dangerouslySetInnerHTML={{ __html: getLegacyDashboardMarkup() }} />
+      <div className="legacy-dashboard-root" dangerouslySetInnerHTML={{ __html: getLegacyDashboardMarkup() }} />
       <LegacyDashboardScripts />
     </>
   );

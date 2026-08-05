@@ -2,6 +2,10 @@ const backendOrigin = process.env.BACKEND_ORIGIN || "http://127.0.0.1:5080";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
+  outputFileTracingIncludes: {
+    "/*": ["node_modules/@swc/helpers/**/*"]
+  },
   async rewrites() {
     return [
       { source: "/api.php", destination: `${backendOrigin}/api.php` },

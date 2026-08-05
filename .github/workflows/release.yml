@@ -49,8 +49,37 @@ jobs:
       - name: Validate release commit
         run: pnpm commit:validate
 
+      - name: Build DS124 ARM64 release package
+        env:
+          BACKEND_ORIGIN: http://127.0.0.1:5080
+        run: |
+          pnpm build
+          dotnet publish backend/PredictaCore.Api.csproj \
+            --configuration Release \
+            --runtime linux-arm64 \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            --output dist/nas/backend
+
+          mkdir -p dist/nas/package/frontend/.next dist/nas/package/backend
+          cp -a .next/standalone/. dist/nas/package/frontend/
+          cp -a public dist/nas/package/frontend/public
+          cp -a .next/static dist/nas/package/frontend/.next/static
+          cp -a dist/nas/backend/. dist/nas/package/backend/
+          cp VERSION dist/nas/package/VERSION
+
+          tar -czf dist/predictacore-ds124-arm64.tar.gz -C dist/nas/package .
+          cd dist
+          sha256sum predictacore-ds124-arm64.tar.gz > predictacore-ds124-arm64.tar.gz.sha256
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-        run: gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_TAG" --notes-file "releases/$RELEASE_TAG.md"
+        run: |
+          gh release create "$RELEASE_TAG" \
+            --verify-tag \
+            --title "$RELEASE_TAG" \
+            --notes-file "releases/$RELEASE_TAG.md" \
+            dist/predictacore-ds124-arm64.tar.gz \
+            dist/predictacore-ds124-arm64.tar.gz.sha256

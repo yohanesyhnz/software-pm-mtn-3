@@ -1,31 +1,30 @@
 {
-  "version": "v2.1.3",
-  "previousVersion": "v2.1.2",
-  "build": "20260804.6",
-  "releaseDate": "2026-08-04",
-  "commitType": "fix",
-  "bump": "patch",
-  "summary": "fix responsive rendering and secure local authentication",
+  "version": "v2.2.0",
+  "previousVersion": "v2.1.3",
+  "build": "20260805.7",
+  "releaseDate": "2026-08-05",
+  "commitType": "feat",
+  "bump": "minor",
+  "summary": "Responsive CMMS trial release with consistent themes, machine-line ordering, corporate branding, and automated Synology DS124 deployment.",
   "changes": {
-    "newFeatures": [],
+    "newFeatures": [
+      "deliver responsive themed CMMS dashboard and NAS release",
+      "Add responsive dark and light themes across dashboard pages, data tables, and application modals.",
+      "Group real-time machines by production line and allow operators to arrange machine groups.",
+      "Add corporate PredictaCore and Dankos branding with a responsive login experience.",
+      "Build signed-checksum Synology DS124 ARM64 packages with automated update and rollback scripts."
+    ],
     "improvements": [
-      "enforce mandatory Next.js and .NET 10 architecture rules"
+      "Extend automated UI regression coverage for regulated controls, responsive layouts, themes, and machine ordering."
     ],
     "fixed": [
-      "fix responsive rendering and secure local authentication",
-      "restore responsive rendering across mobile and desktop resolutions",
-      "authenticate local users through the ASP.NET Core Web API"
+      "Remove redundant access-level switching and the Android simulator from the regulated interface.",
+      "Correct full-screen layouts, light-mode readability, and viewport containment across management dialogs."
     ],
     "optimizations": [],
     "breakingChanges": [],
-    "knownIssues": [
-      "Synology NAS synchronization still requires the external service to be reachable"
-    ],
-    "documentation": [
-      "document frontend, backend, security, and validation requirements"
-    ]
+    "knownIssues": [],
+    "documentation": []
   },
-  "knownIssues": [
-    "Synology NAS synchronization still requires the external service to be reachable"
-  ]
+  "knownIssues": []
 }

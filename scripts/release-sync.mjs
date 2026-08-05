@@ -28,6 +28,7 @@ function parseArguments(argv) {
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
+    if (arg === "--") continue;
     if (flags.has(arg)) { options[flags.get(arg)] = true; continue; }
     if (valueOptions.has(arg)) {
       const value = argv[index + 1];

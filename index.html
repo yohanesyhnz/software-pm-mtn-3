@@ -3,16 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script>
-    // Smart Mobile Auto-Redirect for HP Smartphones
-    (function() {
-      var isDesktopSite = window.innerWidth > 768 || location.search.includes('mode=desktop');
-      var isMobile = !isDesktopSite && (window.innerWidth <= 768 || location.search.includes('mode=mobile'));
-      if (isMobile && !location.pathname.endsWith('mobile.html')) {
-        window.location.href = 'mobile.html';
-      }
-    })();
-  </script>
   <title>Preventive Maintenance System - CMMS Dashboard</title>
   <!-- Google Fonts: Inter & JetBrains Mono for Code -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,7 +20,7 @@
     <!-- Sidebar Navigation -->
     <aside class="sidebar">
             <div class="sidebar-logo" style="padding: 16px 12px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; border-bottom: 1px solid var(--border-color);">
-        <img id="brand-sidebar-logo" src="assets/predictacore_logo.png" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" alt="PREDICTACORE" style="width: 100%; max-width: 185px; max-height: 85px; object-fit: contain; filter: drop-shadow(0 0 14px rgba(0, 229, 255, 0.75)); transition: all 0.3s ease;">
+        <img id="brand-sidebar-logo" src="assets/predictacore_logo.png" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" alt="PREDICTACORE" style="width: 100%; max-width: 210px; height: 160px; object-fit: contain; filter: drop-shadow(0 0 14px rgba(0, 229, 255, 0.75)); transition: all 0.3s ease;">
       </div>
       
       <nav class="sidebar-menu">
@@ -69,11 +59,6 @@
         </button>
       </nav>
       
-      <div class="sidebar-footer">
-        <button class="btn btn-primary btn-block toggle-simulator-btn" onclick="toggleAndroidSimulator()">
-          📱 Android Simulator
-        </button>
-      </div>
     </aside>
 
     <!-- Main Content Area -->
@@ -83,20 +68,13 @@
       <header class="header">
         <div class="header-left">
           <h1 id="page-title">Dashboard Analisis</h1>
-          <span class="plant-badge">🏭 PT. Dankosfarma</span>
+          <span class="plant-brand" title="PT. Dankosfarma — A Kalbe Company">
+            <img src="assets/dankos_logo.png" alt="PT. Dankosfarma" />
+            <span class="plant-brand-tagline">A Kalbe Company</span>
+          </span>
         </div>
         
         <div class="header-right">
-          <!-- Role Switcher -->
-          <div class="role-selector">
-            <span class="role-label">Access Level:</span>
-            <select id="user-role-select" onchange="changeUserRole(this.value)">
-              <option value="ADMIN">ADMIN (Full Access)</option>
-              <option value="SUPERVISOR">SUPERVISOR (Approval)</option>
-              <option value="TECHNICIAN">TECHNICIAN (Input & Replace)</option>
-            </select>
-          </div>
-
           <!-- Notification Bell -->
           <div class="notification-bell" onclick="toggleNotificationDropdown()">
             <span class="bell-icon">🔔</span>
@@ -125,6 +103,7 @@
 
           <!-- Kiosk Window Controls Icons -->
           <div class="kiosk-header-controls">
+            <button class="kiosk-icon-btn theme-toggle-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="Gunakan mode terang" aria-label="Gunakan mode terang">☀️</button>
             <button class="kiosk-icon-btn" id="kiosk-fs-btn" onclick="requestKioskFullscreen()" title="Full Screen (Kiosk Mode)">🖥️</button>
             <button class="kiosk-icon-btn" onclick="kioskMinimizeApp()" title="Minimize">➖</button>
             <button class="kiosk-icon-btn kiosk-icon-btn-close" onclick="kioskCloseApp()" title="Matikan Panel">❌</button>
@@ -136,7 +115,7 @@
       <section class="tab-panel active" id="panel-dashboard">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; padding:12px 18px; background:linear-gradient(135deg, rgba(0, 229, 255, 0.06), rgba(16, 185, 129, 0.03)); border:1px solid rgba(0, 229, 255, 0.2); border-radius:10px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
           <div style="display:flex; align-items:center; gap:16px;">
-            <img id="brand-dashboard-logo" src="assets/predictacore_logo.png" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" alt="PREDICTACORE" style="height:64px; width:auto; max-width:180px; object-fit:contain; filter:drop-shadow(0 0 14px rgba(0,229,255,0.7));">
+            <img id="brand-dashboard-logo" src="assets/predictacore_logo.png" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" alt="PREDICTACORE" style="height:120px; width:120px; object-fit:contain; flex-shrink:0; filter:drop-shadow(0 0 14px rgba(0,229,255,0.7));">
             <div style="border-left:1px solid rgba(0, 229, 255, 0.25); padding-left:16px;">
               <h2 style="font-size:16px; font-weight:800; color:var(--text-primary); margin:0; letter-spacing:0.5px;">Dashboard Analisis &amp; Telemetri</h2>
               <span style="font-size:11px; color:var(--text-secondary);">Real-time monitoring &amp; kesehatan suku cadang pabrik</span>
@@ -194,6 +173,34 @@
             </div>
           </div>
         </div>
+
+        <!-- Real-Time Machine Status Grid (Live Telemetry & Green Running Indicator) -->
+        <section class="machine-status-section" aria-labelledby="machine-status-title">
+          <div class="machine-status-header">
+            <div class="machine-status-heading">
+              <h3 id="machine-status-title">
+                <span class="machine-status-title-icon" aria-hidden="true">⚡</span>
+                Status Real-Time Mesin Pabrik
+              </h3>
+              <span>Monitoring status RUNNING / STOPPED &amp; ikon indikator live seluruh unit</span>
+            </div>
+            <div class="machine-status-actions">
+              <div class="machine-telemetry-badge">
+                <span class="pulse-dot-green"></span> TELEMETRY LIVE (SSE Stream)
+              </div>
+              <button type="button" class="btn btn-secondary machine-order-toggle" id="machine-order-toggle" onclick="toggleDashboardMachineOrderMode()" aria-pressed="false">
+                ↕️ Atur Urutan
+              </button>
+              <button type="button" class="btn btn-secondary machine-order-reset hidden" id="machine-order-reset" onclick="resetDashboardMachineOrder()">
+                Reset A–Z
+              </button>
+            </div>
+          </div>
+          <div class="machine-status-grid" id="dashboard-machine-status-grid">
+            <!-- Dynamically rendered by renderDashboardMachineCards() in app.js -->
+          </div>
+          <span class="sr-only" id="machine-order-status" aria-live="polite"></span>
+        </section>
 
         <!-- Charts Row 1 -->
         <div class="charts-row">
@@ -287,23 +294,6 @@
           </div>
         </div>
 
-        <!-- Real-Time Machine Status Grid (Live Telemetry & Green Running Indicator) - Placed at Bottom of Dashboard -->
-        <div class="machine-status-section" style="margin-top:24px; padding:20px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:10px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
-            <div>
-              <h3 style="font-size:15px; font-weight:700; color:var(--text-primary); margin:0; display:flex; align-items:center; gap:8px;">
-                <span style="font-size:18px;">⚡</span> Status Real-Time Mesin Pabrik
-              </h3>
-              <span style="font-size:11px; color:var(--text-secondary);">Monitoring status RUNNING / STOPPED &amp; ikon indikator live seluruh unit</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:8px; font-size:11px; color:var(--predictacore-emerald); background:rgba(16,185,129,0.1); padding:5px 12px; border-radius:20px; border:1px solid rgba(16,185,129,0.3);">
-              <span class="pulse-dot-green"></span> TELEMETRY LIVE (SSE Stream)
-            </div>
-          </div>
-          <div class="machine-status-grid" id="dashboard-machine-status-grid">
-            <!-- Dynamically rendered by renderDashboardMachineCards() in app.js -->
-          </div>
-        </div>
       </section>
 
       <!-- TAB 2: MASTER MESIN -->
@@ -551,7 +541,7 @@
       <section class="tab-panel" id="panel-system">
         <!-- PredictaCore Emblem System Header Banner -->
         <div style="display:flex; align-items:center; gap:20px; background:linear-gradient(135deg, rgba(0, 229, 255, 0.08), rgba(16, 185, 129, 0.04)); border:1px solid rgba(0, 229, 255, 0.25); border-radius:12px; padding:20px 24px; margin-bottom:20px; box-shadow:0 0 25px rgba(0,229,255,0.15);">
-          <img src="assets/predictacore_logo.png" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" alt="PredictaCore Emblem" style="width:72px; height:72px; object-fit:contain; filter:drop-shadow(0 0 15px rgba(0,229,255,0.7)); border-radius:10px;">
+          <img src="assets/predictacore_logo.png" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" alt="PredictaCore Emblem" style="width:120px; height:120px; object-fit:contain; flex-shrink:0; filter:drop-shadow(0 0 15px rgba(0,229,255,0.7)); border-radius:10px;">
           <div>
             <h2 style="font-size:18px; font-weight:800; color:var(--text-primary); margin:0; letter-spacing:0.5px;">PREDICTACORE SYSTEM DATA ARCHIVE &amp; RESTORE</h2>
             <p style="font-size:12px; color:var(--text-secondary); margin-top:4px; margin-bottom:8px;">Manajemen cadangan database, restorasi data telemetri pabrik, dan sertifikat laporan backup resmi.</p>
@@ -651,231 +641,18 @@
       
     </main>
 
-    <!-- FLOATING ANDROID SIMULATOR PANEL -->
-    <div class="android-simulator-panel hidden" id="android-simulator">
-      <div class="phone-frame">
-        <div class="phone-speaker"></div>
-        <div class="phone-screen">
-          
-          <!-- Phone Status Bar -->
-          <div class="phone-status-bar">
-            <span class="phone-time" id="phone-clock">11:15</span>
-            <div class="phone-status-icons">
-              <span>📶</span>
-              <span>📶</span>
-              <span>🔋 92%</span>
-            </div>
-          </div>
-
-          <!-- Phone Web Wrapper Application -->
-          <div class="phone-app">
-            
-            <!-- Mobile App Header -->
-            <div class="phone-app-header" id="phone-header">
-              <span class="phone-back-btn hidden" id="phone-back-arrow" onclick="mobileNavigateBack()">⬅️</span>
-              <h3 id="phone-app-title">PM Mobile System</h3>
-              <span class="phone-user-icon">👤</span>
-            </div>
-
-            <!-- Mobile App Container -->
-            <div class="phone-app-content">
-              
-              <!-- Mobile Floating Notification Toast -->
-              <div id="mobile-toast-notification" class="mobile-toast-notification hidden">
-                <div class="mobile-toast-icon">✅</div>
-                <div class="mobile-toast-text">
-                  <strong id="mobile-toast-title">Update Sukses!</strong>
-                  <span id="mobile-toast-message">Data Running Hours terkirim ke Synology NAS.</span>
-                </div>
-              </div>
-
-              <!-- SCREEN 1: MOBILE LOGIN -->
-              <div class="mobile-screen active" id="mscreen-login">
-                <div class="mobile-login-box">
-                  <div class="mobile-logo">PM</div>
-                  <h2>PREVENTIVE MAINTENANCE</h2>
-                  <p>Technician Mobile Portal</p>
-                  
-                  <div class="mobile-input-group">
-                    <label>Username</label>
-                    <input type="text" id="mobile-user-input" value="tech">
-                  </div>
-                  <div class="mobile-input-group">
-                    <label>PIN Password</label>
-                    <input type="password" id="mobile-pin-input" value="" placeholder="Masukkan PIN yang dikonfigurasi Administrator">
-                  </div>
-                  
-                  <button class="btn btn-primary btn-block" onclick="mobileLogin()">Log In</button>
-                  <span class="mobile-login-hint">Gunakan akun yang telah dikonfigurasi Administrator.</span>
-                </div>
-              </div>
-
-              <!-- SCREEN 2: MOBILE HOME MENU -->
-              <div class="mobile-screen" id="mscreen-home">
-                <div class="mobile-greeting">
-                  <h4>Selamat Bekerja,</h4>
-                  <h2 id="mobile-tech-name">Agus Prayitno</h2>
-                  <span class="mobile-role-tag">TECHNICIAN</span>
-                </div>
-                
-                <div class="mobile-actions-grid">
-                  <button class="mobile-menu-btn" onclick="mobileNavigateTo('scan')">
-                    <span class="btn-icon">📷</span>
-                    <span class="btn-label">Scan QR Mesin</span>
-                  </button>
-                  <button class="mobile-menu-btn" onclick="mobileNavigateTo('hours')">
-                    <span class="btn-icon">⏱️</span>
-                    <span class="btn-label">Input Running Hours</span>
-                  </button>
-                  <button class="mobile-menu-btn" onclick="mobileNavigateTo('replace')">
-                    <span class="btn-icon">🔧</span>
-                    <span class="btn-label">Ganti Spare Part</span>
-                  </button>
-                  <button class="mobile-menu-btn" onclick="mobileNavigateTo('notifications')">
-                    <span class="btn-icon">🔔</span>
-                    <span class="btn-label">Alert Notifikasi</span>
-                    <span class="mobile-alert-badge hidden" id="mobile-alert-count">0</span>
-                  </button>
-                </div>
-
-                <div class="mobile-active-jobs">
-                  <h3>Spare Part Overdue / Critical</h3>
-                  <div class="mobile-jobs-list" id="mobile-jobs-list">
-                    <!-- Dynamic mobile list of urgent spare parts -->
-                  </div>
-                </div>
-              </div>
-
-              <!-- SCREEN 3: SCAN QR SIMULATOR -->
-              <div class="mobile-screen" id="mscreen-scan">
-                <div class="qr-scanner-mock">
-                  <div class="qr-camera-stream">
-                    <!-- Scan lines -->
-                    <div class="qr-laser-line"></div>
-                    <div class="qr-target-box"></div>
-                    <span class="qr-scanner-text">Pindai QR Code di Mesin</span>
-                  </div>
-                  <div class="qr-selector-controls">
-                    <label>Simulasikan Scan Mesin:</label>
-                    <select id="qr-mock-select" onchange="mobileSimulateQrScan(this.value)">
-                      <option value="">-- Pilih Mesin --</option>
-                      <!-- Populated dynamically -->
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <!-- SCREEN 4: MOBILE MACHINE DETAILS (AFTER SCAN QR) -->
-              <div class="mobile-screen" id="mscreen-machinedetails">
-                <div class="mobile-m-details-card" id="mobile-m-details">
-                  <!-- Loaded dynamically after QR scan -->
-                </div>
-              </div>
-
-              <!-- SCREEN 5: QUICK INPUT RUNNING HOURS -->
-              <div class="mobile-screen" id="mscreen-hours">
-                <div class="mobile-form">
-                  <h3>Input Running Hours (Hour Meter Mesin)</h3>
-                  
-                  <div class="mobile-input-group">
-                    <label>Pilih Mesin</label>
-                    <select id="mobile-hours-machine-id" onchange="onMobileMachineHoursSelectChange()">
-                      <!-- Loaded dynamically -->
-                    </select>
-                  </div>
-
-                  <div style="background: rgba(0, 229, 255, 0.08); border: 1px solid rgba(0, 229, 255, 0.25); border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 12px;">
-                    <div style="color: var(--text-muted);">Hour Meter Hari Sebelumnya (Previous RH):</div>
-                    <div style="font-size: 16px; font-weight: 700; color: var(--predictacore-cyan);" id="mobile-previous-rh-display">0.0 Jam</div>
-                  </div>
-
-                  <div class="mobile-input-group">
-                    <label>Angka Hour Meter Fisik Saat Ini (Current RH)</label>
-                    <input type="number" id="mobile-hours-added" placeholder="Contoh: 1212" step="0.1" oninput="calculateMobileDailyRhPreview()">
-                    <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: block;" id="mobile-daily-rh-preview">Daily RH = Current RH - Previous RH</span>
-                  </div>
-
-                  <button class="btn btn-primary btn-block" onclick="mobileSubmitRunningHours()">Kirim Update Hour Meter</button>
-                </div>
-              </div>
-
-              <!-- SCREEN 6: LOG SPARE PART REPLACEMENT -->
-              <div class="mobile-screen" id="mscreen-replace">
-                <div class="mobile-form">
-                  <h3>Pencatatan Penggantian Spare Part</h3>
-                  
-                  <div class="mobile-input-group">
-                    <label>Pilih Spare Part</label>
-                    <select id="mobile-replace-part-id">
-                      <!-- Loaded dynamically -->
-                    </select>
-                  </div>
-
-                  <div class="mobile-input-group">
-                    <label>Downtime Mesin (Menit)</label>
-                    <input type="number" id="mobile-replace-downtime" placeholder="Downtime mesin dalam menit" value="60">
-                  </div>
-
-                  <div class="mobile-input-group">
-                    <label>Biaya Spare Part (IDR)</label>
-                    <input type="number" id="mobile-replace-cost" placeholder="Kosongkan untuk harga standar">
-                  </div>
-
-                  <div class="mobile-input-group">
-                    <label>Upload Foto Suku Cadang (Simulasi)</label>
-                    <div class="mobile-photo-uploader">
-                      <input type="file" id="mobile-replace-photo" accept="image/*" onchange="mobileHandlePhotoSelect(this)">
-                      <div class="mobile-photo-preview" id="mobile-replace-photo-preview">
-                        <span>📷 Sentuh untuk Upload Foto</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="mobile-input-group">
-                    <label>Catatan Maintenance</label>
-                    <textarea id="mobile-replace-notes" placeholder="Misal: Impeller seal robek, diganti baru dan dikalibrasi..."></textarea>
-                  </div>
-
-                  <button class="btn btn-success btn-block" onclick="mobileSubmitReplacement()">Simpan Penggantian</button>
-                </div>
-              </div>
-
-              <!-- SCREEN 7: MOBILE NOTIFICATION ALERTS -->
-              <div class="mobile-screen" id="mscreen-notifications">
-                <h3>Warning & PM Alerts</h3>
-                <div class="mobile-notifications-list" id="mobile-notifications-list">
-                  <!-- Loaded dynamically -->
-                </div>
-              </div>
-
-            </div>
-
-            <!-- Mobile Navigation Tab Bar -->
-            <div class="phone-tab-bar" id="phone-nav-bar">
-              <button class="phone-tab-item active" onclick="mobileNavigateTo('home')">🏠<br>Home</button>
-              <button class="phone-tab-item" onclick="mobileNavigateTo('scan')">📷<br>Scan QR</button>
-              <button class="phone-tab-item" onclick="mobileNavigateTo('hours')">⏱️<br>Hours</button>
-              <button class="phone-tab-item" onclick="mobileNavigateTo('replace')">🔧<br>Replace</button>
-            </div>
-            
-          </div>
-        </div>
-        <div class="phone-home-btn" onclick="mobileNavigateTo('home')"></div>
-      </div>
-    </div>
-
   </div>
 
   <!-- MODALS SECTION -->
   
   <!-- 1. Machine Entry Modal -->
-  <div class="modal" id="machine-modal">
-    <div class="modal-content">
+  <div class="modal adaptive-theme-modal" id="machine-modal" role="dialog" aria-modal="true" aria-labelledby="machine-modal-title">
+    <div class="modal-content adaptive-theme-card adaptive-form-card">
       <div class="modal-header">
         <h3 id="machine-modal-title">Tambah Mesin Baru</h3>
-        <button class="close-btn" onclick="closeMachineModal()">&times;</button>
+        <button type="button" class="close-btn" onclick="closeMachineModal()" aria-label="Tutup form mesin">&times;</button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body adaptive-theme-body">
         <input type="hidden" id="modal-machine-id">
         <div class="form-row">
           <div class="form-group flex-1">
@@ -914,21 +691,21 @@
           </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeMachineModal()">Batal</button>
-        <button class="btn btn-success" onclick="saveMachineData()">Simpan Data</button>
+      <div class="modal-footer adaptive-theme-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeMachineModal()">Batal</button>
+        <button type="button" class="btn btn-success" onclick="saveMachineData()">Simpan Data</button>
       </div>
     </div>
   </div>
 
   <!-- 2. Spare Part Entry Modal -->
-  <div class="modal" id="sparepart-modal">
-    <div class="modal-content">
+  <div class="modal adaptive-theme-modal" id="sparepart-modal" role="dialog" aria-modal="true" aria-labelledby="sparepart-modal-title">
+    <div class="modal-content adaptive-theme-card adaptive-form-card sparepart-theme-card">
       <div class="modal-header">
         <h3 id="sparepart-modal-title">Tambah Spare Part Baru</h3>
-        <button class="close-btn" onclick="closeSparePartModal()">&times;</button>
+        <button type="button" class="close-btn" onclick="closeSparePartModal()" aria-label="Tutup form spare part">&times;</button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body adaptive-theme-body">
         <input type="hidden" id="modal-part-id">
         
         <div class="form-row">
@@ -988,58 +765,58 @@
           </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeSparePartModal()">Batal</button>
-        <button class="btn btn-success" onclick="saveSparePartData()">Simpan Data</button>
+      <div class="modal-footer adaptive-theme-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeSparePartModal()">Batal</button>
+        <button type="button" class="btn btn-success" onclick="saveSparePartData()">Simpan Data</button>
       </div>
     </div>
   </div>
 
   <!-- 3. Machine QR and Detail Modal -->
-  <div class="modal" id="machinedetails-modal">
-    <div class="modal-content modal-large">
+  <div class="modal machine-detail-theme-modal" id="machinedetails-modal" role="dialog" aria-modal="true" aria-labelledby="machine-details-title">
+    <div class="modal-content modal-large machine-detail-theme-card">
       <div class="modal-header">
-        <h3>Master Mesin: Detail & Asset Card</h3>
-        <button class="close-btn" onclick="closeMachineDetailsModal()">&times;</button>
+        <h3 id="machine-details-title">Master Mesin: Detail & Asset Card</h3>
+        <button type="button" class="close-btn" onclick="closeMachineDetailsModal()" aria-label="Tutup detail mesin">&times;</button>
       </div>
       <div class="modal-body" id="machine-details-modal-body">
         <!-- Rendered dynamically -->
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeMachineDetailsModal()">Tutup</button>
+        <button type="button" class="btn btn-secondary" onclick="closeMachineDetailsModal()">Tutup</button>
       </div>
     </div>
   </div>
 
   <!-- Import Master Mesin Modal -->
-  <div class="modal" id="import-machine-modal">
-    <div class="modal-content modal-large">
+  <div class="modal adaptive-theme-modal import-theme-modal" id="import-machine-modal" role="dialog" aria-modal="true" aria-labelledby="import-machine-modal-title">
+    <div class="modal-content modal-large adaptive-theme-card import-theme-card">
       <div class="modal-header">
-        <h3>📥 Import Master Mesin (Excel / CSV)</h3>
-        <button class="close-btn" onclick="closeImportMachineModal()">&times;</button>
+        <h3 id="import-machine-modal-title">📥 Import Master Mesin (Excel / CSV)</h3>
+        <button type="button" class="close-btn" onclick="closeImportMachineModal()" aria-label="Tutup import mesin">&times;</button>
       </div>
-      <div class="modal-body">
-        <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0, 229, 255, 0.05); border:1px solid rgba(0, 229, 255, 0.2); border-radius:8px; padding:12px 16px; margin-bottom:16px;">
-          <div>
+      <div class="modal-body adaptive-theme-body import-theme-body">
+        <div class="import-guidance">
+          <div class="import-guidance-copy">
             <strong style="color:var(--predictacore-cyan); font-size:13px;">Format Kolom Excel / CSV yang Didukung:</strong>
             <p style="font-size:11px; color:var(--text-secondary); margin-top:4px; line-height:1.4;">
               Kolom wajib: <code>nama_mesin</code>, <code>asset_number</code>, <code>kategori</code>, <code>lokasi</code>, <code>manufacturer</code>, <code>running_hours_total</code>, <code>status</code> (RUNNING/STOPPED/MAINTENANCE).
             </p>
           </div>
-          <button class="btn btn-secondary" onclick="downloadMachineTemplate()" style="white-space:nowrap; font-size:12px; gap:6px;">📄 Unduh Template (CSV)</button>
+          <button type="button" class="btn btn-secondary import-template-btn" onclick="downloadMachineTemplate()">📄 Unduh Template (CSV)</button>
         </div>
 
-        <div class="form-group" style="margin-bottom:16px;">
-          <label style="font-weight:600; margin-bottom:6px; display:block;">Pilih File Excel (.xlsx, .xls) atau CSV (.csv):</label>
-          <input type="file" id="import-machine-file-input" accept=".xlsx, .xls, .csv" onchange="handleMachineFileUpload(event)" style="padding:10px; background:var(--bg-card); border:1px dashed var(--predictacore-cyan); border-radius:6px; width:100%; color:var(--text-primary); cursor:pointer;">
+        <div class="form-group import-file-field">
+          <label for="import-machine-file-input">Pilih File Excel (.xlsx, .xls) atau CSV (.csv):</label>
+          <input class="import-file-input" type="file" id="import-machine-file-input" accept=".xlsx, .xls, .csv" onchange="handleMachineFileUpload(event)">
         </div>
 
-        <div id="import-machine-preview-section" style="display:none; margin-top:16px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <h4 style="font-size:13px; font-weight:700; color:var(--text-primary);">Preview Data Siap Import (<span id="import-machine-count-badge">0</span> Mesin):</h4>
-            <span style="font-size:11px; color:var(--text-muted);" id="import-machine-file-name-label"></span>
+        <div class="import-preview-section" id="import-machine-preview-section" style="display:none;">
+          <div class="import-preview-heading">
+            <h4>Preview Data Siap Import (<span id="import-machine-count-badge">0</span> Mesin):</h4>
+            <span class="import-file-name" id="import-machine-file-name-label"></span>
           </div>
-          <div class="table-container" style="max-height:240px; overflow-y:auto;">
+          <div class="table-container import-preview-table">
             <table class="data-table">
               <thead>
                 <tr>
@@ -1059,42 +836,42 @@
           </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeImportMachineModal()">Batal</button>
-        <button class="btn btn-success" id="btn-execute-machine-import" onclick="executeMachineImport()" disabled style="opacity:0.5; cursor:not-allowed;">🚀 Proses Import Ke Master Mesin</button>
+      <div class="modal-footer adaptive-theme-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeImportMachineModal()">Batal</button>
+        <button type="button" class="btn btn-success" id="btn-execute-machine-import" onclick="executeMachineImport()" disabled style="opacity:0.5; cursor:not-allowed;">🚀 Proses Import Ke Master Mesin</button>
       </div>
     </div>
   </div>
 
   <!-- Import Spare Part Modal -->
-  <div class="modal" id="import-sparepart-modal">
-    <div class="modal-content modal-large">
+  <div class="modal adaptive-theme-modal import-theme-modal" id="import-sparepart-modal" role="dialog" aria-modal="true" aria-labelledby="import-sparepart-modal-title">
+    <div class="modal-content modal-large adaptive-theme-card import-theme-card">
       <div class="modal-header">
-        <h3>📥 Import Master Spare Part (Excel / CSV)</h3>
-        <button class="close-btn" onclick="closeImportSparePartModal()">&times;</button>
+        <h3 id="import-sparepart-modal-title">📥 Import Master Spare Part (Excel / CSV)</h3>
+        <button type="button" class="close-btn" onclick="closeImportSparePartModal()" aria-label="Tutup import spare part">&times;</button>
       </div>
-      <div class="modal-body">
-        <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0, 229, 255, 0.05); border:1px solid rgba(0, 229, 255, 0.2); border-radius:8px; padding:12px 16px; margin-bottom:16px;">
-          <div>
+      <div class="modal-body adaptive-theme-body import-theme-body">
+        <div class="import-guidance">
+          <div class="import-guidance-copy">
             <strong style="color:var(--predictacore-cyan); font-size:13px;">Format Kolom Excel / CSV yang Didukung:</strong>
             <p style="font-size:11px; color:var(--text-secondary); margin-top:4px; line-height:1.4;">
               Kolom wajib: <code>nama_sparepart</code>, <code>kode_sparepart</code>, <code>asset_number</code> (SN Mesin), <code>nama_mesin</code>, <code>vendor</code>, <code>harga</code>, <code>lifetime_hours</code>, <code>safety_stock</code>, <code>critical_level</code> (CRITICAL/MEDIUM/LOW).
             </p>
           </div>
-          <button class="btn btn-secondary" onclick="downloadSparePartTemplate()" style="white-space:nowrap; font-size:12px; gap:6px;">📄 Unduh Template (CSV)</button>
+          <button type="button" class="btn btn-secondary import-template-btn" onclick="downloadSparePartTemplate()">📄 Unduh Template (CSV)</button>
         </div>
 
-        <div class="form-group" style="margin-bottom:16px;">
-          <label style="font-weight:600; margin-bottom:6px; display:block;">Pilih File Excel (.xlsx, .xls) atau CSV (.csv):</label>
-          <input type="file" id="import-sparepart-file-input" accept=".xlsx, .xls, .csv" onchange="handleSparePartFileUpload(event)" style="padding:10px; background:var(--bg-card); border:1px dashed var(--predictacore-cyan); border-radius:6px; width:100%; color:var(--text-primary); cursor:pointer;">
+        <div class="form-group import-file-field">
+          <label for="import-sparepart-file-input">Pilih File Excel (.xlsx, .xls) atau CSV (.csv):</label>
+          <input class="import-file-input" type="file" id="import-sparepart-file-input" accept=".xlsx, .xls, .csv" onchange="handleSparePartFileUpload(event)">
         </div>
 
-        <div id="import-preview-section" style="display:none; margin-top:16px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <h4 style="font-size:13px; font-weight:700; color:var(--text-primary);">Preview Data Siap Import (<span id="import-count-badge">0</span> Part):</h4>
-            <span style="font-size:11px; color:var(--text-muted);" id="import-file-name-label"></span>
+        <div class="import-preview-section" id="import-preview-section" style="display:none;">
+          <div class="import-preview-heading">
+            <h4>Preview Data Siap Import (<span id="import-count-badge">0</span> Part):</h4>
+            <span class="import-file-name" id="import-file-name-label"></span>
           </div>
-          <div class="table-container" style="max-height:240px; overflow-y:auto;">
+          <div class="table-container import-preview-table">
             <table class="data-table">
               <thead>
                 <tr>
@@ -1114,118 +891,88 @@
           </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeImportSparePartModal()">Batal</button>
-        <button class="btn btn-success" id="btn-execute-import" onclick="executeSparePartImport()" disabled style="opacity:0.5; cursor:not-allowed;">🚀 Proses Import Ke Master Data</button>
+      <div class="modal-footer adaptive-theme-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeImportSparePartModal()">Batal</button>
+        <button type="button" class="btn btn-success" id="btn-execute-import" onclick="executeSparePartImport()" disabled style="opacity:0.5; cursor:not-allowed;">🚀 Proses Import Ke Master Data</button>
       </div>
     </div>
   </div>
 
   <!-- 4. Replacement Dialog Desktop -->
-  <div class="modal" id="replacement-modal">
-    <div class="modal-content">
+  <div class="modal replacement-theme-modal" id="replacement-modal" role="dialog" aria-modal="true" aria-labelledby="replacement-modal-title">
+    <div class="modal-content replacement-theme-card">
       <div class="modal-header">
-        <h3>Pencatatan Penggantian Suku Cadang (Desktop)</h3>
-        <button class="close-btn" onclick="closeReplacementModal()">&times;</button>
+        <h3 id="replacement-modal-title">Pencatatan Penggantian Suku Cadang (Desktop)</h3>
+        <button type="button" class="close-btn" onclick="closeReplacementModal()" aria-label="Tutup pencatatan penggantian">&times;</button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body replacement-theme-body">
         <input type="hidden" id="desktop-replace-part-id">
         <div class="form-group">
-          <label>Spare Part Target</label>
+          <label for="desktop-replace-part-display">Spare Part Target</label>
           <input type="text" id="desktop-replace-part-display" disabled class="disabled-input">
         </div>
         
-        <div class="form-row">
+        <div class="form-row replacement-form-row">
           <div class="form-group flex-1">
-            <label>Jumlah Diganti / Quantity (Qty) <span class="required">*</span></label>
-            <input type="number" id="desktop-replace-qty" value="1" min="1" oninput="calculateDesktopTotalCost()" style="width:100%; padding:10px 12px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:6px; color:var(--text-primary); font-size:13px;">
+            <label for="desktop-replace-qty">Jumlah Diganti / Quantity (Qty) <span class="required">*</span></label>
+            <input type="number" id="desktop-replace-qty" value="1" min="1" oninput="calculateDesktopTotalCost()">
           </div>
           <div class="form-group flex-1">
-            <label>Downtime Mesin (Menit)</label>
+            <label for="desktop-replace-downtime">Downtime Mesin (Menit)</label>
             <input type="number" id="desktop-replace-downtime" value="60">
           </div>
         </div>
 
         <div class="form-group">
-          <label>Total Biaya Maintenance (IDR) <span class="required">*</span></label>
+          <label for="desktop-replace-cost">Total Biaya Maintenance (IDR) <span class="required">*</span></label>
           <input type="number" id="desktop-replace-cost" placeholder="Otomatis terhitung (Qty x Harga)">
-          <span style="font-size:11px; color:var(--predictacore-cyan); font-weight:600; margin-top:4px; display:block;" id="desktop-replace-calc-info">✨ Total Biaya: 1 Qty × Rp 0 = Rp 0</span>
+          <span class="replacement-cost-info" id="desktop-replace-calc-info">✨ Total Biaya: 1 Qty × Rp 0 = Rp 0</span>
         </div>
 
         <div class="form-group">
-          <label>Teknisi Pengganti</label>
+          <label for="desktop-replace-user">Teknisi Pengganti</label>
           <input type="text" id="desktop-replace-user" value="Danko Ariyanto">
         </div>
 
         <div class="form-group">
-          <label>Catatan Penggantian</label>
+          <label for="desktop-replace-notes">Catatan Penggantian</label>
           <textarea id="desktop-replace-notes" placeholder="Catat detail penggantian dan verifikasi..."></textarea>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeReplacementModal()">Batal</button>
-        <button class="btn btn-success" onclick="saveReplacementDesktop()">Log Replacement</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 5. Secure Switch Access Level Modal -->
-  <div class="modal" id="auth-modal">
-    <div class="modal-content" style="max-width: 400px;">
-      <div class="modal-header">
-        <h3>Autentikasi Diperlukan</h3>
-        <button class="close-btn" onclick="cancelRoleSwitch()">&times;</button>
-      </div>
-      <div class="modal-body">
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
-          Silakan masuk dengan kredensial untuk beralih ke hak akses <strong id="auth-target-role" style="color: var(--predictacore-cyan);">ADMIN</strong>.
-        </p>
-        <div class="form-group">
-          <label>Username</label>
-          <input type="text" id="auth-username" placeholder="Masukkan username">
-        </div>
-        <div class="form-group">
-          <label>Password</label>
-          <input type="password" id="auth-password" placeholder="Masukkan password">
-        </div>
-        <div id="auth-error-msg" style="color: var(--color-red); font-size: 11px; margin-top: 4px; display: none;">
-          Username atau password tidak sesuai untuk hak akses target!
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="cancelRoleSwitch()">Batal</button>
-        <button class="btn btn-primary" onclick="submitRoleSwitch()">Log In</button>
+      <div class="modal-footer replacement-theme-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeReplacementModal()">Batal</button>
+        <button type="button" class="btn btn-success" onclick="saveReplacementDesktop()">Log Replacement</button>
       </div>
     </div>
   </div>
 
   <!-- 6. User Management Modal -->
-  <div class="modal" id="user-modal">
-    <div class="modal-content" style="max-width: 450px;">
+  <div class="modal user-theme-modal" id="user-modal">
+    <div class="modal-content user-theme-card">
       <div class="modal-header">
         <h3 id="user-modal-title">Tambah User Baru</h3>
-        <button class="close-btn" onclick="closeUserModal()">&times;</button>
+        <button class="close-btn" type="button" onclick="closeUserModal()" aria-label="Tutup form user">&times;</button>
       </div>
       <div class="modal-body">
         <input type="hidden" id="modal-user-id">
         
         <div class="form-group">
-          <label>Username <span class="required">*</span></label>
+          <label for="modal-user-username">Username <span class="required">*</span></label>
           <input type="text" id="modal-user-username" placeholder="Masukkan username, misal: agus.p">
         </div>
 
         <div class="form-group">
-          <label>Nama Lengkap <span class="required">*</span></label>
+          <label for="modal-user-fullname">Nama Lengkap <span class="required">*</span></label>
           <input type="text" id="modal-user-fullname" placeholder="Masukkan nama lengkap, misal: Agus Prayitno">
         </div>
 
         <div class="form-row">
           <div class="form-group flex-1">
-            <label>Password/PIN <span class="required">*</span></label>
+            <label for="modal-user-password">Password/PIN <span class="required">*</span></label>
             <input type="password" id="modal-user-password" placeholder="Masukkan password/PIN">
           </div>
           <div class="form-group flex-1">
-            <label>Hak Akses (Role) <span class="required">*</span></label>
+            <label for="modal-user-role">Hak Akses (Role) <span class="required">*</span></label>
             <select id="modal-user-role">
               <option value="ADMIN">ADMIN (Full Access)</option>
               <option value="SUPERVISOR">SUPERVISOR (Approval)</option>
@@ -1242,13 +989,13 @@
   </div>
 
   <!-- 7. PLC & IoT Machine Configuration Modal -->
-  <div class="modal" id="plc-config-modal">
-    <div class="modal-content" style="max-width: 520px;">
+  <div class="modal adaptive-theme-modal" id="plc-config-modal" role="dialog" aria-modal="true" aria-labelledby="plc-config-modal-title">
+    <div class="modal-content adaptive-theme-card adaptive-form-card plc-theme-card">
       <div class="modal-header">
         <h3 id="plc-config-modal-title">⚙️ Konfigurasi IP &amp; Address PLC Mesin</h3>
-        <button class="close-btn" onclick="closePlcConfigModal()">&times;</button>
+        <button type="button" class="close-btn" onclick="closePlcConfigModal()" aria-label="Tutup konfigurasi PLC">&times;</button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body adaptive-theme-body">
         <input type="hidden" id="modal-plc-machine-id">
         
         <div class="form-group">
@@ -1312,44 +1059,44 @@
           </span>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closePlcConfigModal()">Batal</button>
-        <button class="btn btn-success" onclick="savePlcConfigData()">💾 Simpan Konfigurasi PLC</button>
+      <div class="modal-footer adaptive-theme-footer">
+        <button type="button" class="btn btn-secondary" onclick="closePlcConfigModal()">Batal</button>
+        <button type="button" class="btn btn-success" onclick="savePlcConfigData()">💾 Simpan Konfigurasi PLC</button>
       </div>
     </div>
   </div>
 
   <!-- 8. PLC Connection Test Diagnostic Result Modal -->
-  <div class="modal" id="plc-test-result-modal">
-    <div class="modal-content" style="max-width: 520px; border: 1px solid var(--predictacore-cyan); box-shadow: 0 0 35px rgba(0, 229, 255, 0.25);">
+  <div class="modal adaptive-theme-modal" id="plc-test-result-modal" role="dialog" aria-modal="true" aria-labelledby="plc-test-modal-title">
+    <div class="modal-content adaptive-theme-card plc-diagnostic-theme-card">
       <div class="modal-header">
         <h3 id="plc-test-modal-title">📡 Diagnostik Koneksi PLC Real-Time</h3>
-        <button class="close-btn" onclick="closePlcTestModal()">&times;</button>
+        <button type="button" class="close-btn" onclick="closePlcTestModal()" aria-label="Tutup hasil diagnostik PLC">&times;</button>
       </div>
-      <div class="modal-body" id="plc-test-modal-body" style="text-align: left;">
+      <div class="modal-body adaptive-theme-body plc-diagnostic-theme-body" id="plc-test-modal-body">
         <!-- Loaded dynamically -->
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closePlcTestModal()">Tutup</button>
-        <button class="btn btn-primary" id="btn-retest-plc" onclick="retestCurrentPlcConnection()">🔄 Uji Ulang Koneksi</button>
+      <div class="modal-footer adaptive-theme-footer">
+        <button type="button" class="btn btn-secondary" onclick="closePlcTestModal()">Tutup</button>
+        <button type="button" class="btn btn-primary" id="btn-retest-plc" onclick="retestCurrentPlcConnection()">🔄 Uji Ulang Koneksi</button>
       </div>
     </div>
   </div>
 
   <!-- Kiosk Mode Lock Overlay -->
-  <div class="kiosk-lock-overlay hidden" id="kiosk-lock">
+  <div class="kiosk-lock-overlay hidden" id="kiosk-lock" role="dialog" aria-modal="true" aria-labelledby="kiosk-lock-title">
     <div class="kiosk-lock-card">
       <span style="font-size: 40px; margin-bottom: 12px;">🚨</span>
-      <h2>KIOSK MODE INTERRUPTED</h2>
+      <h2 id="kiosk-lock-title">KIOSK MODE INTERRUPTED</h2>
       <p>Aset HMI PredictaCore wajib berjalan dalam tampilan Full Screen untuk memantau mesin.</p>
-      <button class="btn btn-primary btn-large btn-block" onclick="lockKioskBackToFullscreen()">Kunci Kiosk (Kembali Full Screen)</button>
-      <div style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px; width: 100%;">
-        <span style="font-size: 11px; color: var(--text-secondary);">Hanya Administrator yang dapat keluar dari Kiosk Mode:</span>
-        <div style="display: flex; gap: 8px; margin-top: 8px;">
-          <input type="password" id="kiosk-admin-pass" placeholder="Password Admin" style="flex:1; background:#0c1017; border:1px solid var(--border-color); color:white; padding:6px; border-radius:4px;">
-          <button class="btn btn-secondary" onclick="unlockKioskByAdmin()">Buka Kunci</button>
+      <button type="button" class="btn btn-primary btn-large btn-block" onclick="lockKioskBackToFullscreen()">Kunci Kiosk (Kembali Full Screen)</button>
+      <div class="kiosk-admin-section">
+        <span class="kiosk-admin-hint">Hanya Administrator yang dapat keluar dari Kiosk Mode:</span>
+        <div class="kiosk-admin-row">
+          <input type="password" id="kiosk-admin-pass" placeholder="Password Admin">
+          <button type="button" class="btn btn-secondary" onclick="unlockKioskByAdmin()">Buka Kunci</button>
         </div>
-        <div id="kiosk-lock-error" style="color: var(--color-red); font-size: 10px; margin-top: 4px; display: none;">Password salah!</div>
+        <div class="kiosk-lock-error" id="kiosk-lock-error">Password salah!</div>
       </div>
     </div>
   </div>
@@ -1365,22 +1112,23 @@
   </div>
 
   <!-- User Authentication / Login Popup Modal -->
-  <div class="modal active" id="login-modal" style="backdrop-filter: blur(12px); background: rgba(3, 5, 8, 0.92); z-index: 10000;">
-    <div class="modal-content" style="max-width: 440px; border: 1px solid var(--predictacore-cyan); box-shadow: 0 0 40px rgba(0, 229, 255, 0.25); border-radius: 12px; padding: 28px;">
+  <div class="modal active login-theme-modal" id="login-modal" style="z-index: 10000;">
+    <div class="modal-content login-theme-card" style="max-width: 440px; border-radius: 12px; padding: 28px;">
+      <button class="theme-toggle-btn login-theme-toggle" id="login-theme-toggle-btn" type="button" onclick="toggleTheme()" title="Gunakan mode terang" aria-label="Gunakan mode terang" aria-pressed="false">☀️</button>
             <div style="text-align: center; margin-bottom: 24px;">
-        <img id="brand-login-logo" src="assets/predictacore_logo.png" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" alt="PREDICTACORE Emblem Logo" style="height: 100px; width: auto; max-width: 240px; object-fit: contain; filter: drop-shadow(0 0 20px rgba(0, 229, 255, 0.75)); margin: 0 auto 12px auto; display: block;">
+        <img id="brand-login-logo" src="assets/predictacore_logo.png" onerror="this.onerror=null; if(window.PREDICTACORE_LOGO) this.src=window.PREDICTACORE_LOGO;" alt="PREDICTACORE Emblem Logo" style="height: clamp(170px, 23vh, 190px); width: clamp(170px, 23vh, 190px); object-fit: contain; margin: 0 auto 12px auto; display: block;">
         <h2 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; letter-spacing: 0.5px;">AUTENTIKASI USER PREDICTACORE</h2>
         <span style="font-size: 12px; color: var(--text-secondary);">Silakan ketik Username &amp; Password / PIN Anda untuk masuk</span>
       </div>
 
       <div class="form-group" style="margin-bottom: 16px;">
         <label style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 12px;">Username <span class="required">*</span></label>
-        <input type="text" id="login-username-input" placeholder="Masukkan Username Anda" onkeyup="if(event.key==='Enter') document.getElementById('login-password-input').focus()" style="width: 100%; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
+        <input type="text" id="login-username-input" placeholder="Masukkan Username Anda" onkeyup="if(event.key==='Enter') document.getElementById('login-password-input').focus()" style="width: 100%; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
       </div>
 
       <div class="form-group" style="margin-bottom: 20px;">
         <label style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 12px;">Password / PIN <span class="required">*</span></label>
-        <input type="password" id="login-password-input" placeholder="Masukkan Password atau PIN" onkeyup="if(event.key==='Enter') performDesktopLogin()" style="width: 100%; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
+        <input type="password" id="login-password-input" placeholder="Masukkan Password atau PIN" onkeyup="if(event.key==='Enter') performDesktopLogin()" style="width: 100%; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
       </div>
 
       <div id="login-error-msg" style="display: none; font-size: 12px; color: var(--color-red); background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; padding: 8px 12px; margin-bottom: 16px; text-align: center;">
@@ -1394,41 +1142,41 @@
   </div>
 
   <!-- Security Reset Authentication Confirmation Modal -->
-  <div class="modal" id="reset-auth-modal" style="backdrop-filter: blur(12px); background: rgba(3, 5, 8, 0.94); z-index: 10005;">
-    <div class="modal-content" style="max-width: 480px; border: 1px solid var(--color-red); box-shadow: 0 0 40px rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 28px;">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <div style="width: 54px; height: 54px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto; font-size: 26px; color: var(--color-red);">
+  <div class="modal reset-auth-theme-modal" id="reset-auth-modal" role="dialog" aria-modal="true" aria-labelledby="reset-auth-title">
+    <div class="modal-content reset-auth-theme-card">
+      <div class="reset-auth-heading">
+        <div class="reset-auth-icon" aria-hidden="true">
           ⚠️
         </div>
-        <h2 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin: 0; letter-spacing: 0.5px;">KONFIRMASI SECURITY RESET</h2>
-        <span style="font-size: 12px; color: var(--text-secondary);">Tindakan destruktif ini membutuhkan konfirmasi otorisasi User &amp; Password</span>
+        <h2 id="reset-auth-title">KONFIRMASI SECURITY RESET</h2>
+        <span>Tindakan destruktif ini membutuhkan konfirmasi otorisasi User &amp; Password</span>
       </div>
 
       <!-- Reset Action Details Box -->
-      <div style="background: rgba(239, 68, 68, 0.08); border: 1px dashed rgba(239, 68, 68, 0.35); border-radius: 8px; padding: 14px; margin-bottom: 20px;">
-        <strong id="reset-action-title" style="display: block; color: var(--color-red); font-size: 14px; margin-bottom: 4px;">🔄 Reset Database Ke Pabrik</strong>
-        <p id="reset-action-desc" style="font-size: 11px; color: var(--text-primary); margin: 0; line-height: 1.4;">Mengembalikan seluruh data mesin, spare part, dan riwayat ke seeder awal demo.</p>
+      <div class="reset-auth-action-box">
+        <strong id="reset-action-title">🔄 Reset Database Ke Pabrik</strong>
+        <p id="reset-action-desc">Mengembalikan seluruh data mesin, spare part, dan riwayat ke seeder awal demo.</p>
       </div>
 
-      <div class="form-group" style="margin-bottom: 16px;">
-        <label style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 12px;">Pilih User Otorisasi (Admin / Supervisor) <span class="required">*</span></label>
-        <select id="reset-user-select" style="width: 100%; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
+      <div class="form-group reset-auth-field">
+        <label for="reset-user-select">Pilih User Otorisasi (Admin / Supervisor) <span class="required">*</span></label>
+        <select id="reset-user-select">
           <!-- Loaded dynamically -->
         </select>
       </div>
 
-      <div class="form-group" style="margin-bottom: 20px;">
-        <label style="font-weight: 600; margin-bottom: 6px; display: block; font-size: 12px;">Password / PIN Konfirmasi <span class="required">*</span></label>
-        <input type="password" id="reset-auth-password" placeholder="Masukkan Password atau PIN akun" onkeyup="if(event.key==='Enter') confirmSecureReset()" style="width: 100%; padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 13px;">
+      <div class="form-group reset-auth-field">
+        <label for="reset-auth-password">Password / PIN Konfirmasi <span class="required">*</span></label>
+        <input type="password" id="reset-auth-password" placeholder="Masukkan Password atau PIN akun" autocomplete="current-password" onkeyup="if(event.key==='Enter') confirmSecureReset()">
       </div>
 
-      <div id="reset-auth-error" style="display: none; font-size: 12px; color: var(--color-red); background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 10px 12px; margin-bottom: 16px; text-align: center;">
+      <div id="reset-auth-error" class="reset-auth-error" role="alert">
         ⚠️ Password / PIN salah atau akun tidak memiliki otorisasi reset.
       </div>
 
-      <div style="display: flex; gap: 12px;">
-        <button class="btn btn-secondary" onclick="closeResetAuthModal()" style="flex: 1; padding: 11px; font-weight: 600;">Batal</button>
-        <button class="btn btn-red" onclick="confirmSecureReset()" style="flex: 1.5; padding: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);">
+      <div class="reset-auth-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeResetAuthModal()">Batal</button>
+        <button type="button" class="btn btn-red" onclick="confirmSecureReset()">
           🚨 Konfirmasi &amp; Reset
         </button>
       </div>

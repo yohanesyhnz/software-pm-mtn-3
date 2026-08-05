@@ -6,7 +6,7 @@ const DEFAULT_SEED_DATA = {
     { id: 1, username: 'admin', password: '', role: 'ADMIN', full_name: 'Danko Ariyanto' },
     { id: 2, username: 'yohanes', password: '', role: 'SUPERVISOR', full_name: 'Yohanes Ariyanto' },
     { id: 3, username: 'BAR', password: '', role: 'TECHNICIAN', full_name: 'BAR' },
-    { id: 4, username: 'YAO', password: '', role: 'ADMIN', full_name: 'YAO Admin' }
+    { id: 4, username: 'Yao', password: '', role: 'ADMIN', full_name: 'Yao' }
   ],
   machines: [
     { id: 1, name: 'High Shear Mixer Granulator', asset_number: 'MC-HSG-001', line_code: 'Granulation Line A', manufacturer: 'Glatt GmbH', install_date: '2024-01-10', status: 'Running', running_hours_total: 0.0, running_hours_daily: 0.0, running_hours_weekly: 0.0, running_hours_monthly: 0.0, last_updated: new Date().toISOString() },
@@ -45,20 +45,54 @@ let currentTab = 'dashboard';
 let apiSandboxConfig = { method: 'GET', endpoint: '/api/machines' };
 let activeConnectors = { PLC: false, MQTT: false, OPCUA: false, MODBUS: false };
 let autoPullTimer = null;
-let simulatedImageBase64 = '';
-let mobileCurrentScreen = 'mscreen-login';
-let mobileLoggedInUser = null;
-let mobileScreenHistory = [];
+const THEME_STORAGE_KEY = 'predictacore-theme';
+const DASHBOARD_MACHINE_ORDER_STORAGE_KEY = 'predictacore-dashboard-machine-order-v1';
+let dashboardMachineOrderMode = false;
+
+function getPreferredTheme() {
+  try {
+    const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (storedTheme === 'dark' || storedTheme === 'light') return storedTheme;
+  } catch (error) {
+    console.warn('Preferensi tema tidak dapat dibaca:', error);
+  }
+
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+function applyTheme(theme, persistPreference = false) {
+  const normalizedTheme = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', normalizedTheme);
+  document.body.setAttribute('data-theme', normalizedTheme);
+
+  const isLight = normalizedTheme === 'light';
+  const nextLabel = isLight ? 'Gunakan mode gelap' : 'Gunakan mode terang';
+  document.querySelectorAll('.theme-toggle-btn').forEach((toggleButton) => {
+    toggleButton.textContent = isLight ? '🌙' : '☀️';
+    toggleButton.title = nextLabel;
+    toggleButton.setAttribute('aria-label', nextLabel);
+    toggleButton.setAttribute('aria-pressed', String(isLight));
+  });
+
+  if (persistPreference) {
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, normalizedTheme);
+    } catch (error) {
+      console.warn('Preferensi tema tidak dapat disimpan:', error);
+    }
+  }
+}
+
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+  applyTheme(currentTheme === 'light' ? 'dark' : 'light', true);
+}
 
 // Initialize System
 window.onload = function() {
+  applyTheme(getPreferredTheme());
   loadDatabase();
-  initializeClock();
   switchTab('dashboard');
-  
-  // Auto detect mobile device or Android APK to activate Fullscreen PM Mobile System
-  checkAndEnableMobileMode();
-  window.addEventListener('resize', checkAndEnableMobileMode);
   
   // Assign embedded PredictaCore logo data URI if available
   if (window.PREDICTACORE_LOGO) {
@@ -92,47 +126,14 @@ window.onload = function() {
   // Start Industrial SCADA Real-Time SSE (Server-Sent Events) Telemetry Stream Engine
   startSseTelemetryEngine();
 
-  // Trigger Desktop Login Popup Modal on desktop initial load after database fetch
+  // Require authenticated access on every supported viewport.
   setTimeout(function() {
-    if (window.innerWidth > 768 && !window.location.search.includes('mode=mobile') && !document.body.classList.contains('mobile-standalone-app')) {
-      openLoginModal();
-    }
+    openLoginModal();
   }, 150);
 
   // Custom console simulation logs
   logToConsole('SYSTEM', 'In-Memory Relational Engine & Silent Auto-Sync initialized successfully.');
 };
-
-function checkAndEnableMobileMode() {
-  const simulator = document.getElementById('android-simulator');
-  const desktopContainer = document.querySelector('.app-container');
-  const loginModal = document.getElementById('login-modal');
-  const isExplicitDesktop = window.innerWidth > 768 || window.location.search.includes('mode=desktop');
-  if (isExplicitDesktop) {
-    // Restore desktop state when crossing back from a mobile viewport.
-    if (desktopContainer) desktopContainer.style.removeProperty('display');
-    if (simulator) {
-      simulator.classList.add('hidden');
-      simulator.style.removeProperty('display');
-    }
-    return;
-  }
-  const isMobile = window.innerWidth <= 768 || window.location.search.includes('mode=mobile');
-
-  if (isMobile) {
-    if (loginModal) loginModal.classList.add('hidden');
-    if (simulator) {
-      simulator.classList.remove('hidden');
-      simulator.style.display = 'block';
-    }
-
-    if (!mobileLoggedInUser) {
-      mobileNavigateTo('login');
-    } else {
-      mobileNavigateTo('home');
-    }
-  }
-}
 
 let autoRefreshTimer = null;
 
@@ -686,82 +687,6 @@ function switchTab(tabName) {
   if (tabName === 'users') renderUsersTable();
 }
 
-let pendingRoleSwitch = null;
-
-function changeUserRole(role) {
-  if (role === activeUser.role) return;
-
-  pendingRoleSwitch = role;
-  
-  // Set target role label in modal
-  document.getElementById('auth-target-role').innerText = role;
-  
-  // Clear inputs and error
-  document.getElementById('auth-username').value = '';
-  document.getElementById('auth-password').value = '';
-  document.getElementById('auth-error-msg').style.display = 'none';
-  
-  // Open modal
-  document.getElementById('auth-modal').classList.add('active');
-}
-
-function cancelRoleSwitch() {
-  // Revert dropdown value
-  document.getElementById('user-role-select').value = activeUser.role;
-  // Close modal
-  document.getElementById('auth-modal').classList.remove('active');
-  pendingRoleSwitch = null;
-}
-
-function submitRoleSwitch() {
-  const usernameIn = document.getElementById('auth-username').value.trim();
-  const passwordIn = document.getElementById('auth-password').value.trim();
-  const errorEl = document.getElementById('auth-error-msg');
-
-  if (!usernameIn || !passwordIn) {
-    errorEl.innerText = 'Username dan password wajib diisi!';
-    errorEl.style.display = 'block';
-    return;
-  }
-
-  // Find user matching credentials and role
-  const matchedUser = dbState.users.find(u => 
-    u.username.toLowerCase() === usernameIn.toLowerCase() && 
-    u.password === passwordIn && 
-    u.role === pendingRoleSwitch
-  );
-
-  if (matchedUser) {
-    changeUserRoleDirect(matchedUser);
-    
-    // Close modal
-    document.getElementById('auth-modal').classList.remove('active');
-    pendingRoleSwitch = null;
-  } else {
-    errorEl.innerText = 'Username, password, atau hak akses tidak cocok!';
-    errorEl.style.display = 'block';
-  }
-}
-
-function changeUserRoleDirect(user) {
-  activeUser = {
-    username: user.username,
-    role: user.role,
-    full_name: user.full_name
-  };
-  
-  document.getElementById('user-full-name').innerText = activeUser.full_name;
-  document.getElementById('user-role-badge').innerText = activeUser.role;
-  document.getElementById('user-role-select').value = activeUser.role;
-  
-  applyRolePermissions();
-
-  if (currentTab === 'machines') renderMachinesTable();
-  if (currentTab === 'spareparts') renderSparePartsTable();
-  
-  logToConsole('SYSTEM', `Hak akses beralih ke ${activeUser.role} (User: ${activeUser.username}).`);
-}
-
 function applyRolePermissions() {
   const addMachineBtn = document.getElementById('add-machine-btn');
   const addPartBtn = document.getElementById('add-part-btn');
@@ -822,10 +747,6 @@ function applyRolePermissions() {
 // --- DESKTOP AUTHENTICATION & LOGIN MODAL HANDLERS ---
 
 function openLoginModal() {
-  if (window.innerWidth <= 768 || window.location.search.includes('mode=mobile') || document.body.classList.contains('mobile-standalone-app')) {
-    return; // NEVER open desktop login modal on mobile screens or mobile app
-  }
-
   if (!dbState.users || !Array.isArray(dbState.users) || dbState.users.length === 0) {
     if (typeof loadDatabase === 'function') loadDatabase();
   }
@@ -927,11 +848,8 @@ async function performDesktopLogin() {
     try {
       const fullNameEl = document.getElementById('user-full-name');
       const roleBadgeEl = document.getElementById('user-role-badge');
-      const roleSelectEl = document.getElementById('user-role-select');
-
       if (fullNameEl) fullNameEl.innerText = activeUser.full_name;
       if (roleBadgeEl) roleBadgeEl.innerText = activeUser.role;
-      if (roleSelectEl) roleSelectEl.value = activeUser.role;
 
       applyRolePermissions();
       saveDatabase();
@@ -945,16 +863,6 @@ async function performDesktopLogin() {
       errEl.style.display = 'block';
     }
   }
-}
-
-// --- CLOCK HELPER ---
-function initializeClock() {
-  setInterval(() => {
-    const now = new Date();
-    const formatted = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-    const phoneClock = document.getElementById('phone-clock');
-    if (phoneClock) phoneClock.innerText = formatted;
-  }, 1000);
 }
 
 // --- DYNAMIC RENDERING: DASHBOARD ---
@@ -1034,77 +942,345 @@ function refreshDashboardData() {
 }
 
 // ─── DASHBOARD REAL-TIME MACHINE STATUS GRID RENDERING ───────────────────────
+function _escapeDashboardText(value) {
+  const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return String(value ?? '').replace(/[&<>"']/g, character => entities[character]);
+}
+
+function _normalizeDashboardLineCode(value) {
+  const lineCode = String(value || '').trim();
+  return lineCode || 'TANPA LINE';
+}
+
+function _getDashboardMachineGroupingInfo(machine) {
+  const name = String(machine.name || machine.asset_number || `Mesin ${machine.id}`).trim();
+  const variantMatch = name.match(/^(.*?)[_\s-]+([AB])$/i);
+  const baseName = variantMatch ? variantMatch[1].trim() : name;
+
+  return {
+    name,
+    baseName,
+    baseKey: baseName.toLocaleUpperCase('id-ID'),
+    variant: variantMatch ? variantMatch[2].toUpperCase() : ''
+  };
+}
+
+function _getDashboardFallbackPairKey(baseKey) {
+  return baseKey.replace(/(\d+)$/, digits => {
+    if (digits.length < 2) return digits;
+    return `${digits.slice(0, -1)}#`;
+  });
+}
+
+function _buildDashboardMachineLines(machines) {
+  const lineMap = new Map();
+
+  machines.forEach(machine => {
+    const lineName = _normalizeDashboardLineCode(machine.line_code);
+    const lineKey = lineName.toLocaleUpperCase('id-ID');
+    const groupingInfo = _getDashboardMachineGroupingInfo(machine);
+
+    if (!lineMap.has(lineKey)) {
+      lineMap.set(lineKey, { key: lineKey, name: lineName, directGroups: new Map() });
+    }
+
+    const line = lineMap.get(lineKey);
+    if (!line.directGroups.has(groupingInfo.baseKey)) {
+      line.directGroups.set(groupingInfo.baseKey, {
+        key: groupingInfo.baseKey,
+        baseKey: groupingInfo.baseKey,
+        machines: []
+      });
+    }
+
+    line.directGroups.get(groupingInfo.baseKey).machines.push({ machine, groupingInfo });
+  });
+
+  const lines = Array.from(lineMap.values()).map(line => {
+    const directGroups = Array.from(line.directGroups.values());
+    const fallbackBuckets = new Map();
+
+    directGroups.forEach(group => {
+      if (group.machines.length !== 1 || !group.machines[0].groupingInfo.variant) return;
+      const fallbackKey = _getDashboardFallbackPairKey(group.baseKey);
+      if (!fallbackBuckets.has(fallbackKey)) fallbackBuckets.set(fallbackKey, []);
+      fallbackBuckets.get(fallbackKey).push(group);
+    });
+
+    const consumedGroups = new Set();
+    const mergedGroups = [];
+
+    directGroups.forEach(group => {
+      if (consumedGroups.has(group.key)) return;
+
+      const fallbackKey = _getDashboardFallbackPairKey(group.baseKey);
+      const fallbackMatches = fallbackBuckets.get(fallbackKey) || [];
+      const variants = new Set(fallbackMatches.map(item => item.machines[0].groupingInfo.variant));
+
+      if (group.machines.length === 1 && fallbackMatches.length === 2 && variants.has('A') && variants.has('B')) {
+        fallbackMatches.forEach(item => consumedGroups.add(item.key));
+        mergedGroups.push({
+          key: fallbackMatches.map(item => item.key).sort().join('::'),
+          machines: fallbackMatches.flatMap(item => item.machines)
+        });
+      } else {
+        consumedGroups.add(group.key);
+        mergedGroups.push(group);
+      }
+    });
+
+    const groups = mergedGroups.map(group => {
+      const sortedMachines = [...group.machines].sort((left, right) => {
+        const variantRank = { A: 0, B: 1, '': 2 };
+        const rankDifference = variantRank[left.groupingInfo.variant] - variantRank[right.groupingInfo.variant];
+        if (rankDifference !== 0) return rankDifference;
+        return left.groupingInfo.name.localeCompare(right.groupingInfo.name, 'id-ID', { numeric: true, sensitivity: 'base' });
+      });
+      const baseNames = [...new Set(sortedMachines.map(item => item.groupingInfo.baseName))];
+
+      return {
+        key: group.key,
+        label: baseNames.join(' / '),
+        machines: sortedMachines.map(item => item.machine)
+      };
+    });
+
+    return {
+      key: line.key,
+      name: line.name,
+      machineCount: groups.reduce((total, group) => total + group.machines.length, 0),
+      groups
+    };
+  });
+
+  return lines.sort((left, right) => {
+    const leftNumber = Number((left.name.match(/\d+/) || [Number.MAX_SAFE_INTEGER])[0]);
+    const rightNumber = Number((right.name.match(/\d+/) || [Number.MAX_SAFE_INTEGER])[0]);
+    if (leftNumber !== rightNumber) return leftNumber - rightNumber;
+    return left.name.localeCompare(right.name, 'id-ID', { numeric: true, sensitivity: 'base' });
+  });
+}
+
+function _readDashboardMachineOrder() {
+  try {
+    const savedOrder = JSON.parse(window.localStorage.getItem(DASHBOARD_MACHINE_ORDER_STORAGE_KEY) || '{}');
+    return savedOrder && typeof savedOrder === 'object' && !Array.isArray(savedOrder) ? savedOrder : {};
+  } catch (error) {
+    console.warn('Urutan dashboard mesin tidak dapat dibaca:', error);
+    return {};
+  }
+}
+
+function _writeDashboardMachineOrder(order) {
+  try {
+    window.localStorage.setItem(DASHBOARD_MACHINE_ORDER_STORAGE_KEY, JSON.stringify(order));
+    return true;
+  } catch (error) {
+    console.warn('Urutan dashboard mesin tidak dapat disimpan:', error);
+    return false;
+  }
+}
+
+function _applyDashboardMachineOrder(line, savedOrder) {
+  const defaultGroups = [...line.groups].sort((left, right) =>
+    left.label.localeCompare(right.label, 'id-ID', { numeric: true, sensitivity: 'base' })
+  );
+  const groupsByKey = new Map(defaultGroups.map(group => [group.key, group]));
+  const savedKeys = Array.isArray(savedOrder[line.key]) ? savedOrder[line.key] : [];
+  const orderedGroups = [];
+
+  savedKeys.forEach(key => {
+    if (!groupsByKey.has(key)) return;
+    orderedGroups.push(groupsByKey.get(key));
+    groupsByKey.delete(key);
+  });
+
+  return [...orderedGroups, ...groupsByKey.values()];
+}
+
+function _encodeDashboardOrderKey(value) {
+  return encodeURIComponent(value).replace(/'/g, '%27');
+}
+
+function _announceDashboardMachineOrder(message) {
+  const status = document.getElementById('machine-order-status');
+  if (status) status.textContent = message;
+}
+
+function _syncDashboardMachineOrderControls() {
+  const section = document.querySelector('.machine-status-section');
+  const toggleButton = document.getElementById('machine-order-toggle');
+  const resetButton = document.getElementById('machine-order-reset');
+
+  if (section) section.classList.toggle('is-reordering', dashboardMachineOrderMode);
+  if (toggleButton) {
+    toggleButton.innerHTML = dashboardMachineOrderMode ? '✅ Selesai Mengatur' : '↕️ Atur Urutan';
+    toggleButton.setAttribute('aria-pressed', String(dashboardMachineOrderMode));
+  }
+  if (resetButton) resetButton.classList.toggle('hidden', !dashboardMachineOrderMode);
+}
+
+function toggleDashboardMachineOrderMode() {
+  dashboardMachineOrderMode = !dashboardMachineOrderMode;
+  renderDashboardMachineCards();
+  _announceDashboardMachineOrder(
+    dashboardMachineOrderMode
+      ? 'Mode pengaturan urutan aktif. Gunakan tombol naik dan turun pada setiap kelompok mesin.'
+      : 'Urutan tampilan mesin telah disimpan di browser ini.'
+  );
+}
+
+function moveDashboardMachineGroup(encodedLineKey, encodedGroupKey, direction) {
+  const lineKey = decodeURIComponent(encodedLineKey);
+  const groupKey = decodeURIComponent(encodedGroupKey);
+  const savedOrder = _readDashboardMachineOrder();
+  const line = _buildDashboardMachineLines(dbState.machines || []).find(item => item.key === lineKey);
+  if (!line) return;
+
+  const orderedGroups = _applyDashboardMachineOrder(line, savedOrder);
+  const currentIndex = orderedGroups.findIndex(group => group.key === groupKey);
+  const nextIndex = currentIndex + Number(direction);
+  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= orderedGroups.length) return;
+
+  [orderedGroups[currentIndex], orderedGroups[nextIndex]] = [orderedGroups[nextIndex], orderedGroups[currentIndex]];
+  savedOrder[lineKey] = orderedGroups.map(group => group.key);
+
+  if (_writeDashboardMachineOrder(savedOrder)) {
+    const movedGroup = orderedGroups[nextIndex];
+    renderDashboardMachineCards();
+    _announceDashboardMachineOrder(`${movedGroup.label} dipindahkan pada ${line.name}.`);
+  }
+}
+
+function resetDashboardMachineOrder() {
+  try {
+    window.localStorage.removeItem(DASHBOARD_MACHINE_ORDER_STORAGE_KEY);
+  } catch (error) {
+    console.warn('Urutan dashboard mesin tidak dapat direset:', error);
+  }
+
+  renderDashboardMachineCards();
+  _announceDashboardMachineOrder('Urutan mesin dikembalikan ke urutan nama A–Z dengan pasangan A/B tetap berdekatan.');
+}
+
+function _renderDashboardMachineCard(machine) {
+  const isRunning = machine.status === 'RUNNING' || machine.telemetry_status === 'RUNNING';
+  const statusClass = isRunning ? 'running' : 'stopped';
+  const statusBadge = isRunning
+    ? `<span class="dash-status-badge"><span class="pulse-dot-green"></span> RUNNING</span>`
+    : `<span class="dash-status-badge"><span class="pulse-dot-red"></span> STOPPED</span>`;
+  const safeName = _escapeDashboardText(machine.name || '-');
+  const safeAssetNumber = _escapeDashboardText(machine.asset_number || '-');
+
+  let machineIcon = '⚙️';
+  const nameUpper = String(machine.name || '').toUpperCase();
+  const assetUpper = String(machine.asset_number || '').toUpperCase();
+
+  if (nameUpper.includes('RRU') || assetUpper.includes('RRU')) machineIcon = '🧼';
+  else if (nameUpper.includes('HQL') || assetUpper.includes('HQL')) machineIcon = '🔥';
+  else if (nameUpper.includes('ALF') || assetUpper.includes('ALF')) machineIcon = '🧪';
+  else if (nameUpper.includes('ROTA') || assetUpper.includes('ROTA') || nameUpper.includes('LABEL') || assetUpper.includes('LABEL')) machineIcon = '🏷️';
+
+  const getColumnName = address => {
+    if (!address) return '';
+    const parts = address.split(';');
+    return parts.length > 1 ? parts[1].trim().toLowerCase() : '';
+  };
+  const counterColumn = getColumnName(machine.plc_counter_address);
+  const isVelocityMachine = machine.plc_protocol === 'PostgreSQL' && (
+    (counterColumn && (counterColumn.includes('velo') || counterColumn.includes('velocity') || counterColumn.includes('speed') || counterColumn.includes('m_s'))) ||
+    (!counterColumn && (nameUpper.includes('HQL') || assetUpper.includes('HQL')))
+  );
+  const metricValue = machine.counter_product !== undefined
+    ? (isVelocityMachine ? `${machine.counter_product} m/s` : `${Number(machine.counter_product).toLocaleString()} pcs`)
+    : '-';
+  const metricLabel = isVelocityMachine ? 'KECEPATAN' : 'COUNTER';
+  const runningHours = Number(machine.running_hours_total) || 0;
+
+  return `
+    <div class="dash-machine-card ${statusClass}" id="dash-machine-card-${machine.id}">
+      <div class="dash-machine-header">
+        <div class="dash-machine-main">
+          <div class="dash-machine-icon">${machineIcon}</div>
+          <div class="dash-machine-title">
+            <span class="dash-machine-name" title="${safeName}">${safeName}</span>
+            <span class="dash-machine-asset">${safeAssetNumber}</span>
+          </div>
+        </div>
+        ${statusBadge}
+      </div>
+      <div class="dash-machine-telemetry">
+        <div class="dash-metric-box">
+          <span class="dash-metric-label">${metricLabel}</span>
+          <span class="dash-metric-val" id="dash-card-metric-${machine.id}">${metricValue}</span>
+        </div>
+        <div class="dash-metric-box" style="text-align:right;">
+          <span class="dash-metric-label">RUNNING HOURS</span>
+          <span class="dash-metric-val" id="dash-card-rh-${machine.id}" style="color:var(--text-primary);">${runningHours.toFixed(1)} Hrs</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderDashboardMachineCards() {
   const container = document.getElementById('dashboard-machine-status-grid');
   if (!container) return;
   container.innerHTML = '';
 
+  _syncDashboardMachineOrderControls();
+
   if (!dbState.machines || !Array.isArray(dbState.machines) || dbState.machines.length === 0) {
-    container.innerHTML = `<div style="grid-column: 1 / -1; text-align:center; padding:20px; color:var(--text-muted);">Belum ada data mesin terdaftar.</div>`;
+    container.innerHTML = `<div class="machine-status-empty">Belum ada data mesin terdaftar.</div>`;
     return;
   }
 
-  dbState.machines.forEach(m => {
-    const isRunning = m.status === 'RUNNING' || m.telemetry_status === 'RUNNING';
-    const statusClass = isRunning ? 'running' : 'stopped';
-    const statusBadge = isRunning 
-      ? `<span class="dash-status-badge"><span class="pulse-dot-green"></span> RUNNING</span>`
-      : `<span class="dash-status-badge"><span class="pulse-dot-red"></span> STOPPED</span>`;
+  const savedOrder = _readDashboardMachineOrder();
+  const lines = _buildDashboardMachineLines(dbState.machines);
 
-    // Detect icon per machine type
-    let machineIcon = '⚙️';
-    const nameUpper = (m.name || '').toUpperCase();
-    const assetUpper = (m.asset_number || '').toUpperCase();
+  container.innerHTML = lines.map(line => {
+    const orderedGroups = _applyDashboardMachineOrder(line, savedOrder);
+    const lineArgument = _encodeDashboardOrderKey(line.key);
+    const allGroupsAreSingle = orderedGroups.every(group => group.machines.length === 1);
+    const lineClass = allGroupsAreSingle ? ' all-single' : '';
+    const groupsHtml = orderedGroups.map((group, index) => {
+      const groupArgument = _encodeDashboardOrderKey(group.key);
+      const safeGroupLabel = _escapeDashboardText(group.label);
+      const groupClass = group.machines.length === 1 ? ' is-single' : ' is-pair';
+      const groupType = group.machines.length === 1 ? 'Mesin tunggal' : 'Pasangan mesin A/B';
+      const previousDisabled = index === 0 ? ' disabled' : '';
+      const nextDisabled = index === orderedGroups.length - 1 ? ' disabled' : '';
 
-    if (nameUpper.includes('RRU') || assetUpper.includes('RRU')) machineIcon = '🧼';
-    else if (nameUpper.includes('HQL') || assetUpper.includes('HQL')) machineIcon = '🔥';
-    else if (nameUpper.includes('ALF') || assetUpper.includes('ALF')) machineIcon = '🧪';
-    else if (nameUpper.includes('ROTA') || assetUpper.includes('ROTA') || nameUpper.includes('LABEL') || assetUpper.includes('LABEL')) machineIcon = '🏷️';
-
-    // Detect metric (Counter vs Speed)
-    const _getCol = (addr) => {
-      if (!addr) return '';
-      const parts = addr.split(';');
-      return parts.length > 1 ? parts[1].trim().toLowerCase() : '';
-    };
-    const _cCol = _getCol(m.plc_counter_address);
-    const isVeloMachine = (m.plc_protocol === 'PostgreSQL') && (
-      (_cCol && (_cCol.includes('velo') || _cCol.includes('velocity') || _cCol.includes('speed') || _cCol.includes('m_s'))) ||
-      (!_cCol && (nameUpper.includes('HQL') || assetUpper.includes('HQL')))
-    );
-
-    const valFormatted = m.counter_product !== undefined 
-      ? (isVeloMachine ? `${m.counter_product} m/s` : `${Number(m.counter_product).toLocaleString()} pcs`)
-      : '-';
-
-    const metricLabel = isVeloMachine ? 'KECEPATAN' : 'COUNTER';
-
-    const cardHtml = `
-      <div class="dash-machine-card ${statusClass}" id="dash-machine-card-${m.id}">
-        <div class="dash-machine-header">
-          <div class="dash-machine-main">
-            <div class="dash-machine-icon">${machineIcon}</div>
-            <div class="dash-machine-title">
-              <span class="dash-machine-name" title="${m.name}">${m.name}</span>
-              <span class="dash-machine-asset">${m.asset_number}</span>
+      return `
+        <article class="machine-pair-group${groupClass}" data-order-key="${_escapeDashboardText(group.key)}">
+          <div class="machine-pair-header">
+            <div class="machine-pair-heading">
+              <strong>${safeGroupLabel}</strong>
+              <span>${groupType}</span>
+            </div>
+            <div class="machine-pair-order-controls" aria-label="Atur urutan ${safeGroupLabel}">
+              <button type="button" class="machine-order-btn" onclick="moveDashboardMachineGroup('${lineArgument}', '${groupArgument}', -1)" aria-label="Naikkan ${safeGroupLabel}" title="Pindahkan sebelumnya"${previousDisabled}>↑</button>
+              <span>${index + 1}</span>
+              <button type="button" class="machine-order-btn" onclick="moveDashboardMachineGroup('${lineArgument}', '${groupArgument}', 1)" aria-label="Turunkan ${safeGroupLabel}" title="Pindahkan berikutnya"${nextDisabled}>↓</button>
             </div>
           </div>
-          ${statusBadge}
-        </div>
-        <div class="dash-machine-telemetry">
-          <div class="dash-metric-box">
-            <span class="dash-metric-label">${metricLabel}</span>
-            <span class="dash-metric-val" id="dash-card-metric-${m.id}">${valFormatted}</span>
+          <div class="machine-pair-cards">
+            ${group.machines.map(machine => _renderDashboardMachineCard(machine)).join('')}
           </div>
-          <div class="dash-metric-box" style="text-align:right;">
-            <span class="dash-metric-label">RUNNING HOURS</span>
-            <span class="dash-metric-val" id="dash-card-rh-${m.id}" style="color:var(--text-primary);">${(m.running_hours_total || 0).toFixed(1)} Hrs</span>
-          </div>
+        </article>
+      `;
+    }).join('');
+
+    return `
+      <section class="machine-line-section${lineClass}" data-line="${_escapeDashboardText(line.key)}" aria-labelledby="machine-line-${_encodeDashboardOrderKey(line.key)}">
+        <div class="machine-line-header">
+          <h4 id="machine-line-${_encodeDashboardOrderKey(line.key)}">${_escapeDashboardText(line.name)}</h4>
+          <span>${line.machineCount} mesin · ${orderedGroups.length} kelompok</span>
         </div>
-      </div>
+        <div class="machine-pairs-grid">${groupsHtml}</div>
+      </section>
     `;
-    container.innerHTML += cardHtml;
-  });
+  }).join('');
 }
 
 function _updateDashboardMachineCard(m) {
@@ -3612,13 +3788,13 @@ function renderPlcDiagnosticResultUI(machine, resData) {
     : '-';
 
   body.innerHTML = `
-    <div style="background: ${isConnected ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)'}; border: 1px solid ${statusColor}; border-radius: 10px; padding: 18px; margin-bottom: 16px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 12px;">
-        <strong style="font-size: 14px; color: #fff;">Aset: ${machine.name} (${machine.asset_number})</strong>
-        <span style="font-weight: 800; font-size: 12px; color: ${statusColor}; background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 20px; border: 1px solid ${statusColor};">${statusIcon}</span>
+    <div class="plc-diagnostic-panel" style="background: ${isConnected ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)'}; border-color: ${statusColor};">
+      <div class="plc-diagnostic-header">
+        <strong class="plc-diagnostic-asset">Aset: ${machine.name} (${machine.asset_number})</strong>
+        <span class="plc-diagnostic-status" style="color: ${statusColor}; border-color: ${statusColor};">${statusIcon}</span>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px;">
+      <div class="plc-diagnostic-grid">
         <div><span style="color: var(--text-secondary);">IP Address PLC:</span><br><code style="font-weight:700; color:var(--predictacore-cyan); font-size:13px;">${resData.ip}:${resData.port}</code></div>
         <div><span style="color: var(--text-secondary);">Protokol:</span><br><strong>${resData.protocol}</strong></div>
         <div><span style="color: var(--text-secondary);">Tag Bit Address:</span><br><code style="color:var(--color-yellow); font-weight:700;">${resData.address}</code></div>
@@ -3628,13 +3804,13 @@ function renderPlcDiagnosticResultUI(machine, resData) {
       </div>
     </div>
 
-    <div style="font-size: 12px; color: var(--text-primary); line-height: 1.5; background: var(--bg-card); padding: 12px; border-radius: 6px; border: 1px solid var(--border-color);">
+    <div class="plc-diagnostic-summary">
       <strong>📝 Hasil Diagnostik System:</strong>
-      <div style="margin: 6px 0 0 0; color: ${isConnected ? '#00e5ff' : '#f97316'}; font-size: 11px; max-height: 140px; overflow-y: auto; word-break: break-word; background: rgba(0,0,0,0.25); padding: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05);">
+      <div class="plc-diagnostic-message" style="color: ${isConnected ? 'var(--predictacore-cyan)' : 'var(--color-orange)'};">
         ${resData.message}
       </div>
       ${!isConnected ? `
-        <div style="margin-top: 8px; font-size: 11px; color: #94a3b8; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 6px;">
+        <div class="plc-diagnostic-troubleshooting">
           <strong>💡 Langkah Troubleshooting jika Tabel Tidak Ditemukan:</strong>
           <ol style="margin: 4px 0 0 16px; padding: 0;">
             <li>Periksa daftar tabel yang terdeteksi pada pesan diagnostik di atas.</li>
@@ -4527,22 +4703,6 @@ function updateUIPendingItems() {
     renderNotificationDropdown();
   }
   
-  // Mobile counts
-  const mobileBadge = document.getElementById('mobile-alert-count');
-  if (mobileBadge) {
-    mobileBadge.innerText = unreadCount;
-    if (unreadCount > 0) {
-      mobileBadge.classList.remove('hidden');
-    } else {
-      mobileBadge.classList.add('hidden');
-    }
-  }
-
-  // Auto refresh mobile notifications screen ONLY if currently active to avoid recursion
-  const mobileNotifList = document.getElementById('mobile-notifications-list');
-  if (mobileNotifList && typeof mobileCurrentScreen !== 'undefined' && mobileCurrentScreen === 'mscreen-notifications') {
-    loadMobileNotificationsScreen();
-  }
 }
 
 function toggleNotificationDropdown() {
@@ -4932,7 +5092,7 @@ function downloadBackupReportPDF() {
         body { font-family: 'Segoe UI', Roboto, Helvetica, sans-serif; background: #0b0f17; color: #e2e8f0; margin: 0; padding: 40px; }
         .report-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #00e5ff; padding-bottom: 20px; margin-bottom: 30px; }
         .logo-box { display: flex; align-items: center; gap: 16px; }
-        .logo-img { width: 70px; height: 70px; object-fit: contain; filter: drop-shadow(0 0 12px rgba(0,229,255,0.6)); }
+        .logo-img { width: 110px; height: 110px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 0 12px rgba(0,229,255,0.6)); }
         .title-box h1 { color: #00e5ff; margin: 0; font-size: 22px; font-weight: 800; letter-spacing: 1px; }
         .title-box p { color: #94a3b8; font-size: 12px; margin: 4px 0 0 0; }
         .meta-box { text-align: right; font-size: 11px; color: #94a3b8; line-height: 1.5; }
@@ -5100,457 +5260,6 @@ function updateMachineSelectDropdowns() {
   }
 }
 
-// --- FLOATING ANDROID SIMULATOR CONTROLLERS ---
-
-function toggleAndroidSimulator() {
-  const sim = document.getElementById('android-simulator');
-  sim.classList.toggle('hidden');
-  if (!sim.classList.contains('hidden')) {
-    // Boot simulator
-    mobileNavigateTo('login');
-    logToConsole('SYSTEM', 'Android phone mockup simulator toggled ON.');
-  } else {
-    logToConsole('SYSTEM', 'Android phone mockup simulator toggled OFF.');
-  }
-}
-
-function mobileNavigateTo(screenId) {
-  // Navigation stack logic
-  mobileCurrentScreen = `mscreen-${screenId}`;
-  
-  // Hide all screens
-  document.querySelectorAll('.mobile-screen').forEach(s => {
-    s.classList.remove('active');
-  });
-
-  // Display selected
-  const activeScreen = document.getElementById(mobileCurrentScreen);
-  if(activeScreen) activeScreen.classList.add('active');
-
-  // Nav arrow back visibility
-  const backArrow = document.getElementById('phone-back-arrow');
-  if (screenId === 'home' || screenId === 'login') {
-    if(backArrow) backArrow.classList.add('hidden');
-  } else {
-    if(backArrow) backArrow.classList.remove('hidden');
-  }
-
-  // Set titles
-  const titles = {
-    login: 'PM Mobile System',
-    home: 'Factory Portal',
-    scan: 'Pindai QR Mesin',
-    machinedetails: 'Detail Asset',
-    hours: 'Update Running Hours',
-    replace: 'Ganti Spare Part',
-    notifications: 'Warning & Alerts'
-  };
-  document.getElementById('phone-app-title').innerText = titles[screenId] || 'PM System';
-
-  // Toggle bottom bar based on login state
-  const botBar = document.getElementById('phone-nav-bar');
-  if (screenId === 'login') {
-    botBar.classList.remove('active');
-  } else {
-    botBar.classList.add('active');
-  }
-
-  // Highlight tab bar buttons
-  document.querySelectorAll('.phone-tab-item').forEach(btn => {
-    btn.classList.remove('active');
-  });
-  
-  // Custom highlight map
-  const activeTabIdx = { home: 0, scan: 1, hours: 2, replace: 3 }[screenId];
-  if(activeTabIdx !== undefined) {
-    const tabs = botBar.querySelectorAll('.phone-tab-item');
-    if(tabs[activeTabIdx]) tabs[activeTabIdx].classList.add('active');
-  }
-
-  // Load screen data
-  if (screenId === 'home') loadMobileHomeScreen();
-  if (screenId === 'scan') loadMobileScanScreen();
-  if (screenId === 'hours') loadMobileHoursScreen();
-  if (screenId === 'replace') loadMobileReplaceScreen();
-  if (screenId === 'notifications') loadMobileNotificationsScreen();
-}
-
-function mobileNavigateBack() {
-  mobileNavigateTo('home');
-}
-
-function mobileLogin() {
-  const user = document.getElementById('mobile-user-input').value.trim();
-  const pin = document.getElementById('mobile-pin-input').value.trim();
-
-  // Find user match (case-insensitive username check)
-  const matched = dbState.users.find(u => 
-    u.username.toLowerCase() === user.toLowerCase() && u.password === pin
-  ) || dbState.users.find(u => 
-    u.full_name.toLowerCase().includes(user.toLowerCase()) && u.password === pin
-  );
-
-  if (matched) {
-    mobileLoggedInUser = matched;
-    const nameEl = document.getElementById('mobile-tech-name');
-    const badgeEl = document.getElementById('user-role-badge');
-    if (nameEl) nameEl.innerText = matched.full_name;
-    if (badgeEl) badgeEl.innerText = matched.role;
-    
-    // Auto switch parent dashboard role selection for visual sync
-    const selectRole = document.getElementById('user-role-select');
-    if (selectRole && typeof changeUserRoleDirect === 'function') {
-      changeUserRoleDirect(matched);
-    }
-
-    mobileNavigateTo('home');
-    logToConsole('SYSTEM', `Mobile Login sukses: ${matched.full_name} (${matched.role})`);
-  } else {
-    alert(`Login Gagal: Username "${user}" atau Password/PIN salah. Hubungi Administrator jika akun belum dikonfigurasi.`);
-  }
-}
-
-function loadMobileHomeScreen() {
-  // Populate mobile active critical jobs (warning parts details)
-  const list = document.getElementById('mobile-jobs-list');
-  list.innerHTML = '';
-
-  let count = 0;
-  dbState.spare_parts.forEach(p => {
-    const machine = dbState.machines.find(m => m.id === p.machine_id);
-    const daily = machine ? machine.running_hours_daily : 20;
-    const calc = getSparePartCalculatedDetails(p, daily);
-
-    if (calc.status !== 'NORMAL') {
-      count++;
-      let colorCircle = '🔴';
-      if(calc.status.includes('WARNING LEVEL 1')) colorCircle = '🟡';
-      if(calc.status.includes('WARNING LEVEL 2')) colorCircle = '🟠';
-
-      const card = `
-        <div class="mobile-job-card" onclick="mobileNavigateTo('replace'); document.getElementById('mobile-replace-part-id').value = ${p.id};">
-          <div class="mobile-job-info">
-            <span class="mobile-job-name">${colorCircle} ${p.name}</span>
-            <span class="mobile-job-desc">${machine ? machine.name : 'Mesin'} | Sisa: ${calc.remaining_life_pct}%</span>
-          </div>
-          <span style="font-size:12px;">➡️</span>
-        </div>
-      `;
-      list.innerHTML += card;
-    }
-  });
-
-  if(count === 0) {
-    list.innerHTML = '<div class="notification-empty" style="padding:10px; font-size:11px;">Semua mesin aman dan normal.</div>';
-  }
-
-  // Update notification counts in real time
-  updateUIPendingItems();
-}
-
-function loadMobileScanScreen() {
-  const select = document.getElementById('qr-mock-select');
-  select.innerHTML = '<option value="">-- Pilih Mesin --</option>';
-  dbState.machines.forEach(m => {
-    select.innerHTML += `<option value="${m.id}">${m.name} (${m.asset_number})</option>`;
-  });
-}
-
-function mobileSimulateQrScan(machineId) {
-  if(!machineId) return;
-  const m = dbState.machines.find(mac => mac.id == machineId);
-  if (!m) return;
-
-  const parts = dbState.spare_parts.filter(sp => sp.machine_id === m.id);
-  const daily = m.running_hours_daily > 0 ? m.running_hours_daily : 20;
-
-  // Build detail body in mobile screen
-  const container = document.getElementById('mobile-m-details');
-  
-  let partsHTML = '';
-  parts.forEach(p => {
-    const calc = getSparePartCalculatedDetails(p, daily);
-    let colorIcon = '🟢';
-    if(calc.status === 'WARNING LEVEL 1') colorIcon = '🟡';
-    else if(calc.status === 'WARNING LEVEL 2') colorIcon = '🟠';
-    else if(calc.status === 'ACTION REQUIRED' || calc.status === 'OVERDUE') colorIcon = '🔴';
-
-    partsHTML += `
-      <div class="mobile-part-item">
-        <div class="mobile-part-info">
-          <span class="mobile-part-name">${colorIcon} ${p.name}</span>
-          <span class="mobile-part-life">Counter: ${p.current_running_hours.toFixed(0)}/${p.lifetime_hours} Jam (${calc.remaining_life_pct}%)</span>
-        </div>
-        <button class="btn btn-secondary" style="padding:4px 8px; font-size:10px;" onclick="mobileNavigateTo('replace'); document.getElementById('mobile-replace-part-id').value = ${p.id};">Ganti</button>
-      </div>
-    `;
-  });
-
-  if(parts.length === 0) {
-    partsHTML = '<div class="notification-empty" style="font-size:10px;">Belum ada spare part terdaftar.</div>';
-  }
-
-  container.innerHTML = `
-    <div class="mobile-m-header">
-      <div class="mobile-m-name">${m.name}</div>
-      <div class="mobile-m-asset">Asset No: ${m.asset_number}</div>
-    </div>
-    
-    <div class="mobile-m-stats">
-      <div class="mobile-stat-box"><span class="mobile-stat-label">Line Produksi</span><span class="mobile-stat-value">${m.line_code}</span></div>
-      <div class="mobile-stat-box"><span class="mobile-stat-label">Running Hours</span><span class="mobile-stat-value">${m.running_hours_total.toFixed(1)} Jam</span></div>
-      <div class="mobile-stat-box"><span class="mobile-stat-label">Manufacturer</span><span class="mobile-stat-value">${m.manufacturer}</span></div>
-      <div class="mobile-stat-box"><span class="mobile-stat-label">Status Mesin</span><span class="mobile-stat-value">${m.status}</span></div>
-    </div>
-
-    <div style="font-size:11px; font-weight:700; margin-top:8px; color:var(--text-secondary);">DAFTAR SPARE PARTS</div>
-    <div>${partsHTML}</div>
-
-    <!-- Quick update hours inside QR scan detail -->
-    <div class="mobile-input-group" style="margin-top:10px;">
-      <label>Tambah Running Hours</label>
-      <div style="display:flex; gap:6px;">
-        <input type="number" id="mobile-qr-quick-hours" placeholder="Jam" style="flex:1;">
-        <button class="btn btn-primary" onclick="mobileSubmitQuickHours(${m.id})">Simpan</button>
-      </div>
-    </div>
-  `;
-
-  // Navigate to machine details screen
-  mobileNavigateTo('machinedetails');
-  // Log event
-  logToConsole('SYSTEM', `QR Scan Sukses: Membuka dashboard mobile mesin ${m.name}.`);
-}
-
-function mobileSubmitQuickHours(machineId) {
-  const val = parseFloat(document.getElementById('mobile-qr-quick-hours').value);
-  if (isNaN(val)) {
-    alert('Masukkan angka Hour Meter (Current RH) yang valid.');
-    return;
-  }
-  
-  const result = updateMachineHourMeterByCurrentRH(machineId, val, mobileLoggedInUser ? mobileLoggedInUser.full_name : 'Technician', 'Mobile-QR');
-  if (result && result.success) {
-    showMobileToastNotification(
-      '✅ Update Hour Meter Sukses!', 
-      `Final RH: ${result.currentRH.toFixed(1)} Jam (+${result.dailyRH.toFixed(1)} Jam selisih hari ini).`
-    );
-    mobileSimulateQrScan(machineId);
-  }
-}
-
-function loadMobileHoursScreen() {
-  const select = document.getElementById('mobile-hours-machine-id');
-  if (!select) return;
-  select.innerHTML = '';
-  dbState.machines.forEach(m => {
-    select.innerHTML += `<option value="${m.id}">${m.name} (${m.asset_number})</option>`;
-  });
-  onMobileMachineHoursSelectChange();
-}
-
-function onMobileMachineHoursSelectChange() {
-  const select = document.getElementById('mobile-hours-machine-id');
-  if (!select) return;
-  const machineId = parseInt(select.value);
-  const m = dbState.machines.find(mac => Number(mac.id) === machineId);
-  const prevDisplay = document.getElementById('mobile-previous-rh-display');
-  const previousRH = m ? (Number(m.running_hours_total) || 0) : 0;
-  if (prevDisplay) prevDisplay.innerText = previousRH.toFixed(1) + ' Jam';
-  calculateMobileDailyRhPreview();
-}
-
-function calculateMobileDailyRhPreview() {
-  const select = document.getElementById('mobile-hours-machine-id');
-  const input = document.getElementById('mobile-hours-added');
-  const preview = document.getElementById('mobile-daily-rh-preview');
-  if (!select || !input || !preview) return;
-
-  const machineId = parseInt(select.value);
-  const m = dbState.machines.find(mac => Number(mac.id) === machineId);
-  const previousRH = m ? (Number(m.running_hours_total) || 0) : 0;
-  const currentRH = parseFloat(input.value);
-
-  if (isNaN(currentRH)) {
-    preview.innerHTML = `Daily RH = Current RH - ${previousRH.toFixed(1)} Jam`;
-    preview.style.color = 'var(--text-muted)';
-  } else if (currentRH < previousRH) {
-    preview.innerHTML = `⚠️ Current RH (${currentRH}) < Previous RH (${previousRH.toFixed(1)})!`;
-    preview.style.color = '#ff5252';
-  } else {
-    const dailyRH = currentRH - previousRH;
-    preview.innerHTML = `✨ <strong>Daily RH: +${dailyRH.toFixed(1)} Jam</strong> (${currentRH} - ${previousRH.toFixed(1)})`;
-    preview.style.color = '#00e676';
-  }
-}
-
-function showMobileToastNotification(title, message, isSuccess = true) {
-  const toast = document.getElementById('mobile-toast-notification');
-  const toastTitle = document.getElementById('mobile-toast-title');
-  const toastMsg = document.getElementById('mobile-toast-message');
-  const toastIcon = toast ? toast.querySelector('.mobile-toast-icon') : null;
-
-  if (!toast || !toastTitle || !toastMsg) return;
-
-  toastTitle.innerText = title;
-  toastMsg.innerText = message;
-
-  if (isSuccess) {
-    toast.style.borderColor = '#00e676';
-    toastTitle.style.color = '#00e676';
-    if (toastIcon) toastIcon.innerText = '✅';
-  } else {
-    toast.style.borderColor = '#ff5252';
-    toastTitle.style.color = '#ff5252';
-    if (toastIcon) toastIcon.innerText = '⚠️';
-  }
-
-  toast.classList.remove('hidden');
-
-  // Auto hide after 4.5 seconds
-  if (window.mobileToastTimeout) clearTimeout(window.mobileToastTimeout);
-  window.mobileToastTimeout = setTimeout(() => {
-    toast.classList.add('hidden');
-  }, 4500);
-}
-
-function mobileSubmitRunningHours() {
-  const select = document.getElementById('mobile-hours-machine-id');
-  const input = document.getElementById('mobile-hours-added');
-  if (!select || !input) return;
-
-  const machineId = parseInt(select.value);
-  const currentRH = parseFloat(input.value);
-  const targetMachine = dbState.machines.find(m => Number(m.id) === machineId);
-  const machineName = targetMachine ? targetMachine.name : 'Mesin';
-
-  if (isNaN(currentRH)) {
-    showMobileToastNotification('⚠️ Input Tidak Valid', 'Harap masukkan angka Hour Meter (Current RH) fisik mesin.', false);
-    alert('Harap masukkan angka Hour Meter (Current RH) fisik mesin.');
-    return;
-  }
-
-  const result = updateMachineHourMeterByCurrentRH(machineId, currentRH, mobileLoggedInUser ? mobileLoggedInUser.full_name : 'Technician', 'Mobile');
-  if (result && result.success) {
-    // 1. Show mobile in-app floating toast
-    showMobileToastNotification(
-      '✅ Update Hour Meter Sukses!', 
-      `${machineName}: +${result.dailyRH.toFixed(1)} Jam (Current RH: ${result.currentRH.toFixed(1)}) tersimpan di Synology NAS.`
-    );
-
-    // 2. Show desktop system notification banner
-    if (typeof showSystemNotificationBanner === 'function') {
-      showSystemNotificationBanner(
-        `📱 Android Simulator: Hour Meter ${machineName} (${result.previousRH.toFixed(1)} ➡️ ${result.currentRH.toFixed(1)} Jam | Daily RH: +${result.dailyRH.toFixed(1)} Jam) berhasil terkirim ke Synology NAS`, 
-        'success'
-      );
-    }
-
-    // 3. Show confirmation modal dialog
-    alert(`✅ SINKRONISASI SYNOLOGY NAS BERHASIL!\n\n- Mesin: ${machineName}\n- Previous RH: ${result.previousRH.toFixed(1)} Jam\n- Current RH: ${result.currentRH.toFixed(1)} Jam\n- Daily Running Hours: +${result.dailyRH.toFixed(1)} Jam\n\nData terpusat berhasil dikirim ke database.json di Synology NAS!`);
-    
-    input.value = '';
-    mobileNavigateTo('home');
-  }
-}
-
-function loadMobileReplaceScreen() {
-  const select = document.getElementById('mobile-replace-part-id');
-  const activeSelection = select.value; // retain selection if already preset
-  
-  select.innerHTML = '';
-  dbState.spare_parts.forEach(p => {
-    const m = dbState.machines.find(mac => mac.id === p.machine_id);
-    select.innerHTML += `<option value="${p.id}">${p.name} - ${m ? m.name : 'Unknown'} (${p.code})</option>`;
-  });
-
-  if (activeSelection) select.value = activeSelection;
-
-  // Set default cost
-  updateMobileReplaceCostDefault();
-  
-  // Add listener for automatic cost suggestion on change
-  select.onchange = updateMobileReplaceCostDefault;
-
-  // Reset photo previews
-  document.getElementById('mobile-replace-photo-preview').innerHTML = '<span>📷 Sentuh untuk Upload Foto</span>';
-  simulatedImageBase64 = '';
-  document.getElementById('mobile-replace-notes').value = '';
-}
-
-function updateMobileReplaceCostDefault() {
-  const partId = parseInt(document.getElementById('mobile-replace-part-id').value);
-  const part = dbState.spare_parts.find(p => p.id === partId);
-  if(part) {
-    document.getElementById('mobile-replace-cost').value = part.price;
-  }
-}
-
-// Convert chosen image to base64 for simulation storage
-function mobileHandlePhotoSelect(inputEl) {
-  const preview = document.getElementById('mobile-replace-photo-preview');
-  if (inputEl.files && inputEl.files[0]) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      preview.innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:cover;">`;
-      simulatedImageBase64 = e.target.result;
-    };
-    reader.readAsDataURL(inputEl.files[0]);
-  }
-}
-
-function mobileSubmitReplacement() {
-  const partId = parseInt(document.getElementById('mobile-replace-part-id').value);
-  const downtime = parseInt(document.getElementById('mobile-replace-downtime').value) || 0;
-  const cost = parseFloat(document.getElementById('mobile-replace-cost').value) || 0;
-  const notes = document.getElementById('mobile-replace-notes').value.trim();
-
-  if(!partId) {
-    alert('Pilih spare part yang diganti.');
-    return;
-  }
-
-  const name = mobileLoggedInUser ? mobileLoggedInUser.full_name : 'Technician';
-  replaceSparePartInDatabase(partId, name, downtime, cost, notes, simulatedImageBase64);
-  
-  alert('Laporan penggantian spare part berhasil disimpan!');
-  mobileNavigateTo('home');
-}
-
-function loadMobileNotificationsScreen() {
-  const container = document.getElementById('mobile-notifications-list');
-  if (!container) return;
-  container.innerHTML = '';
-
-  const activeNotifs = getActiveSystemNotifications();
-
-  if (activeNotifs.length === 0) {
-    container.innerHTML = `
-      <div style="text-align:center; padding:35px 15px; color:var(--predictacore-emerald);">
-        <span style="font-size:42px; display:block; margin-bottom:10px; filter:drop-shadow(0 0 10px rgba(16,185,129,0.3));">🛡️</span>
-        <strong style="font-size:14px; color:var(--text-primary); display:block;">Sistem Operasi Prima</strong>
-        <p style="font-size:11px; color:var(--text-secondary); margin-top:4px; line-height:1.4;">Seluruh spare part berada dalam kondisi aman (&ge; 50% Remaining Life). Tidak ada alert warning aktif.</p>
-      </div>
-    `;
-    return;
-  }
-
-  activeNotifs.forEach(n => {
-    const isUnread = n.read_status === 0 ? 'unread' : '';
-    let icon = '🔴';
-    if(n.type.includes('WARNING LEVEL 1')) icon = '🟡';
-    if(n.type.includes('WARNING LEVEL 2')) icon = '🟠';
-
-    container.innerHTML += `
-      <div class="mobile-notification-card ${isUnread}" onclick="markNotificationRead(${n.id}); loadMobileNotificationsScreen();">
-        <div class="mobile-notification-title">${icon} ${n.title}</div>
-        <div class="mobile-notification-msg">${n.message}</div>
-        <div class="mobile-notification-time">Status Telemetri: ${n.type}</div>
-      </div>
-    `;
-  });
-}
-
 // --- USER MANAGEMENT FUNCTIONS (ADMIN ONLY) ---
 
 function renderUsersTable() {
@@ -5705,14 +5414,23 @@ function deleteUser(id) {
 
 let kioskBypassChange = false;
 
-function requestKioskFullscreen() {
-  const elem = document.documentElement;
-  if (elem.requestFullscreen) {
-    elem.requestFullscreen();
-  } else if (elem.webkitRequestFullscreen) {
-    elem.webkitRequestFullscreen();
-  } else if (elem.msRequestFullscreen) {
-    elem.msRequestFullscreen();
+async function requestKioskFullscreen() {
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      return;
+    }
+
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      await elem.requestFullscreen();
+    } else if (elem.webkitRequestFullscreen) {
+      elem.webkitRequestFullscreen();
+    } else if (elem.msRequestFullscreen) {
+      elem.msRequestFullscreen();
+    }
+  } catch (error) {
+    console.warn('Mode fullscreen tidak dapat diaktifkan:', error);
   }
 }
 
@@ -5723,6 +5441,9 @@ document.addEventListener('fullscreenchange', () => {
   
   if (isFullscreen) {
     if (fsBtn) {
+      fsBtn.textContent = '🗗';
+      fsBtn.title = 'Keluar dari Full Screen';
+      fsBtn.setAttribute('aria-label', 'Keluar dari Full Screen');
       fsBtn.style.borderColor = 'var(--color-green)';
       fsBtn.style.boxShadow = 'var(--glow-green)';
       fsBtn.style.backgroundColor = 'rgba(13, 242, 138, 0.05)';
@@ -5731,6 +5452,9 @@ document.addEventListener('fullscreenchange', () => {
   } else {
     if (fsBtn) {
       fsBtn.style = '';
+      fsBtn.textContent = '🖥️';
+      fsBtn.title = 'Full Screen (Kiosk Mode)';
+      fsBtn.setAttribute('aria-label', 'Full Screen (Kiosk Mode)');
     }
 
     // If exited fullscreen, check if it was authorized by an Admin

@@ -2,6 +2,41 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [2.2.0] - 2026-08-05
+
+### New Features
+
+- deliver responsive themed CMMS dashboard and NAS release
+- Add responsive dark and light themes across dashboard pages, data tables, and application modals.
+- Group real-time machines by production line and allow operators to arrange machine groups.
+- Add corporate PredictaCore and Dankos branding with a responsive login experience.
+- Build signed-checksum Synology DS124 ARM64 packages with automated update and rollback scripts.
+
+### Improvements
+
+- Extend automated UI regression coverage for regulated controls, responsive layouts, themes, and machine ordering.
+
+### Fixed
+
+- Remove redundant access-level switching and the Android simulator from the regulated interface.
+- Correct full-screen layouts, light-mode readability, and viewport containment across management dialogs.
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [2.1.3] - 2026-08-04
 
 ### New Features
