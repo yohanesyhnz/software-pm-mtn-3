@@ -21,6 +21,7 @@ test("frontend uses the requested lightweight realtime and accessibility stack",
   const dialog = read("app/components/smart-assistant/SmartAssistantDialog.tsx");
   const settings = read("app/components/smart-assistant/SmartAssistantSettings.tsx");
   const dialogPrimitive = read("app/components/ui/dialog.tsx");
+  const styles = read("app/globals.css");
 
   assert.match(host, /QueryClientProvider/);
   assert.match(host, /dynamic\(\(\) => import\("\.\/SmartAssistantDialog"\)/);
@@ -35,6 +36,17 @@ test("frontend uses the requested lightweight realtime and accessibility stack",
   assert.match(settings, /Enable Robot Animation/);
   assert.match(settings, /Enable Auto Popup/);
   assert.match(settings, /role="switch"/);
+  assert.match(styles, /\.smart-assistant-dialog\s*\{[\s\S]*left:\s*50%;[\s\S]*top:\s*50%;[\s\S]*transform:\s*translate\(-50%,\s*-50%\)/);
+  assert.match(styles, /width:\s*min\(700px,\s*calc\(100vw\s*-\s*32px\)\)/);
+  assert.match(styles, /@media \(max-width:\s*639px\)[\s\S]*max-height:\s*calc\(100dvh\s*-\s*16px\)/);
+});
+
+test("robot assistant is prominent and parks outside the dialog when space permits", () => {
+  const host = read("app/components/smart-assistant/SmartAssistantHost.tsx");
+
+  assert.match(host, /Math\.min\(220,\s*Math\.max\(180,\s*viewportWidth \* 0\.15\)\)/);
+  assert.match(host, /canParkBesideDialog/);
+  assert.match(host, /sideSpace >= size \+ 24/);
 });
 
 test("login and logout events make automatic popup lifecycle repeatable", () => {

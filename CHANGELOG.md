@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [3.0.1] - 2026-08-10
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Enlarge and responsively position the Robot Assistant
+
+### Fixed
+
+- center responsive smart assistant dialog and enlarge robot
+- Center Smart Notification popup across viewport resolutions
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [3.0.0] - 2026-08-10
 
 ### New Features

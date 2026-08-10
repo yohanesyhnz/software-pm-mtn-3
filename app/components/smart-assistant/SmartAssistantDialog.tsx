@@ -44,7 +44,7 @@ export default function SmartAssistantDialog({
           initial={{ opacity: 0, y: 18, scale: 0.985 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.28, ease: "easeOut" }}
-          className="tw-flex tw-max-h-[88dvh] tw-flex-col"
+          className="smart-assistant-dialog-shell tw-flex tw-flex-col"
         >
           <header className="tw-relative tw-border-b tw-border-cyan-400/15 tw-px-5 tw-pb-4 tw-pt-5 sm:tw-px-6">
             <div className="tw-flex tw-items-start tw-gap-3 tw-pr-10">

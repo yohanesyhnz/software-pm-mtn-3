@@ -1,31 +1,24 @@
 {
-  "version": "v3.0.0",
-  "previousVersion": "v2.2.0",
-  "build": "20260810.8",
+  "version": "v3.0.1",
+  "previousVersion": "v3.0.0",
+  "build": "20260810.9",
   "releaseDate": "2026-08-10",
-  "commitType": "feat",
-  "bump": "major",
-  "summary": "deliver dynamic machine cards and smart maintenance assistant",
+  "commitType": "fix",
+  "bump": "patch",
+  "summary": "center responsive smart assistant dialog and enlarge robot",
   "changes": {
-    "newFeatures": [
-      "deliver dynamic machine cards and smart maintenance assistant",
-      "Dynamic Machine Card Dashboard configured from Master Machine",
-      "Smart Maintenance Assistant with realtime WebSocket alerts"
-    ],
+    "newFeatures": [],
     "improvements": [
-      "Add responsive SCADA grouping, display modes, and accessible drag ordering"
+      "Enlarge and responsively position the Robot Assistant"
     ],
     "fixed": [
-      "Preserve machine history and spare-part relations through soft deactivation"
+      "center responsive smart assistant dialog and enlarge robot",
+      "Center Smart Notification popup across viewport resolutions"
     ],
-    "optimizations": [
-      "Memoize machine cards and optimize uploaded machine images"
-    ],
+    "optimizations": [],
     "breakingChanges": [],
     "knownIssues": [],
-    "documentation": [
-      "Add PostgreSQL migration and NAS rollback guide"
-    ]
+    "documentation": []
   },
   "knownIssues": []
 }

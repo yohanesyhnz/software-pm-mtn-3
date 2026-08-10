@@ -30,7 +30,7 @@ export const DialogContent = forwardRef<
       <DialogOverlay />
       <DialogPrimitive.Content
         ref={ref}
-        className={`smart-assistant-dialog tw-fixed tw-left-1/2 tw-top-1/2 tw-z-[11010] tw-max-h-[88dvh] tw-w-[95vw] -tw-translate-x-1/2 -tw-translate-y-1/2 tw-overflow-hidden tw-rounded-2xl tw-border tw-shadow-scada focus:tw-outline-none sm:tw-w-[90vw] md:tw-w-[min(92vw,680px)] ${className}`}
+        className={`smart-assistant-dialog tw-fixed tw-z-[11010] tw-overflow-hidden tw-border tw-shadow-scada focus:tw-outline-none ${className}`}
         {...props}
       >
         {children}

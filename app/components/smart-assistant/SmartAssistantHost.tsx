@@ -105,12 +105,26 @@ function SmartAssistantController() {
     }
 
     const rect = bellRef.current!.getBoundingClientRect();
-    const size = window.innerWidth < 640 ? 104 : 138;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const mobile = viewportWidth < 640;
+    const size = mobile
+      ? Math.min(148, Math.max(120, viewportWidth * 0.34))
+      : Math.min(220, Math.max(180, viewportWidth * 0.15));
+    const dialogWidth = Math.min(700, viewportWidth - (mobile ? 16 : 32));
+    const sideSpace = Math.max(0, (viewportWidth - dialogWidth) / 2);
+    const canParkBesideDialog = sideSpace >= size + 24;
+    const endX = canParkBesideDialog
+      ? viewportWidth / 2 + dialogWidth / 2 + (sideSpace - size) / 2
+      : viewportWidth / 2 - size / 2;
+    const endY = canParkBesideDialog
+      ? Math.max(16, viewportHeight / 2 - size / 2)
+      : Math.max(12, viewportHeight * 0.04);
     setFlight({
       startX: rect.left + rect.width / 2 - size / 2,
       startY: rect.top + rect.height / 2 - size / 2,
-      endX: window.innerWidth / 2 - size / 2,
-      endY: Math.max(74, window.innerHeight / 2 - size * 1.65),
+      endX,
+      endY,
       size
     });
     setRobotReturning(false);
