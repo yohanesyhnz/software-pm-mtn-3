@@ -9,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
     policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 builder.Services.AddSingleton<StateStore>();
+builder.Services.AddSingleton<LocalUserCredentialStore>();
 builder.Services.AddSingleton<VersionManagementStore>();
 builder.Services.AddSingleton<VersionBackupService>();
 builder.Services.AddSingleton<SmartNotificationSource>();
@@ -29,6 +30,7 @@ app.UseWebSockets(new WebSocketOptions
 app.MapVersionManagementApi();
 app.MapSmartAssistantApi();
 app.MapMachineDashboardApi();
+app.MapUserManagementApi();
 
 app.MapGet("/api/health", (StateStore store) => Results.Ok(new
 {
@@ -41,6 +43,7 @@ app.MapGet("/api/health", (StateStore store) => Results.Ok(new
 app.MapPost("/api/auth/login", async (
     LoginRequest credentials,
     StateStore store,
+    LocalUserCredentialStore credentialStore,
     IConfiguration configuration,
     CancellationToken cancellationToken) =>
 {
@@ -58,8 +61,9 @@ app.MapPost("/api/auth/login", async (
         return Results.Json(new { status = "error", message = "Username atau password tidak sesuai." }, statusCode: StatusCodes.Status401Unauthorized);
 
     var username = user["username"]?.GetValue<string>() ?? string.Empty;
-    var passwordHash = configuration[$"LocalAuthentication:Users:{username}:PasswordHash"];
-    if (!VerifyPassword(credentials.Password, passwordHash))
+    var passwordHash = await credentialStore.GetHashAsync(username, cancellationToken)
+        ?? configuration[$"LocalAuthentication:Users:{username}:PasswordHash"];
+    if (!LocalUserCredentialStore.VerifyPassword(credentials.Password, passwordHash))
         return Results.Json(new { status = "error", message = "Username atau password tidak sesuai." }, statusCode: StatusCodes.Status401Unauthorized);
 
     return Results.Ok(new
@@ -252,28 +256,6 @@ static async Task<JsonObject?> ReadJsonObjectAsync(HttpRequest request, Cancella
     catch (JsonException)
     {
         return null;
-    }
-}
-
-static bool VerifyPassword(string password, string? encodedHash)
-{
-    if (string.IsNullOrWhiteSpace(encodedHash))
-        return false;
-
-    var parts = encodedHash.Split('$');
-    if (parts.Length != 4 || parts[0] != "pbkdf2-sha256" || !int.TryParse(parts[1], out var iterations))
-        return false;
-
-    try
-    {
-        var salt = Convert.FromBase64String(parts[2]);
-        var expected = Convert.FromBase64String(parts[3]);
-        var actual = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, HashAlgorithmName.SHA256, expected.Length);
-        return CryptographicOperations.FixedTimeEquals(actual, expected);
-    }
-    catch (FormatException)
-    {
-        return false;
     }
 }
 

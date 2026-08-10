@@ -2,6 +2,38 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [3.0.2] - 2026-08-10
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Store managed user passwords as PBKDF2 hashes in the backend credential store
+- Verify secure reset authorization through the backend authentication API
+
+### Fixed
+
+- persist managed users and allow immediate login
+- Persist newly managed users and allow immediate login
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [3.0.1] - 2026-08-10
 
 ### New Features

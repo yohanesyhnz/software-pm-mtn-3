@@ -1,19 +1,20 @@
 {
-  "version": "v3.0.1",
-  "previousVersion": "v3.0.0",
-  "build": "20260810.9",
+  "version": "v3.0.2",
+  "previousVersion": "v3.0.1",
+  "build": "20260810.10",
   "releaseDate": "2026-08-10",
   "commitType": "fix",
   "bump": "patch",
-  "summary": "center responsive smart assistant dialog and enlarge robot",
+  "summary": "persist managed users and allow immediate login",
   "changes": {
     "newFeatures": [],
     "improvements": [
-      "Enlarge and responsively position the Robot Assistant"
+      "Store managed user passwords as PBKDF2 hashes in the backend credential store",
+      "Verify secure reset authorization through the backend authentication API"
     ],
     "fixed": [
-      "center responsive smart assistant dialog and enlarge robot",
-      "Center Smart Notification popup across viewport resolutions"
+      "persist managed users and allow immediate login",
+      "Persist newly managed users and allow immediate login"
     ],
     "optimizations": [],
     "breakingChanges": [],

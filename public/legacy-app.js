@@ -5534,7 +5534,7 @@ function renderUsersTable() {
         ? '<span style="color:var(--text-muted); font-size:11px;">Active Session</span>'
         : `<button class="btn-action-icon" style="color:var(--color-red);" title="Hapus User" onclick="deleteUser(${u.id})">🗑️ Hapus</button>`;
       
-      const maskedPass = u.password;
+      const maskedPass = '••••••••';
 
       const tr = `
         <tr>
@@ -5568,6 +5568,7 @@ function openUserModal(id = null) {
   const usernameIn = document.getElementById('modal-user-username');
   const fullnameIn = document.getElementById('modal-user-fullname');
   const passwordIn = document.getElementById('modal-user-password');
+  const passwordRequired = document.getElementById('modal-user-password-required');
   const roleIn = document.getElementById('modal-user-role');
 
   const roleOptionsHTML = `
@@ -5582,7 +5583,9 @@ function openUserModal(id = null) {
     modalId.value = u.id;
     usernameIn.value = u.username;
     fullnameIn.value = u.full_name;
-    passwordIn.value = u.password;
+    passwordIn.value = '';
+    passwordIn.placeholder = 'Kosongkan jika password tidak diubah';
+    if (passwordRequired) passwordRequired.style.display = 'none';
     roleIn.innerHTML = roleOptionsHTML;
     roleIn.value = u.role;
     usernameIn.disabled = false;
@@ -5592,6 +5595,8 @@ function openUserModal(id = null) {
     usernameIn.value = '';
     fullnameIn.value = '';
     passwordIn.value = '';
+    passwordIn.placeholder = 'Masukkan password/PIN (minimal 4 karakter)';
+    if (passwordRequired) passwordRequired.style.display = '';
     roleIn.innerHTML = roleOptionsHTML;
     roleIn.value = 'SUPERVISOR';
     usernameIn.disabled = false;
@@ -5604,15 +5609,20 @@ function closeUserModal() {
   document.getElementById('user-modal').classList.remove('active');
 }
 
-function saveUserData() {
+async function saveUserData() {
   const modalId = document.getElementById('modal-user-id').value;
   const username = document.getElementById('modal-user-username').value.trim();
   const fullname = document.getElementById('modal-user-fullname').value.trim();
   const password = document.getElementById('modal-user-password').value.trim();
   const role = document.getElementById('modal-user-role').value;
 
-  if (!username || !fullname || !password) {
+  if (!username || !fullname || (!modalId && !password)) {
     alert('Harap isi semua kolom wajib (*)');
+    return;
+  }
+
+  if (password && (password.length < 4 || password.length > 128)) {
+    alert('Password/PIN harus terdiri dari 4–128 karakter.');
     return;
   }
 
@@ -5623,33 +5633,60 @@ function saveUserData() {
     return;
   }
 
-  if (modalId) {
-    const u = dbState.users.find(usr => usr.id == modalId);
-    u.username = username;
-    u.full_name = fullname;
-    u.password = password;
-    u.role = role;
-    logToConsole('SYSTEM', `User ${username} [Role: ${role}] diperbarui oleh Admin.`);
-  } else {
-    const maxExistingId = dbState.users.reduce((max, u) => Math.max(max, Number(u.id) || 0), 0);
-    const nextId = maxExistingId + 1;
-    dbState.users.push({
-      id: nextId,
-      username,
-      password,
-      role,
-      full_name: fullname
-    });
-    logToConsole('SYSTEM', `User baru dibuat: ${username} [Role: ${role}] oleh Admin.`);
+  const saveButton = document.getElementById('save-user-button');
+  if (saveButton) {
+    saveButton.disabled = true;
+    saveButton.innerText = 'Menyimpan...';
   }
 
-  saveDatabase();
-  closeUserModal();
-  renderUsersTable();
-  populateLoginUserDropdown();
+  try {
+    const endpoint = modalId ? `/api/users/${encodeURIComponent(modalId)}` : '/api/users';
+    const response = await fetch(endpoint, {
+      method: modalId ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, full_name: fullname, password, role })
+    });
+    const result = await response.json().catch(() => null);
+
+    if (!response.ok || !result || result.status !== 'success' || !result.user) {
+      throw new Error(result?.message || 'User gagal disimpan oleh server.');
+    }
+
+    const savedUser = {
+      id: Number(result.user.id),
+      username: result.user.username,
+      password: '',
+      role: result.user.role,
+      full_name: result.user.full_name
+    };
+
+    if (modalId) {
+      const userIndex = dbState.users.findIndex(usr => Number(usr.id) === Number(modalId));
+      if (userIndex >= 0) dbState.users[userIndex] = savedUser;
+      logToConsole('SYSTEM', `User ${username} [Role: ${role}] diperbarui oleh Admin.`);
+    } else {
+      dbState.users.push(savedUser);
+      logToConsole('SYSTEM', `User baru dibuat: ${username} [Role: ${role}] oleh Admin.`);
+    }
+
+    localStorage.setItem('pm_system_db', JSON.stringify(dbState));
+    closeUserModal();
+    renderUsersTable();
+    populateLoginUserDropdown();
+    if (typeof showSystemNotificationBanner === 'function') {
+      showSystemNotificationBanner(`✅ ${result.message}`, 'success');
+    }
+  } catch (error) {
+    alert(`⚠️ Gagal menyimpan user:\n${error.message}`);
+  } finally {
+    if (saveButton) {
+      saveButton.disabled = false;
+      saveButton.innerText = 'Simpan User';
+    }
+  }
 }
 
-function deleteUser(id) {
+async function deleteUser(id) {
   const u = dbState.users.find(usr => usr.id === id);
   if (!u) return;
 
@@ -5659,10 +5696,21 @@ function deleteUser(id) {
   }
 
   if (confirm(`Apakah Anda yakin ingin menghapus user: ${u.full_name} (${u.username})?`)) {
-    dbState.users = dbState.users.filter(usr => usr.id !== id);
-    saveDatabase();
-    renderUsersTable();
-    logToConsole('SYSTEM', `User ${u.username} dihapus oleh Admin.`);
+    try {
+      const response = await fetch(`/api/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result || result.status !== 'success') {
+        throw new Error(result?.message || 'User gagal dihapus oleh server.');
+      }
+
+      dbState.users = dbState.users.filter(usr => Number(usr.id) !== Number(id));
+      localStorage.setItem('pm_system_db', JSON.stringify(dbState));
+      renderUsersTable();
+      populateLoginUserDropdown();
+      logToConsole('SYSTEM', `User ${u.username} dihapus oleh Admin.`);
+    } catch (error) {
+      alert(`⚠️ Gagal menghapus user:\n${error.message}`);
+    }
   }
 }
 
@@ -5831,7 +5879,7 @@ function closeResetAuthModal() {
   currentResetActionInfo = null;
 }
 
-function confirmSecureReset() {
+async function confirmSecureReset() {
   if (!currentResetActionInfo) {
     closeResetAuthModal();
     return;
@@ -5873,8 +5921,19 @@ function confirmSecureReset() {
     }
   }
 
-  // Validate Password / PIN
-  const isValidPassword = Boolean(authUser.password) && password === authUser.password;
+  // Validate Password / PIN using the centralized backend credential store.
+  let isValidPassword = false;
+  try {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const result = await response.json().catch(() => null);
+    isValidPassword = response.ok && result?.status === 'success';
+  } catch (error) {
+    console.error('Gagal memverifikasi otorisasi user:', error);
+  }
 
   if (!isValidPassword) {
     if (errorMsg) {

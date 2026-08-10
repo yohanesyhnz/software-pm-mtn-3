@@ -1054,8 +1054,8 @@
 
         <div class="form-row">
           <div class="form-group flex-1">
-            <label for="modal-user-password">Password/PIN <span class="required">*</span></label>
-            <input type="password" id="modal-user-password" placeholder="Masukkan password/PIN">
+            <label for="modal-user-password">Password/PIN <span class="required" id="modal-user-password-required">*</span></label>
+            <input type="password" id="modal-user-password" placeholder="Masukkan password/PIN" autocomplete="new-password">
           </div>
           <div class="form-group flex-1">
             <label for="modal-user-role">Hak Akses (Role) <span class="required">*</span></label>
@@ -1069,7 +1069,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeUserModal()">Batal</button>
-        <button class="btn btn-success" onclick="saveUserData()">Simpan User</button>
+        <button class="btn btn-success" id="save-user-button" onclick="saveUserData()">Simpan User</button>
       </div>
     </div>
   </div>
