@@ -2,6 +2,38 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [3.0.0] - 2026-08-10
+
+### New Features
+
+- deliver dynamic machine cards and smart maintenance assistant
+- Dynamic Machine Card Dashboard configured from Master Machine
+- Smart Maintenance Assistant with realtime WebSocket alerts
+
+### Improvements
+
+- Add responsive SCADA grouping, display modes, and accessible drag ordering
+
+### Fixed
+
+- Preserve machine history and spare-part relations through soft deactivation
+
+### Optimizations
+
+- Memoize machine cards and optimize uploaded machine images
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Add PostgreSQL migration and NAS rollback guide
+
 ## [2.2.0] - 2026-08-05
 
 ### New Features

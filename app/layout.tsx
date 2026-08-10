@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "../style.css";
+import "./globals.css";
 import "./version-management.css";
 import UpdateChecker from "./components/UpdateChecker";
 

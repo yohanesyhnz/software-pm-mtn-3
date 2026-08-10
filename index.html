@@ -48,6 +48,9 @@
         <button class="nav-item" id="nav-system" onclick="switchTab('system')">
           <span class="icon">💾</span> Backup & Restore
         </button>
+        <button class="nav-item" id="nav-settings" onclick="switchTab('settings')">
+          <span class="icon">⚙️</span> Settings
+        </button>
         <a class="nav-item" href="/software-versions">
           <span class="icon">V#</span> Software Version
         </a>
@@ -76,22 +79,7 @@
         
         <div class="header-right">
           <!-- Notification Bell -->
-          <div class="notification-bell" onclick="toggleNotificationDropdown()">
-            <span class="bell-icon">🔔</span>
-            <span class="notification-badge" id="notification-count">0</span>
-            
-            <!-- Notification Dropdown -->
-            <div class="notification-dropdown" id="notification-dropdown">
-              <div class="dropdown-header">
-                <h3>Sistem Notifikasi</h3>
-                <button onclick="clearAllNotifications(event)">Hapus Semua</button>
-              </div>
-              <div class="dropdown-content" id="notification-list">
-                <!-- Loaded dynamically -->
-                <div class="notification-empty">Tidak ada notifikasi aktif.</div>
-              </div>
-            </div>
-          </div>
+          <div id="smart-assistant-bell-slot" class="smart-assistant-bell-slot" aria-label="Slot Smart Maintenance Assistant"></div>
           
           <div class="user-profile" onclick="openLoginModal()" style="cursor: pointer;" title="Klik untuk Ganti / Login User">
             <span class="user-avatar">👤</span>
@@ -196,8 +184,8 @@
               </button>
             </div>
           </div>
-          <div class="machine-status-grid" id="dashboard-machine-status-grid">
-            <!-- Dynamically rendered by renderDashboardMachineCards() in app.js -->
+          <div class="dynamic-machine-dashboard-slot" id="dashboard-machine-status-grid">
+            <!-- React Dynamic Machine Card Dashboard mounts here. -->
           </div>
           <span class="sr-only" id="machine-order-status" aria-live="polite"></span>
         </section>
@@ -638,6 +626,11 @@
           </table>
         </div>
       </section>
+
+      <!-- TAB 10: SMART ASSISTANT SETTINGS -->
+      <section class="tab-panel" id="panel-settings">
+        <div id="smart-assistant-settings-root" aria-live="polite"></div>
+      </section>
       
     </main>
 
@@ -647,36 +640,58 @@
   
   <!-- 1. Machine Entry Modal -->
   <div class="modal adaptive-theme-modal" id="machine-modal" role="dialog" aria-modal="true" aria-labelledby="machine-modal-title">
-    <div class="modal-content adaptive-theme-card adaptive-form-card">
+    <div class="modal-content adaptive-theme-card adaptive-form-card machine-master-form-card">
       <div class="modal-header">
         <h3 id="machine-modal-title">Tambah Mesin Baru</h3>
         <button type="button" class="close-btn" onclick="closeMachineModal()" aria-label="Tutup form mesin">&times;</button>
       </div>
       <div class="modal-body adaptive-theme-body">
         <input type="hidden" id="modal-machine-id">
+        <input type="hidden" id="modal-machine-stable-id">
+        <input type="hidden" id="modal-machine-image-url">
+        <section class="machine-form-section">
+          <div class="machine-form-section-heading">
+            <strong>Machine Identity</strong>
+            <span>Data ini menjadi sumber Machine Card di Dashboard.</span>
+          </div>
         <div class="form-row">
           <div class="form-group flex-1">
             <label>Nama Mesin <span class="required">*</span></label>
             <input type="text" id="modal-machine-name" placeholder="Misal: Blister Packing Line A">
           </div>
           <div class="form-group flex-1">
-            <label>Nomor Asset <span class="required">*</span></label>
-            <input type="text" id="modal-machine-asset" placeholder="Misal: MC-BPM-005">
+            <label>Machine Code / Nomor Asset <span class="required">*</span></label>
+            <input type="text" id="modal-machine-asset" placeholder="Misal: LINE07-RE400">
           </div>
         </div>
         
         <div class="form-row">
           <div class="form-group flex-1">
             <label>Line Produksi <span class="required">*</span></label>
-            <input type="text" id="modal-machine-line" placeholder="Misal: Packaging Line 2">
+            <input type="text" id="modal-machine-line" placeholder="Misal: LINE 07">
           </div>
           <div class="form-group flex-1">
-            <label>Manufacturer <span class="required">*</span></label>
-            <input type="text" id="modal-machine-manufacturer" placeholder="Misal: Bosch GmbH">
+            <label>Area</label>
+            <input type="text" id="modal-machine-area" placeholder="Misal: Labeling">
           </div>
         </div>
 
         <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Department</label>
+            <input type="text" id="modal-machine-department" placeholder="Misal: Production">
+          </div>
+          <div class="form-group flex-1">
+            <label>Jenis Mesin</label>
+            <input type="text" id="modal-machine-type" placeholder="Misal: Labeling Machine">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Manufacturer <span class="required">*</span></label>
+            <input type="text" id="modal-machine-manufacturer" placeholder="Misal: Bosch GmbH">
+          </div>
           <div class="form-group flex-1">
             <label>Tanggal Install <span class="required">*</span></label>
             <input type="date" id="modal-machine-installdate">
@@ -684,12 +699,83 @@
           <div class="form-group flex-1">
             <label>Status Operasional</label>
             <select id="modal-machine-status">
-              <option value="Running">Running</option>
-              <option value="Standby">Standby</option>
-              <option value="Maintenance">Maintenance</option>
+              <option value="RUNNING">RUNNING</option>
+              <option value="STOPPED">STOPPED</option>
+              <option value="IDLE">IDLE</option>
+              <option value="ALARM">ALARM</option>
+              <option value="MAINTENANCE">MAINTENANCE</option>
+              <option value="DATA OFFLINE">DATA OFFLINE</option>
             </select>
           </div>
         </div>
+        </section>
+
+        <section class="machine-form-section machine-image-upload-section">
+          <div class="machine-form-section-heading">
+            <strong>Machine Image</strong>
+            <span>PNG/JPG/JPEG · maksimal 5 MB · file akan divalidasi dan dioptimalkan backend.</span>
+          </div>
+          <div class="machine-image-editor">
+            <div class="machine-image-preview" id="modal-machine-image-preview" aria-live="polite">
+              <span class="machine-image-preview-placeholder">⚙<small>No Machine Image</small></span>
+            </div>
+            <div class="machine-image-actions">
+              <label class="btn btn-secondary machine-upload-button" for="modal-machine-image-file">Upload Image</label>
+              <input type="file" id="modal-machine-image-file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" onchange="previewMachineImage(event)" hidden>
+              <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-machine-image-file').click()">Change Image</button>
+              <button type="button" class="btn btn-danger" onclick="removeMachineImage()">Remove Image</button>
+              <span class="machine-image-error" id="modal-machine-image-error" role="alert"></span>
+            </div>
+          </div>
+        </section>
+
+        <section class="machine-form-section">
+          <div class="machine-form-section-heading">
+            <strong>PLC / Realtime Tags</strong>
+            <span>Tag kosong ditampilkan sebagai -- dan tidak dihitung di browser.</span>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-1"><label>Status Tag</label><input type="text" id="modal-machine-status-tag" placeholder="PLC.LINE07.RE400.STATUS"></div>
+            <div class="form-group flex-1"><label>Counter Tag</label><input type="text" id="modal-machine-counter-tag" placeholder="PLC.LINE07.RE400.COUNTER"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-1"><label>Speed Tag</label><input type="text" id="modal-machine-speed-tag" placeholder="PLC.LINE07.RE400.SPEED"></div>
+            <div class="form-group flex-1"><label>Running Hours Tag</label><input type="text" id="modal-machine-running-hours-tag" placeholder="PLC.LINE07.RE400.RUNNING_HOURS"></div>
+          </div>
+          <div class="form-group">
+            <label>Realtime Dashboard URL (Grafana / SCADA / Historian)</label>
+            <input type="url" id="modal-machine-dashboard-url" placeholder="https://grafana.example.local/d/machine-re400">
+          </div>
+        </section>
+
+        <section class="machine-form-section">
+          <div class="machine-form-section-heading">
+            <strong>Machine Card Configuration</strong>
+            <span>Urutan dan isi card tersimpan di database.</span>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-1"><label>Display Order</label><input type="number" min="0" max="100000" id="modal-machine-display-order" value="0"></div>
+            <div class="form-group flex-1">
+              <label>Display Mode</label>
+              <select id="modal-machine-display-mode"><option>AUTO</option><option>COMPACT</option><option>STANDARD</option><option>LARGE</option></select>
+            </div>
+            <div class="form-group flex-1 machine-active-field">
+              <label><input type="checkbox" id="modal-machine-active" checked> Active / tampil di Dashboard</label>
+            </div>
+          </div>
+          <div class="machine-card-visibility-grid" aria-label="Informasi yang ditampilkan pada Machine Card">
+            <label><input type="checkbox" id="modal-machine-show-image" checked> Image</label>
+            <label><input type="checkbox" id="modal-machine-show-name" checked> Machine Name</label>
+            <label><input type="checkbox" id="modal-machine-show-code" checked> Machine Code</label>
+            <label><input type="checkbox" id="modal-machine-show-line" checked> Line</label>
+            <label><input type="checkbox" id="modal-machine-show-area" checked> Area</label>
+            <label><input type="checkbox" id="modal-machine-show-status" checked> Status</label>
+            <label><input type="checkbox" id="modal-machine-show-counter" checked> Counter</label>
+            <label><input type="checkbox" id="modal-machine-show-speed" checked> Speed</label>
+            <label><input type="checkbox" id="modal-machine-show-hours" checked> Running Hours</label>
+            <label><input type="checkbox" id="modal-machine-show-health" checked> Health</label>
+          </div>
+        </section>
       </div>
       <div class="modal-footer adaptive-theme-footer">
         <button type="button" class="btn btn-secondary" onclick="closeMachineModal()">Batal</button>

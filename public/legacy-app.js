@@ -48,6 +48,9 @@ let autoPullTimer = null;
 const THEME_STORAGE_KEY = 'predictacore-theme';
 const DASHBOARD_MACHINE_ORDER_STORAGE_KEY = 'predictacore-dashboard-machine-order-v1';
 let dashboardMachineOrderMode = false;
+let pendingMachineImageFile = null;
+let pendingMachineImageObjectUrl = '';
+let originalMachineImageUrl = '';
 
 function getPreferredTheme() {
   try {
@@ -673,7 +676,8 @@ function switchTab(tabName) {
     sql: 'SQL Database Terminal Console',
     api: 'REST API Sandbox Explorer',
     system: 'Sistem Backup & Restore Database',
-    users: 'Kelola Akun Pengguna'
+    users: 'Kelola Akun Pengguna',
+    settings: 'Settings Smart Notification Assistant'
   };
   document.getElementById('page-title').innerText = titles[tabName] || 'PREVENTIVE SYSTEM';
 
@@ -774,6 +778,14 @@ function closeLoginModal() {
   }
 }
 
+function logoutActiveUser() {
+  localStorage.removeItem('pm_active_user');
+  window.dispatchEvent(new CustomEvent('predictacore:logout'));
+  openLoginModal();
+}
+
+window.predictaCoreLogout = logoutActiveUser;
+
 function populateLoginUserDropdown() {
   // Legacy stub - now using manual username text input
 }
@@ -854,6 +866,10 @@ async function performDesktopLogin() {
       applyRolePermissions();
       saveDatabase();
       logToConsole('SYSTEM', `User ${activeUser.full_name} (${activeUser.role}) berhasil log in secara aman.`);
+      switchTab('dashboard');
+      window.dispatchEvent(new CustomEvent('predictacore:authenticated', {
+        detail: { user: { ...activeUser } }
+      }));
     } catch(err) {
       console.error('Error during post-login execution:', err);
     }
@@ -934,6 +950,10 @@ function loadDashboardData() {
 
   // 5. Draw Top 10 Replaced Parts Table
   renderTopReplacedParts();
+
+  window.dispatchEvent(new CustomEvent('predictacore:dashboard-ready', {
+    detail: { user: { ...activeUser } }
+  }));
 }
 
 function refreshDashboardData() {
@@ -1226,6 +1246,7 @@ function _renderDashboardMachineCard(machine) {
 function renderDashboardMachineCards() {
   const container = document.getElementById('dashboard-machine-status-grid');
   if (!container) return;
+  if (container.dataset.reactDashboard === 'true') return;
   container.innerHTML = '';
 
   _syncDashboardMachineOrderControls();
@@ -1902,6 +1923,9 @@ function renderMachinesTable() {
     if (health === 'WARNING LEVEL 1') healthBadge = 'badge-warning-1';
 
     const statusBadge = `badge-${m.status.toLowerCase()}`;
+    const activeBadge = m.is_active === false
+      ? '<span class="badge" style="margin-left:5px;color:var(--color-red);border:1px solid currentColor;">INACTIVE</span>'
+      : '<span class="badge badge-normal" style="margin-left:5px;">ACTIVE</span>';
 
     const _getCol = (addr) => {
       if (!addr) return '';
@@ -1931,12 +1955,12 @@ function renderMachinesTable() {
         <td>${m.manufacturer}</td>
         <td>${m.install_date}</td>
         <td>${m.running_hours_total.toFixed(1)} Hrs</td>
-        <td><span class="badge ${statusBadge}">${m.status}</span></td>
+        <td><span class="badge ${statusBadge}">${m.status}</span>${activeBadge}</td>
         <td>
           <button class="btn-action-icon" title="View details & QR" onclick="viewMachineDetails(${m.id})">👁️ Detail</button>
           <button class="btn-action-icon" title="Copy / Duplikat Mesin" onclick="copyMachineData(${m.id})" style="color:var(--predictacore-cyan);">📋 Copy</button>
           <button class="btn-action-icon" title="Edit" onclick="openMachineModal(${m.id})">✏️</button>
-          <button class="btn-action-icon" title="Delete" style="color:var(--color-red);" onclick="deleteMachine(${m.id})">🗑️</button>
+          <button class="btn-action-icon" title="Nonaktifkan tanpa menghapus histori" style="color:var(--color-red);" onclick="deleteMachine(${m.id})">⏸ Nonaktifkan</button>
         </td>
       </tr>
     `);
@@ -1958,7 +1982,7 @@ function updateMachineSelectDropdowns() {
   if (partMachineSelect) {
     const curVal = partMachineSelect.value;
     partMachineSelect.innerHTML = '<option value="">Semua Mesin</option>';
-    dbState.machines.forEach(m => {
+    dbState.machines.filter(m => m.is_active !== false).forEach(m => {
       partMachineSelect.innerHTML += `<option value="${m.id}">${m.name} (${m.asset_number})</option>`;
     });
     partMachineSelect.value = curVal;
@@ -2043,6 +2067,122 @@ function refreshSparePartsTable() {
     });
 }
 
+function _machineField(id) {
+  return document.getElementById(id);
+}
+
+function _setMachineField(id, value) {
+  const field = _machineField(id);
+  if (field) field.value = value == null ? '' : String(value);
+}
+
+function _setMachineCheckbox(id, value) {
+  const field = _machineField(id);
+  if (field) field.checked = value !== false;
+}
+
+function _clearPendingMachineImage() {
+  pendingMachineImageFile = null;
+  if (pendingMachineImageObjectUrl) URL.revokeObjectURL(pendingMachineImageObjectUrl);
+  pendingMachineImageObjectUrl = '';
+  const input = _machineField('modal-machine-image-file');
+  if (input) input.value = '';
+}
+
+function _renderMachineImagePreview(source) {
+  const preview = _machineField('modal-machine-image-preview');
+  if (!preview) return;
+  preview.innerHTML = '';
+  if (source) {
+    const image = document.createElement('img');
+    image.src = source;
+    image.alt = 'Machine Preview';
+    image.onerror = () => {
+      preview.innerHTML = '<span class="machine-image-preview-placeholder">⚙<small>No Machine Image</small></span>';
+    };
+    preview.appendChild(image);
+  } else {
+    preview.innerHTML = '<span class="machine-image-preview-placeholder">⚙<small>No Machine Image</small></span>';
+  }
+}
+
+function previewMachineImage(event) {
+  const file = event && event.target && event.target.files ? event.target.files[0] : null;
+  const errorElement = _machineField('modal-machine-image-error');
+  if (errorElement) errorElement.textContent = '';
+  if (!file) return;
+  const extension = `.${String(file.name).split('.').pop() || ''}`.toLowerCase();
+  if (!['.png', '.jpg', '.jpeg'].includes(extension) || !['image/png', 'image/jpeg'].includes(file.type)) {
+    if (errorElement) errorElement.textContent = 'Format tidak valid. Pilih PNG, JPG, atau JPEG.';
+    event.target.value = '';
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    if (errorElement) errorElement.textContent = 'Ukuran gambar maksimal 5 MB.';
+    event.target.value = '';
+    return;
+  }
+  _clearPendingMachineImage();
+  pendingMachineImageFile = file;
+  pendingMachineImageObjectUrl = URL.createObjectURL(file);
+  _renderMachineImagePreview(pendingMachineImageObjectUrl);
+}
+
+function removeMachineImage() {
+  _clearPendingMachineImage();
+  _setMachineField('modal-machine-image-url', '');
+  _renderMachineImagePreview('');
+  const errorElement = _machineField('modal-machine-image-error');
+  if (errorElement) errorElement.textContent = '';
+}
+
+function _machineCardConfigurationFromForm() {
+  return {
+    showImage: _machineField('modal-machine-show-image').checked,
+    showMachineName: _machineField('modal-machine-show-name').checked,
+    showMachineCode: _machineField('modal-machine-show-code').checked,
+    showLine: _machineField('modal-machine-show-line').checked,
+    showArea: _machineField('modal-machine-show-area').checked,
+    showStatus: _machineField('modal-machine-show-status').checked,
+    showCounter: _machineField('modal-machine-show-counter').checked,
+    showSpeed: _machineField('modal-machine-show-speed').checked,
+    showRunningHours: _machineField('modal-machine-show-hours').checked,
+    showHealth: _machineField('modal-machine-show-health').checked
+  };
+}
+
+function _populateMachineDynamicFields(machine) {
+  const config = machine && machine.card_config ? machine.card_config : {};
+  _setMachineField('modal-machine-stable-id', machine ? (machine.machine_id || machine.machine_code || machine.asset_number || '') : '');
+  _setMachineField('modal-machine-area', machine ? machine.area : '');
+  _setMachineField('modal-machine-department', machine ? machine.department : '');
+  _setMachineField('modal-machine-type', machine ? machine.machine_type : '');
+  _setMachineField('modal-machine-status-tag', machine ? (machine.status_tag || machine.plc_address || '') : '');
+  _setMachineField('modal-machine-counter-tag', machine ? (machine.counter_tag || machine.plc_counter_address || '') : '');
+  _setMachineField('modal-machine-speed-tag', machine ? machine.speed_tag : '');
+  _setMachineField('modal-machine-running-hours-tag', machine ? machine.running_hours_tag : '');
+  _setMachineField('modal-machine-dashboard-url', machine ? machine.realtime_dashboard_url : '');
+  _setMachineField('modal-machine-display-order', machine ? (machine.display_order || machine.id || 0) : (dbState.machines.length + 1));
+  _setMachineField('modal-machine-display-mode', machine ? (machine.display_mode || 'AUTO') : 'AUTO');
+  _setMachineCheckbox('modal-machine-active', machine ? machine.is_active !== false : true);
+  _setMachineCheckbox('modal-machine-show-image', config.showImage !== undefined ? config.showImage : true);
+  _setMachineCheckbox('modal-machine-show-name', config.showMachineName !== undefined ? config.showMachineName : true);
+  _setMachineCheckbox('modal-machine-show-code', config.showMachineCode !== undefined ? config.showMachineCode : true);
+  _setMachineCheckbox('modal-machine-show-line', config.showLine !== undefined ? config.showLine : true);
+  _setMachineCheckbox('modal-machine-show-area', config.showArea !== undefined ? config.showArea : true);
+  _setMachineCheckbox('modal-machine-show-status', config.showStatus !== undefined ? config.showStatus : true);
+  _setMachineCheckbox('modal-machine-show-counter', config.showCounter !== undefined ? config.showCounter : true);
+  _setMachineCheckbox('modal-machine-show-speed', config.showSpeed !== undefined ? config.showSpeed : true);
+  _setMachineCheckbox('modal-machine-show-hours', config.showRunningHours !== undefined ? config.showRunningHours : true);
+  _setMachineCheckbox('modal-machine-show-health', config.showHealth !== undefined ? config.showHealth : true);
+  originalMachineImageUrl = machine ? (machine.machine_image_url || '') : '';
+  _setMachineField('modal-machine-image-url', originalMachineImageUrl);
+  _clearPendingMachineImage();
+  _renderMachineImagePreview(originalMachineImageUrl);
+  const errorElement = _machineField('modal-machine-image-error');
+  if (errorElement) errorElement.textContent = '';
+}
+
 function openMachineModal(id = null) {
   if (activeUser.role === 'TECHNICIAN') {
     alert('Akses Ditolak: Level user TECHNICIAN tidak diizinkan mengubah master mesin.');
@@ -2061,13 +2201,17 @@ function openMachineModal(id = null) {
   if (id) {
     title.innerText = 'Edit Data Mesin';
     const m = dbState.machines.find(m => m.id === id);
+    if (!m) return;
     modalId.value = m.id;
     nameIn.value = m.name;
     assetIn.value = m.asset_number;
     lineIn.value = m.line_code;
     manufacturerIn.value = m.manufacturer;
     installIn.value = m.install_date;
-    statusIn.value = m.status;
+    statusIn.value = String(m.status || 'DATA OFFLINE').toUpperCase() === 'STANDBY'
+      ? 'IDLE'
+      : String(m.status || 'DATA OFFLINE').toUpperCase();
+    _populateMachineDynamicFields(m);
   } else {
     title.innerText = 'Tambah Mesin Baru';
     modalId.value = '';
@@ -2076,7 +2220,8 @@ function openMachineModal(id = null) {
     lineIn.value = '';
     manufacturerIn.value = '';
     installIn.value = new Date().toISOString().split('T')[0];
-    statusIn.value = 'Standby';
+    statusIn.value = 'STOPPED';
+    _populateMachineDynamicFields(null);
   }
 
   document.getElementById('machine-modal').classList.add('active');
@@ -2090,6 +2235,7 @@ function copyMachineData(machineId) {
 
   const m = dbState.machines.find(mach => mach.id === machineId);
   if (!m) return;
+  _populateMachineDynamicFields(m);
 
   // Generate suggested new asset number (e.g., MAC-TAB-001 -> MAC-TAB-002)
   let suggestedAsset = `${m.asset_number}-COPY`;
@@ -2124,6 +2270,12 @@ function copyMachineData(machineId) {
   if (installIn) installIn.value = new Date().toISOString().split('T')[0];
   if (statusIn) statusIn.value = m.status;
 
+  _setMachineField('modal-machine-stable-id', '');
+  _setMachineField('modal-machine-status', String(m.status || 'DATA OFFLINE').toUpperCase() === 'STANDBY' ? 'IDLE' : String(m.status || 'DATA OFFLINE').toUpperCase());
+  _setMachineField('modal-machine-display-order', dbState.machines.length + 1);
+  _setMachineField('modal-machine-image-url', '');
+  originalMachineImageUrl = '';
+  _renderMachineImagePreview('');
   const modal = document.getElementById('machine-modal');
   if (modal) modal.classList.add('active');
 
@@ -2137,20 +2289,37 @@ function copyMachineData(machineId) {
 
 function closeMachineModal() {
   document.getElementById('machine-modal').classList.remove('active');
+  _clearPendingMachineImage();
 }
 
-function saveMachineData() {
+async function saveMachineData() {
   const modalId = document.getElementById('modal-machine-id').value;
   const name = document.getElementById('modal-machine-name').value.trim();
   const asset = document.getElementById('modal-machine-asset').value.trim();
   const line = document.getElementById('modal-machine-line').value.trim() || 'Line Utama';
   const manufacturer = document.getElementById('modal-machine-manufacturer').value.trim() || 'General';
   const install = document.getElementById('modal-machine-installdate').value || new Date().toISOString().split('T')[0];
-  const status = document.getElementById('modal-machine-status').value || 'Standby';
+  const status = document.getElementById('modal-machine-status').value || 'DATA OFFLINE';
 
   if (!name || !asset) {
-    alert('Harap isi Nama Mesin dan Nomor Asset (*)');
+    alert('Harap isi Nama Mesin dan Machine Code / Nomor Asset (*)');
     return;
+  }
+
+  if (!modalId && !/^[A-Za-z0-9._-]+$/.test(asset)) {
+    alert('Machine Code hanya boleh berisi huruf, angka, titik, garis bawah, dan tanda hubung.');
+    return;
+  }
+
+  const dashboardUrl = _machineField('modal-machine-dashboard-url').value.trim();
+  if (dashboardUrl) {
+    try {
+      const parsedUrl = new URL(dashboardUrl);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('protocol');
+    } catch (error) {
+      alert('Realtime Dashboard URL harus valid dan menggunakan http atau https.');
+      return;
+    }
   }
 
   // Check unique asset number
@@ -2160,6 +2329,44 @@ function saveMachineData() {
     return;
   }
 
+  const existingMachine = modalId ? dbState.machines.find(m => m.id == modalId) : null;
+  const existingStableId = existingMachine && (existingMachine.machine_id || existingMachine.machine_code);
+  const stableMachineId = existingMachine
+    ? (/^[A-Za-z0-9._-]+$/.test(existingStableId || '') ? existingStableId : `MACHINE-${String(existingMachine.id).padStart(3, '0')}`)
+    : asset;
+  let machineImageUrl = _machineField('modal-machine-image-url').value || '';
+  if (pendingMachineImageFile) {
+    const imageForm = new FormData();
+    imageForm.append('machineId', stableMachineId);
+    imageForm.append('file', pendingMachineImageFile);
+    const imageResponse = await fetch('/api/machines/images', { method: 'POST', body: imageForm });
+    const imageResult = await imageResponse.json().catch(() => ({}));
+    if (!imageResponse.ok || !imageResult.machineImageUrl) {
+      _machineField('modal-machine-image-error').textContent = imageResult.message || 'Upload gambar mesin gagal.';
+      return;
+    }
+    machineImageUrl = imageResult.machineImageUrl;
+  }
+
+  const dynamicValues = {
+    machine_id: stableMachineId,
+    machine_code: asset,
+    area: _machineField('modal-machine-area').value.trim(),
+    department: _machineField('modal-machine-department').value.trim(),
+    machine_type: _machineField('modal-machine-type').value.trim(),
+    machine_image_url: machineImageUrl || null,
+    status_tag: _machineField('modal-machine-status-tag').value.trim(),
+    counter_tag: _machineField('modal-machine-counter-tag').value.trim(),
+    speed_tag: _machineField('modal-machine-speed-tag').value.trim(),
+    running_hours_tag: _machineField('modal-machine-running-hours-tag').value.trim(),
+    realtime_dashboard_url: dashboardUrl || null,
+    display_order: Math.max(0, Number(_machineField('modal-machine-display-order').value) || 0),
+    display_mode: _machineField('modal-machine-display-mode').value || 'AUTO',
+    is_active: _machineField('modal-machine-active').checked,
+    card_config: _machineCardConfigurationFromForm()
+  };
+
+  let savedMachine;
   if (modalId) {
     // Update
     const m = dbState.machines.find(m => m.id == modalId);
@@ -2170,14 +2377,18 @@ function saveMachineData() {
       m.manufacturer = manufacturer;
       m.install_date = install;
       m.status = status;
+      Object.assign(m, dynamicValues);
       m.last_updated = new Date().toISOString();
+      m.updated_at = new Date().toISOString();
+      if (originalMachineImageUrl !== machineImageUrl) m.image_updated_at = new Date().toISOString();
+      savedMachine = m;
       logToConsole('SYSTEM', `Mesin ${name} [${asset}] diperbarui.`);
     }
   } else {
     // Insert new
     const maxExistingId = dbState.machines.reduce((max, m) => Math.max(max, Number(m.id) || 0), 0);
     const nextId = maxExistingId + 1;
-    dbState.machines.push({
+    savedMachine = {
       id: nextId,
       name,
       asset_number: asset,
@@ -2189,9 +2400,46 @@ function saveMachineData() {
       running_hours_daily: 0.0,
       running_hours_weekly: 0.0,
       running_hours_monthly: 0.0,
-      last_updated: new Date().toISOString()
-    });
+      last_updated: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      ...dynamicValues
+    };
+    dbState.machines.push(savedMachine);
     logToConsole('SYSTEM', `Mesin baru ditambahkan: ${name} [${asset}].`);
+  }
+
+  const masterRequest = {
+    legacyId: savedMachine.id,
+    machineName: name,
+    machineCode: asset,
+    line,
+    area: dynamicValues.area,
+    department: dynamicValues.department,
+    machineType: dynamicValues.machine_type,
+    machineImageUrl: dynamicValues.machine_image_url,
+    statusTag: dynamicValues.status_tag,
+    counterTag: dynamicValues.counter_tag,
+    speedTag: dynamicValues.speed_tag,
+    runningHoursTag: dynamicValues.running_hours_tag,
+    realtimeDashboardUrl: dynamicValues.realtime_dashboard_url,
+    displayOrder: dynamicValues.display_order,
+    displayMode: dynamicValues.display_mode,
+    isActive: dynamicValues.is_active,
+    status,
+    cardConfiguration: dynamicValues.card_config
+  };
+
+  try {
+    const response = await fetch(`/api/machines/master/${encodeURIComponent(stableMachineId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(masterRequest)
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.message || 'API Master Machine menolak data.');
+  } catch (error) {
+    alert(`Data belum dapat disimpan: ${error.message || error}`);
+    return;
   }
 
   saveDatabase();
@@ -2200,19 +2448,27 @@ function saveMachineData() {
   updateMachineSelectDropdowns();
 }
 
-function deleteMachine(id) {
+async function deleteMachine(id) {
   if (activeUser.role === 'TECHNICIAN') {
     alert('Akses Ditolak: Level user TECHNICIAN tidak diizinkan menghapus data mesin.');
     return;
   }
 
-  if (confirm('Apakah Anda yakin ingin menghapus mesin ini? Semua spare part terasosiasi juga akan terhapus.')) {
-    dbState.machines = dbState.machines.filter(m => m.id !== id);
-    dbState.spare_parts = dbState.spare_parts.filter(sp => sp.machine_id !== id);
+  const machine = dbState.machines.find(m => m.id === id);
+  if (!machine) return;
+  if (!confirm(`Nonaktifkan ${machine.name}?\n\nMesin tidak lagi tampil di Dashboard, tetapi histori, spare part, maintenance, dan running hours tetap disimpan.`)) return;
+  const stableMachineId = machine.machine_id || machine.machine_code || machine.asset_number;
+  try {
+    const response = await fetch(`/api/machines/master/${encodeURIComponent(stableMachineId)}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error('Backend tidak dapat menonaktifkan mesin.');
+    machine.is_active = false;
+    machine.updated_at = new Date().toISOString();
     saveDatabase();
     renderMachinesTable();
     updateMachineSelectDropdowns();
-    logToConsole('SYSTEM', `Mesin ID: ${id} beserta spare part terasosiasi dihapus.`);
+    logToConsole('SYSTEM', `Mesin ID: ${id} dinonaktifkan tanpa menghapus histori atau spare part.`);
+  } catch (error) {
+    alert(error.message || String(error));
   }
 }
 

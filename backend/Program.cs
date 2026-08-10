@@ -11,10 +11,24 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 builder.Services.AddSingleton<StateStore>();
 builder.Services.AddSingleton<VersionManagementStore>();
 builder.Services.AddSingleton<VersionBackupService>();
+builder.Services.AddSingleton<SmartNotificationSource>();
+builder.Services.AddSingleton<SmartNotificationHub>();
+builder.Services.AddSingleton<SmartAssistantPreferenceStore>();
+builder.Services.AddHostedService<SmartNotificationMonitor>();
+builder.Services.AddSingleton<MachineDashboardSource>();
+builder.Services.AddSingleton<MachineDashboardHub>();
+builder.Services.AddSingleton<MachineImageStore>();
+builder.Services.AddHostedService<MachineDashboardMonitor>();
 
 var app = builder.Build();
 app.UseCors();
+app.UseWebSockets(new WebSocketOptions
+{
+    KeepAliveInterval = TimeSpan.FromSeconds(20)
+});
 app.MapVersionManagementApi();
+app.MapSmartAssistantApi();
+app.MapMachineDashboardApi();
 
 app.MapGet("/api/health", (StateStore store) => Results.Ok(new
 {
@@ -309,6 +323,49 @@ sealed class StateStore(IWebHostEnvironment environment)
                 state.ToJsonString(new JsonSerializerOptions { WriteIndented = true }),
                 cancellationToken);
             File.Move(temporaryPath, _path, true);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task<T> UpdateAsync<T>(
+        Func<JsonObject, T> update,
+        CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            JsonObject state;
+            if (!File.Exists(_path))
+            {
+                state = EmptyState();
+            }
+            else
+            {
+                try
+                {
+                    await using var stream = File.OpenRead(_path);
+                    state = await JsonNode.ParseAsync(stream, cancellationToken: cancellationToken) as JsonObject
+                        ?? EmptyState();
+                }
+                catch (JsonException)
+                {
+                    state = EmptyState();
+                }
+            }
+
+            state.Remove("status");
+            var result = update(state);
+            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+            var temporaryPath = _path + ".tmp";
+            await File.WriteAllTextAsync(
+                temporaryPath,
+                state.ToJsonString(new JsonSerializerOptions { WriteIndented = true }),
+                cancellationToken);
+            File.Move(temporaryPath, _path, true);
+            return result;
         }
         finally
         {

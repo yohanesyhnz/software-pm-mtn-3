@@ -6,8 +6,16 @@ CURRENT="$APP_ROOT/current"
 RUN_DIR="$APP_ROOT/run"
 LOG_DIR="$APP_ROOT/logs"
 NODE_BIN="${NODE_BIN:-/var/packages/Node.js_v20/target/usr/local/bin/node}"
+SMART_ASSISTANT_ENV="$APP_ROOT/shared/config/smart-assistant.env"
 
 mkdir -p "$RUN_DIR" "$LOG_DIR"
+
+if [ -f "$SMART_ASSISTANT_ENV" ]; then
+  set -a
+  # This administrator-owned file provides ConnectionStrings__PostgreSQL without committing credentials.
+  . "$SMART_ASSISTANT_ENV"
+  set +a
+fi
 
 if [ ! -x "$CURRENT/backend/PredictaCore.Api" ]; then
   echo "Backend executable is missing: $CURRENT/backend/PredictaCore.Api" >&2

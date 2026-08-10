@@ -1,7 +1,7 @@
 # SOFTWARE PM MTN 3
 
 <!-- SOFTWARE_VERSION:START -->
-**Current Version:** `v2.2.0`
+**Current Version:** `v3.0.0`
 <!-- SOFTWARE_VERSION:END -->
 
 Frontend dashboard Preventive Maintenance berbasis Next.js App Router. Selama migrasi, engine dashboard lama dipertahankan sebagai compatibility layer agar polling PHP, SSE telemetry, simulator, dan workflow CMMS tetap berfungsi.
@@ -40,6 +40,37 @@ Endpoint utama:
 - `GET /api/plc/test`
 
 Endpoint kompatibilitas `/api.php` dan `/sse.php` dipertahankan agar frontend lama tetap berfungsi selama migrasi bertahap.
+
+## Smart Notification Assistant
+
+Dashboard menyediakan Bell realtime dan popup **Smart Maintenance Assistant** untuk spare part berstatus `WARNING` atau `CRITICAL`. Sumber utama adalah tabel PostgreSQL `spare_parts`; ketika connection string belum tersedia pada lingkungan trial, service menggunakan state store tersinkronisasi sebagai fallback aman.
+
+Konfigurasikan PostgreSQL tanpa menyimpan credential di Git:
+
+```powershell
+$env:ConnectionStrings__PostgreSQL='Host=server;Port=5432;Database=cmms;Username=cmms_app;Password=...'
+```
+
+Endpoint utama:
+
+- `GET /api/smart-assistant/notifications`
+- `GET|PUT /api/smart-assistant/preferences?username=<user>`
+- `WS /api/smart-assistant/ws`
+
+Panduan kontrak data, deployment NAS, trigger popup, dan perilaku fallback tersedia di [`docs/smart-notification-assistant.md`](docs/smart-notification-assistant.md).
+
+## Dynamic Machine Card Dashboard
+
+Dashboard menampilkan satu card realtime untuk setiap `machine_id` aktif. Identitas mesin, gambar, PLC tag, URL Grafana/SCADA, urutan, mode tampilan, dan field yang terlihat dikonfigurasi melalui **Master Machine** lalu disimpan oleh ASP.NET Core API.
+
+- Grouping berdasarkan semua mesin, line, area, department, atau jenis mesin.
+- Drag-and-drop pointer/keyboard menyimpan `display_order` ke database.
+- Update realtime memakai WebSocket `/api/machine-dashboard/ws`; running hours tidak dihitung di browser.
+- Machine Health adalah rata-rata remaining percentage spare part aktif. Tanpa spare part aktif, health ditampilkan `N/A`.
+- Upload hanya menerima isi PNG/JPEG valid maksimal 5 MB, menghapus metadata, mengoptimalkan ukuran, dan memakai nama file acak yang aman.
+- Aksi hapus di Master Machine menjadi soft deactivate sehingga histori, spare part, maintenance, dan running hours tetap tersimpan.
+
+Migration PostgreSQL bersifat additive dan harus dijalankan setelah backup serta verifikasi staging. Lihat [`docs/migration-dynamic-machine-dashboard.md`](docs/migration-dynamic-machine-dashboard.md).
 
 ## Software Version Management
 
