@@ -705,6 +705,8 @@
               <option value="ALARM">ALARM</option>
               <option value="MAINTENANCE">MAINTENANCE</option>
               <option value="DATA OFFLINE">DATA OFFLINE</option>
+              <option value="DATA UNAVAILABLE">DATA UNAVAILABLE</option>
+              <option value="DATABASE OFFLINE">DATABASE OFFLINE</option>
             </select>
           </div>
         </div>
@@ -726,6 +728,30 @@
               <button type="button" class="btn btn-danger" onclick="removeMachineImage()">Remove Image</button>
               <span class="machine-image-error" id="modal-machine-image-error" role="alert"></span>
             </div>
+          </div>
+        </section>
+
+        <section class="machine-form-section">
+          <div class="machine-form-section-heading">
+            <strong>PostgreSQL Realtime Source</strong>
+            <span>Konfigurasi diproses hanya di backend; credential tidak pernah dikirim ke browser.</span>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-1"><label>Source Table</label><input type="text" id="modal-machine-source-table" placeholder="ILE7_D0710_BOSCH_RRU_3085_01_A"></div>
+            <div class="form-group flex-1"><label>Timestamp Column</label><input type="text" id="modal-machine-source-timestamp" value="timestamp_zone" placeholder="timestamp_zone"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-1"><label>Parameter Name</label><input type="text" id="modal-machine-parameter-name" placeholder="counting_product"></div>
+            <div class="form-group flex-1">
+              <label>Parameter Type</label>
+              <select id="modal-machine-parameter-type"><option>COUNTER</option><option>SPEED</option><option>WEIGHT</option></select>
+            </div>
+            <div class="form-group flex-1"><label>Parameter Unit</label><input type="text" id="modal-machine-parameter-unit" placeholder="pcs / kg / unit aktual"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-1"><label>Running Threshold</label><input type="number" step="any" id="modal-machine-running-threshold" value="0"></div>
+            <div class="form-group flex-1"><label>Stop Timeout (detik)</label><input type="number" min="1" max="3600" id="modal-machine-stop-timeout" value="10"></div>
+            <div class="form-group flex-1 machine-active-field"><label><input type="checkbox" id="modal-machine-acquisition-enabled"> Enable PostgreSQL Acquisition</label></div>
           </div>
         </section>
 
@@ -774,6 +800,7 @@
             <label><input type="checkbox" id="modal-machine-show-speed" checked> Speed</label>
             <label><input type="checkbox" id="modal-machine-show-hours" checked> Running Hours</label>
             <label><input type="checkbox" id="modal-machine-show-health" checked> Health</label>
+            <label><input type="checkbox" id="modal-machine-show-realtime-value" checked> Realtime Value</label>
           </div>
         </section>
       </div>

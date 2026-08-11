@@ -135,10 +135,25 @@ public static class MachineDashboardEndpoints
         if (!string.IsNullOrWhiteSpace(request.RealtimeDashboardUrl) &&
             (!Uri.TryCreate(request.RealtimeDashboardUrl, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https")))
             return "Realtime Dashboard URL harus menggunakan http atau https.";
+        if (request.AcquisitionEnabled)
+        {
+            if (string.IsNullOrWhiteSpace(request.SourceTableName) || string.IsNullOrWhiteSpace(request.ParameterName))
+                return "Source Table dan Parameter wajib diisi ketika akuisisi PostgreSQL diaktifkan.";
+            if (!Enum.TryParse<MachineParameterType>(request.ParameterType, true, out _))
+                return "Parameter Type harus COUNTER, SPEED, atau WEIGHT.";
+            if (request.StopTimeoutSeconds is < 1 or > 3600)
+                return "Stop Timeout harus berada pada rentang 1–3600 detik.";
+            if (!IsSafeIdentifier(MachineConfigurationStore.NormalizeTableName(request.SourceTableName)) ||
+                !IsSafeIdentifier(request.ParameterName) ||
+                !IsSafeIdentifier(request.SourceTimestampColumn ?? "timestamp_zone"))
+                return "Nama tabel/kolom PostgreSQL mengandung karakter yang tidak diperbolehkan.";
+        }
         return null;
     }
 
-    internal static readonly HashSet<string> MachineStatuses = ["RUNNING", "STOPPED", "IDLE", "ALARM", "MAINTENANCE", "DATA OFFLINE"];
+    private static bool IsSafeIdentifier(string? value) => !string.IsNullOrWhiteSpace(value) && value.Length <= 128 &&
+        value.All(character => char.IsAsciiLetterOrDigit(character) || character is '_' or ' ' or '-');
+    internal static readonly HashSet<string> MachineStatuses = ["RUNNING", "STOPPED", "IDLE", "ALARM", "MAINTENANCE", "DATA OFFLINE", "DATA UNAVAILABLE", "DATABASE OFFLINE"];
     internal static readonly HashSet<string> DisplayModes = ["AUTO", "COMPACT", "STANDARD", "LARGE"];
 
     internal static string NormalizeStatus(string? value)
@@ -164,7 +179,8 @@ public sealed record MachineCardConfiguration(
     bool ShowCounter = true,
     bool ShowSpeed = true,
     bool ShowRunningHours = true,
-    bool ShowHealth = true);
+    bool ShowHealth = true,
+    bool ShowRealtimeValue = true);
 
 public sealed record MachineMasterRequest(
     int? LegacyId,
@@ -184,7 +200,15 @@ public sealed record MachineMasterRequest(
     string DisplayMode,
     bool IsActive,
     string Status,
-    MachineCardConfiguration CardConfiguration);
+    MachineCardConfiguration CardConfiguration,
+    string? SourceTableName = null,
+    string? SourceTimestampColumn = null,
+    string? ParameterName = null,
+    string? ParameterType = null,
+    string? ParameterUnit = null,
+    double? RunningThreshold = null,
+    int StopTimeoutSeconds = 10,
+    bool AcquisitionEnabled = false);
 
 public sealed record MachineOrderRequest(IReadOnlyList<string> MachineIds);
 
@@ -203,6 +227,10 @@ public sealed record MachineDashboardItem(
     double? Speed,
     string CounterUnit,
     string SpeedUnit,
+    string? ParameterName,
+    string? ParameterType,
+    string? ParameterUnit,
+    double? ParameterValue,
     double? RunningHours,
     double? Health,
     string HealthStatus,
@@ -211,6 +239,8 @@ public sealed record MachineDashboardItem(
     string DisplayMode,
     bool IsActive,
     MachineCardConfiguration CardConfiguration,
+    string ConnectionStatus,
+    DateTimeOffset? SourceTimestamp,
     DateTimeOffset? RealtimeUpdatedAt,
     DateTimeOffset UpdatedAt);
 
@@ -218,24 +248,29 @@ public sealed record MachineDashboardSnapshot(
     IReadOnlyList<MachineDashboardItem> Machines,
     int Total,
     string Source,
+    string ConnectionStatus,
     DateTimeOffset UpdatedAt);
 
 sealed class MachineDashboardSource(
     StateStore stateStore,
-    IConfiguration configuration,
+    PostgreSqlDataSourceProvider postgreSql,
+    MachineStatePersistence persistence,
     MachineImageStore imageStore,
+    MachineRealtimeRegistry realtimeRegistry,
     ILogger<MachineDashboardSource> logger)
 {
     private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
+    private readonly SemaphoreSlim _schemaGate = new(1, 1);
+    private DateTimeOffset _nextSchemaCheck = DateTimeOffset.MinValue;
+    private bool _applicationSchemaReady;
 
     public async Task<MachineDashboardSnapshot> GetSnapshotAsync(bool includeInactive, CancellationToken cancellationToken)
     {
-        var connectionString = configuration.GetConnectionString("PostgreSQL");
-        if (!string.IsNullOrWhiteSpace(connectionString))
+        if (await ApplicationSchemaReadyAsync(cancellationToken))
         {
             try
             {
-                return BuildSnapshot(await ReadPostgreSqlAsync(connectionString, includeInactive, cancellationToken), "postgresql");
+                return BuildSnapshot(await ReadPostgreSqlAsync(postgreSql, includeInactive, cancellationToken), "postgresql");
             }
             catch (Exception exception) when (exception is NpgsqlException or InvalidOperationException or PostgresException)
             {
@@ -260,19 +295,24 @@ sealed class MachineDashboardSource(
             return true;
         }, cancellationToken);
 
-        var connectionString = configuration.GetConnectionString("PostgreSQL");
-        if (string.IsNullOrWhiteSpace(connectionString)) return;
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
-        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
-        foreach (var item in order)
+        if (!await ApplicationSchemaReadyAsync(cancellationToken)) return;
+        try
         {
-            await using var command = new NpgsqlCommand("UPDATE master_machine SET display_order = @display_order, updated_at = NOW() WHERE machine_id = @machine_id", connection, transaction);
-            command.Parameters.AddWithValue("display_order", item.order);
-            command.Parameters.AddWithValue("machine_id", item.id);
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            await using var connection = await postgreSql.OpenConnectionAsync(cancellationToken);
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            foreach (var item in order)
+            {
+                await using var command = new NpgsqlCommand("UPDATE master_machine SET display_order = @display_order, updated_at = NOW() WHERE machine_id = @machine_id", connection, transaction);
+                command.Parameters.AddWithValue("display_order", item.order);
+                command.Parameters.AddWithValue("machine_id", item.id);
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+            await transaction.CommitAsync(cancellationToken);
         }
-        await transaction.CommitAsync(cancellationToken);
+        catch (Exception exception) when (exception is NpgsqlException or InvalidOperationException)
+        {
+            logger.LogWarning("Machine order remains saved in the durable state fallback because PostgreSQL application tables are unavailable: {Reason}", exception.Message);
+        }
     }
 
     public async Task<MachineDashboardItem> SaveMasterAsync(string machineId, MachineMasterRequest request, CancellationToken cancellationToken)
@@ -308,6 +348,14 @@ sealed class MachineDashboardSource(
             machine["counter_tag"] = request.CounterTag;
             machine["speed_tag"] = request.SpeedTag;
             machine["running_hours_tag"] = request.RunningHoursTag;
+            machine["source_table_name"] = MachineConfigurationStore.NormalizeTableName(request.SourceTableName);
+            machine["source_timestamp_column"] = request.SourceTimestampColumn?.Trim() ?? "timestamp_zone";
+            machine["parameter_name"] = request.ParameterName?.Trim();
+            machine["parameter_type"] = request.ParameterType?.Trim().ToUpperInvariant();
+            machine["parameter_unit"] = request.ParameterUnit?.Trim() ?? string.Empty;
+            machine["running_threshold"] = request.RunningThreshold;
+            machine["stop_timeout_seconds"] = Math.Clamp(request.StopTimeoutSeconds, 1, 3600);
+            machine["acquisition_enabled"] = request.AcquisitionEnabled;
             machine["realtime_dashboard_url"] = request.RealtimeDashboardUrl;
             machine["display_order"] = request.DisplayOrder;
             machine["display_mode"] = request.DisplayMode.Trim().ToUpperInvariant();
@@ -320,9 +368,14 @@ sealed class MachineDashboardSource(
             return true;
         }, cancellationToken);
 
-        var connectionString = configuration.GetConnectionString("PostgreSQL");
-        if (!string.IsNullOrWhiteSpace(connectionString))
-            await UpsertPostgreSqlAsync(connectionString, machineId, request, cancellationToken);
+        if (await ApplicationSchemaReadyAsync(cancellationToken))
+        {
+            try { await UpsertPostgreSqlAsync(postgreSql, machineId, request, cancellationToken); }
+            catch (Exception exception) when (exception is NpgsqlException or InvalidOperationException)
+            {
+                logger.LogWarning("Master Machine remains saved in the durable state fallback because PostgreSQL application tables are unavailable: {Reason}", exception.Message);
+            }
+        }
 
         if (!string.IsNullOrWhiteSpace(oldImageUrl) && !string.Equals(oldImageUrl, request.MachineImageUrl, StringComparison.Ordinal))
             await imageStore.DeleteIfUnreferencedAsync(oldImageUrl, cancellationToken);
@@ -343,22 +396,77 @@ sealed class MachineDashboardSource(
             return true;
         }, cancellationToken);
 
-        var connectionString = configuration.GetConnectionString("PostgreSQL");
-        if (!string.IsNullOrWhiteSpace(connectionString))
+        if (await ApplicationSchemaReadyAsync(cancellationToken))
         {
-            await using var connection = new NpgsqlConnection(connectionString);
-            await connection.OpenAsync(cancellationToken);
-            await using var command = new NpgsqlCommand("UPDATE master_machine SET is_active = FALSE, updated_at = NOW() WHERE machine_id = @machine_id", connection);
-            command.Parameters.AddWithValue("machine_id", machineId);
-            found = await command.ExecuteNonQueryAsync(cancellationToken) > 0 || found;
+            try
+            {
+                await using var connection = await postgreSql.OpenConnectionAsync(cancellationToken);
+                await using var command = new NpgsqlCommand("UPDATE master_machine SET is_active = FALSE, updated_at = NOW() WHERE machine_id = @machine_id", connection);
+                command.Parameters.AddWithValue("machine_id", machineId);
+                found = await command.ExecuteNonQueryAsync(cancellationToken) > 0 || found;
+            }
+            catch (Exception exception) when (exception is NpgsqlException or InvalidOperationException)
+            {
+                logger.LogWarning("Machine deactivation remains saved in the durable state fallback because PostgreSQL application tables are unavailable: {Reason}", exception.Message);
+            }
         }
         return found;
     }
 
-    private static MachineDashboardSnapshot BuildSnapshot(IEnumerable<MachineDashboardItem> items, string source)
+    private async Task<bool> ApplicationSchemaReadyAsync(CancellationToken cancellationToken)
     {
-        var machines = items.OrderBy(item => item.DisplayOrder).ThenBy(item => item.MachineName, StringComparer.OrdinalIgnoreCase).ToArray();
-        return new MachineDashboardSnapshot(machines, machines.Length, source, DateTimeOffset.UtcNow);
+        if (!postgreSql.IsConfigured) return false;
+        if (DateTimeOffset.UtcNow < _nextSchemaCheck) return _applicationSchemaReady;
+        await _schemaGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (DateTimeOffset.UtcNow < _nextSchemaCheck) return _applicationSchemaReady;
+            try { _applicationSchemaReady = await persistence.HasApplicationSchemaAsync(cancellationToken); }
+            catch (Exception exception) when (exception is NpgsqlException or InvalidOperationException)
+            {
+                _applicationSchemaReady = false;
+                logger.LogWarning("PostgreSQL application schema check failed; using durable state fallback: {Reason}", exception.Message);
+            }
+            _nextSchemaCheck = DateTimeOffset.UtcNow.AddMinutes(1);
+            return _applicationSchemaReady;
+        }
+        finally { _schemaGate.Release(); }
+    }
+
+    private MachineDashboardSnapshot BuildSnapshot(IEnumerable<MachineDashboardItem> items, string source)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var machines = items.Select(item => ApplyRealtime(item, now))
+            .OrderBy(item => item.DisplayOrder)
+            .ThenBy(item => item.MachineName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var connectionStatus = machines.Any(machine => machine.ConnectionStatus == "DATABASE OFFLINE")
+            ? "OFFLINE"
+            : machines.Any(machine => machine.ConnectionStatus == "REALTIME CONNECTED") ? "CONNECTED" : "UNAVAILABLE";
+        return new MachineDashboardSnapshot(machines, machines.Length, source, connectionStatus, now);
+    }
+
+    private MachineDashboardItem ApplyRealtime(MachineDashboardItem item, DateTimeOffset now)
+    {
+        if (!realtimeRegistry.TryGet(item.MachineId, out var runtime)) return item;
+        var value = runtime.CurrentValue is not null && double.IsFinite(runtime.CurrentValue.Value) ? runtime.CurrentValue : null;
+        return item with
+        {
+            MachineName = runtime.MachineName,
+            Status = MachineDashboardEndpoints.NormalizeStatus(runtime.DisplayStatus),
+            Counter = runtime.ParameterType == MachineParameterType.Counter ? value : item.Counter,
+            Speed = runtime.ParameterType == MachineParameterType.Speed ? value : item.Speed,
+            CounterUnit = runtime.ParameterType == MachineParameterType.Counter ? runtime.ParameterUnit : item.CounterUnit,
+            SpeedUnit = runtime.ParameterType == MachineParameterType.Speed ? runtime.ParameterUnit : item.SpeedUnit,
+            ParameterName = runtime.ParameterName,
+            ParameterType = runtime.ParameterType.ToString().ToUpperInvariant(),
+            ParameterUnit = runtime.ParameterUnit,
+            ParameterValue = value,
+            RunningHours = runtime.RunningHoursAt(now),
+            ConnectionStatus = runtime.ConnectionStatus,
+            SourceTimestamp = runtime.SourceTimestamp,
+            RealtimeUpdatedAt = runtime.LastUpdate
+        };
     }
 
     private async Task<IReadOnlyList<MachineDashboardItem>> ReadStateAsync(bool includeInactive, CancellationToken cancellationToken)
@@ -398,6 +506,10 @@ sealed class MachineDashboardSource(
                 FiniteOrNull(ReadDouble(machine, "speed", "machine_speed")),
                 ReadString(machine, "counter_unit") ?? "pcs",
                 ReadString(machine, "speed_unit") ?? "unit/min",
+                ReadString(machine, "parameter_name"),
+                ReadString(machine, "parameter_type"),
+                ReadString(machine, "parameter_unit"),
+                FiniteOrNull(ReadDouble(machine, "parameter_value")),
                 FiniteOrNull(ReadDouble(machine, "running_hours", "running_hours_total")),
                 health,
                 HealthStatus(health),
@@ -406,13 +518,15 @@ sealed class MachineDashboardSource(
                 NormalizeDisplayMode(ReadString(machine, "display_mode")),
                 active,
                 ReadCardConfiguration(machine),
+                ReadString(machine, "connection_status") ?? "DATA UNAVAILABLE",
+                ReadDateTime(machine, "source_timestamp"),
                 ReadDateTime(machine, "realtime_updated_at", "last_updated"),
                 updatedAt));
         }
         return result;
     }
 
-    private static async Task<IReadOnlyList<MachineDashboardItem>> ReadPostgreSqlAsync(string connectionString, bool includeInactive, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<MachineDashboardItem>> ReadPostgreSqlAsync(PostgreSqlDataSourceProvider postgreSql, bool includeInactive, CancellationToken cancellationToken)
     {
         const string sql = """
             WITH spare_health AS (
@@ -424,7 +538,9 @@ sealed class MachineDashboardSource(
             SELECT m.machine_id, m.legacy_id, m.machine_name, m.machine_code, m.line, m.area,
                    m.department, m.machine_type, m.machine_image_url,
                    COALESCE(r.status, m.status, 'DATA OFFLINE') AS status,
-                   r.counter_value, r.speed_value, r.counter_unit, r.speed_unit, r.running_hours,
+                   r.counter_value, r.speed_value, r.counter_unit, r.speed_unit,
+                   r.parameter_name, r.parameter_type, r.parameter_unit, r.parameter_value,
+                   r.running_hours, r.connection_status, r.source_timestamp,
                    h.health, m.realtime_dashboard_url, m.display_order, m.display_mode,
                    m.is_active, m.card_config, r.updated_at AS realtime_updated_at, m.updated_at
             FROM master_machine m
@@ -435,8 +551,7 @@ sealed class MachineDashboardSource(
             """;
 
         var result = new List<MachineDashboardItem>();
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await postgreSql.OpenConnectionAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("include_inactive", includeInactive);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -458,6 +573,10 @@ sealed class MachineDashboardSource(
                 FiniteOrNull(DbDouble(reader, "speed_value")),
                 DbString(reader, "counter_unit") ?? "pcs",
                 DbString(reader, "speed_unit") ?? "unit/min",
+                DbString(reader, "parameter_name"),
+                DbString(reader, "parameter_type"),
+                DbString(reader, "parameter_unit"),
+                FiniteOrNull(DbDouble(reader, "parameter_value")),
                 FiniteOrNull(DbDouble(reader, "running_hours")),
                 health,
                 HealthStatus(health),
@@ -466,23 +585,29 @@ sealed class MachineDashboardSource(
                 NormalizeDisplayMode(DbString(reader, "display_mode")),
                 DbBool(reader, "is_active") ?? true,
                 ParseCardConfiguration(DbString(reader, "card_config")),
+                DbString(reader, "connection_status") ?? "DATA UNAVAILABLE",
+                DbDateTime(reader, "source_timestamp"),
                 DbDateTime(reader, "realtime_updated_at"),
                 DbDateTime(reader, "updated_at") ?? DateTimeOffset.UtcNow));
         }
         return result;
     }
 
-    private static async Task UpsertPostgreSqlAsync(string connectionString, string machineId, MachineMasterRequest request, CancellationToken cancellationToken)
+    private static async Task UpsertPostgreSqlAsync(PostgreSqlDataSourceProvider postgreSql, string machineId, MachineMasterRequest request, CancellationToken cancellationToken)
     {
         const string sql = """
             INSERT INTO master_machine
                 (machine_id, legacy_id, machine_name, machine_code, line, area, department, machine_type,
                  machine_image_url, status_tag, counter_tag, speed_tag, running_hours_tag,
+                 source_table_name, source_timestamp_column, parameter_name, parameter_type,
+                 parameter_unit, running_threshold, stop_timeout_seconds, acquisition_enabled,
                  realtime_dashboard_url, display_order, display_mode, is_active, status, card_config,
                  created_at, updated_at, image_updated_at)
             VALUES
                 (@machine_id, @legacy_id, @machine_name, @machine_code, @line, @area, @department, @machine_type,
                  @image_url, @status_tag, @counter_tag, @speed_tag, @running_hours_tag,
+                 @source_table_name, @source_timestamp_column, @parameter_name, @parameter_type,
+                 @parameter_unit, @running_threshold, @stop_timeout_seconds, @acquisition_enabled,
                  @dashboard_url, @display_order, @display_mode, @is_active, @status, CAST(@card_config AS jsonb),
                  NOW(), NOW(), NOW())
             ON CONFLICT (machine_id) DO UPDATE SET
@@ -492,14 +617,21 @@ sealed class MachineDashboardSource(
                 machine_image_url = EXCLUDED.machine_image_url, status_tag = EXCLUDED.status_tag,
                 counter_tag = EXCLUDED.counter_tag, speed_tag = EXCLUDED.speed_tag,
                 running_hours_tag = EXCLUDED.running_hours_tag,
+                source_table_name = EXCLUDED.source_table_name,
+                source_timestamp_column = EXCLUDED.source_timestamp_column,
+                parameter_name = EXCLUDED.parameter_name,
+                parameter_type = EXCLUDED.parameter_type,
+                parameter_unit = EXCLUDED.parameter_unit,
+                running_threshold = EXCLUDED.running_threshold,
+                stop_timeout_seconds = EXCLUDED.stop_timeout_seconds,
+                acquisition_enabled = EXCLUDED.acquisition_enabled,
                 realtime_dashboard_url = EXCLUDED.realtime_dashboard_url,
                 display_order = EXCLUDED.display_order, display_mode = EXCLUDED.display_mode,
                 is_active = EXCLUDED.is_active, status = EXCLUDED.status,
                 card_config = EXCLUDED.card_config, updated_at = NOW(),
                 image_updated_at = CASE WHEN master_machine.machine_image_url IS DISTINCT FROM EXCLUDED.machine_image_url THEN NOW() ELSE master_machine.image_updated_at END;
             """;
-        await using var connection = new NpgsqlConnection(connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await using var connection = await postgreSql.OpenConnectionAsync(cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("machine_id", machineId);
         command.Parameters.AddWithValue("legacy_id", (object?)request.LegacyId ?? DBNull.Value);
@@ -514,6 +646,14 @@ sealed class MachineDashboardSource(
         command.Parameters.AddWithValue("counter_tag", (object?)request.CounterTag ?? DBNull.Value);
         command.Parameters.AddWithValue("speed_tag", (object?)request.SpeedTag ?? DBNull.Value);
         command.Parameters.AddWithValue("running_hours_tag", (object?)request.RunningHoursTag ?? DBNull.Value);
+        command.Parameters.AddWithValue("source_table_name", (object?)MachineConfigurationStore.NormalizeTableName(request.SourceTableName) ?? DBNull.Value);
+        command.Parameters.AddWithValue("source_timestamp_column", (object?)request.SourceTimestampColumn?.Trim() ?? "timestamp_zone");
+        command.Parameters.AddWithValue("parameter_name", (object?)request.ParameterName?.Trim() ?? DBNull.Value);
+        command.Parameters.AddWithValue("parameter_type", (object?)request.ParameterType?.Trim().ToUpperInvariant() ?? DBNull.Value);
+        command.Parameters.AddWithValue("parameter_unit", request.ParameterUnit?.Trim() ?? string.Empty);
+        command.Parameters.AddWithValue("running_threshold", (object?)request.RunningThreshold ?? DBNull.Value);
+        command.Parameters.AddWithValue("stop_timeout_seconds", Math.Clamp(request.StopTimeoutSeconds, 1, 3600));
+        command.Parameters.AddWithValue("acquisition_enabled", request.AcquisitionEnabled);
         command.Parameters.AddWithValue("dashboard_url", (object?)request.RealtimeDashboardUrl ?? DBNull.Value);
         command.Parameters.AddWithValue("display_order", request.DisplayOrder);
         command.Parameters.AddWithValue("display_mode", request.DisplayMode.Trim().ToUpperInvariant());

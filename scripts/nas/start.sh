@@ -7,6 +7,7 @@ RUN_DIR="$APP_ROOT/run"
 LOG_DIR="$APP_ROOT/logs"
 NODE_BIN="${NODE_BIN:-/var/packages/Node.js_v20/target/usr/local/bin/node}"
 SMART_ASSISTANT_ENV="$APP_ROOT/shared/config/smart-assistant.env"
+POSTGRES_ENV="$APP_ROOT/shared/config/postgres.env"
 PREDICTACORE_PBKDF2_ITERATIONS="${PREDICTACORE_PBKDF2_ITERATIONS:-30000}"
 DEFAULT_NAS_YAO_PASSWORD_HASH='pbkdf2-sha256$30000$NZZGhio+8Jv3S6ONeq3TUQ==$7CK3DylQxJFcLsxfyO9zLadpVRXgMql4jI6xQDqaccA='
 PREDICTACORE_YAO_PASSWORD_HASH="${PREDICTACORE_YAO_PASSWORD_HASH:-$DEFAULT_NAS_YAO_PASSWORD_HASH}"
@@ -17,6 +18,13 @@ if [ -f "$SMART_ASSISTANT_ENV" ]; then
   set -a
   # This administrator-owned file provides ConnectionStrings__PostgreSQL without committing credentials.
   . "$SMART_ASSISTANT_ENV"
+  set +a
+fi
+
+if [ -f "$POSTGRES_ENV" ]; then
+  set -a
+  # Administrator-owned POSTGRES_* values; never packaged or committed.
+  . "$POSTGRES_ENV"
   set +a
 fi
 

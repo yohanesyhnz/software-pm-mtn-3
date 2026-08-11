@@ -6,6 +6,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { MachineDashboardItem, MachineDisplayMode } from "./types";
 
 const numberFormatter = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 1 });
+const timestampFormatter = new Intl.DateTimeFormat("id-ID", { dateStyle: "short", timeStyle: "medium" });
 
 function safeNumber(value: number | null): string {
   return value !== null && Number.isFinite(value) ? numberFormatter.format(value) : "--";
@@ -55,6 +56,15 @@ function MachineCardComponent({
 
   const stopCardClick = (event: MouseEvent<HTMLButtonElement>) => event.stopPropagation();
   const healthLabel = machine.health === null ? "N/A" : `${safeNumber(machine.health)}%`;
+  const parameterLabel = machine.parameterType === "WEIGHT"
+    ? "BOBOT AKTUAL"
+    : machine.parameterType === "SPEED" ? "SPEED" : machine.parameterType === "COUNTER" ? "COUNTER" : null;
+  const parameterEnabled = machine.parameterType === "COUNTER"
+    ? config.showCounter
+    : machine.parameterType === "SPEED" ? config.showSpeed : true;
+  const showPrimaryParameter = Boolean(parameterLabel) && config.showRealtimeValue !== false && parameterEnabled;
+  const lastUpdate = machine.sourceTimestamp ?? machine.realtimeUpdatedAt;
+  const lastUpdateLabel = lastUpdate && !Number.isNaN(Date.parse(lastUpdate)) ? timestampFormatter.format(new Date(lastUpdate)) : "--";
 
   return (
     <article
@@ -126,13 +136,19 @@ function MachineCardComponent({
       ) : null}
 
       <dl className="machine-metrics">
-        {config.showCounter ? (
+        {showPrimaryParameter ? (
+          <div className="machine-primary-metric" title={machine.parameterName ?? parameterLabel ?? undefined}>
+            <dt>{parameterLabel}</dt>
+            <dd>{safeNumber(machine.parameterValue)} <small>{machine.parameterValue === null ? "" : machine.parameterUnit}</small></dd>
+          </div>
+        ) : null}
+        {!machine.parameterType && config.showCounter ? (
           <div>
             <dt>COUNTER</dt>
             <dd>{safeNumber(machine.counter)} <small>{machine.counter === null ? "" : machine.counterUnit}</small></dd>
           </div>
         ) : null}
-        {config.showSpeed ? (
+        {!machine.parameterType && config.showSpeed ? (
           <div>
             <dt>SPEED</dt>
             <dd>{safeNumber(machine.speed)} <small>{machine.speed === null ? "" : machine.speedUnit}</small></dd>
@@ -145,6 +161,10 @@ function MachineCardComponent({
           </div>
         ) : null}
       </dl>
+      <div className={`machine-data-freshness ${machine.connectionStatus.toLowerCase().replaceAll(" ", "-")}`}>
+        <span>{machine.connectionStatus}</span>
+        <time dateTime={lastUpdate ?? undefined}>Last Update: {lastUpdateLabel}</time>
+      </div>
       <span className="machine-card-open-hint" aria-hidden="true">Realtime ↗</span>
     </article>
   );

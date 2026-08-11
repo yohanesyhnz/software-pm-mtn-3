@@ -236,6 +236,13 @@
   box-shadow: 0 0 8px rgba(26, 223, 147, 0.7);
 }
 
+.realtime-connection small {
+  padding-left: 6px;
+  border-left: 1px solid var(--machine-border);
+  font-size: 7px;
+  letter-spacing: 0.03em;
+}
+
 .realtime-connection.connecting i {
   background: #f8c94c;
   animation: machine-soft-pulse 1.3s ease-in-out infinite;
@@ -372,7 +379,9 @@
 
 .dynamic-machine-card.status-running { --status-color: #18cc82; }
 .dynamic-machine-card.status-stopped,
-.dynamic-machine-card.status-data-offline { --status-color: #ef4059; }
+.dynamic-machine-card.status-data-offline,
+.dynamic-machine-card.status-database-offline { --status-color: #ef4059; }
+.dynamic-machine-card.status-data-unavailable { --status-color: #e7bc3c; }
 .dynamic-machine-card.status-idle { --status-color: #e7bc3c; }
 .dynamic-machine-card.status-maintenance { --status-color: #f39a37; }
 .dynamic-machine-card.status-alarm { --status-color: #ff294d; animation: machine-alarm-pulse 1.7s ease-in-out infinite; }
@@ -590,6 +599,11 @@
   text-align: center;
 }
 
+.machine-metrics .machine-primary-metric {
+  grid-column: 1 / -1;
+  text-align: center;
+}
+
 .machine-metrics dt {
   color: var(--machine-muted);
   font-size: 7px;
@@ -609,6 +623,34 @@
 .machine-metrics dd small {
   color: var(--machine-muted);
   font-size: 8px;
+}
+
+.machine-data-freshness {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 7px;
+  color: var(--machine-muted);
+  font-size: 7px;
+}
+
+.machine-data-freshness span {
+  overflow: hidden;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.machine-data-freshness.realtime-connected span { color: #18cc82; }
+.machine-data-freshness.data-unavailable span { color: #e7bc3c; }
+.machine-data-freshness.database-offline span { color: #ef4059; }
+
+.machine-data-freshness time {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .machine-card-open-hint {

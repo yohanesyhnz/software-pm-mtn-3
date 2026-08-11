@@ -1,4 +1,5 @@
-export type MachineStatus = "RUNNING" | "STOPPED" | "IDLE" | "ALARM" | "MAINTENANCE" | "DATA OFFLINE";
+export type MachineStatus = "RUNNING" | "STOPPED" | "IDLE" | "ALARM" | "MAINTENANCE" | "DATA OFFLINE" | "DATA UNAVAILABLE" | "DATABASE OFFLINE";
+export type MachineParameterType = "COUNTER" | "SPEED" | "WEIGHT";
 export type MachineDisplayMode = "AUTO" | "COMPACT" | "STANDARD" | "LARGE";
 export type MachineGrouping = "ALL" | "LINE" | "AREA" | "DEPARTMENT" | "MACHINE_TYPE";
 
@@ -13,6 +14,7 @@ export type MachineCardConfiguration = {
   showSpeed: boolean;
   showRunningHours: boolean;
   showHealth: boolean;
+  showRealtimeValue: boolean;
 };
 
 export type MachineDashboardItem = {
@@ -30,6 +32,10 @@ export type MachineDashboardItem = {
   speed: number | null;
   counterUnit: string;
   speedUnit: string;
+  parameterName: string | null;
+  parameterType: MachineParameterType | null;
+  parameterUnit: string | null;
+  parameterValue: number | null;
   runningHours: number | null;
   health: number | null;
   healthStatus: "HEALTHY" | "GOOD" | "WARNING" | "CRITICAL" | "N/A";
@@ -38,6 +44,8 @@ export type MachineDashboardItem = {
   displayMode: MachineDisplayMode;
   isActive: boolean;
   cardConfiguration: MachineCardConfiguration;
+  connectionStatus: "REALTIME CONNECTED" | "DATA UNAVAILABLE" | "DATABASE OFFLINE";
+  sourceTimestamp: string | null;
   realtimeUpdatedAt: string | null;
   updatedAt: string;
 };
@@ -46,5 +54,6 @@ export type MachineDashboardSnapshot = {
   machines: MachineDashboardItem[];
   total: number;
   source: string;
+  connectionStatus: "CONNECTED" | "OFFLINE" | "UNAVAILABLE";
   updatedAt: string;
 };

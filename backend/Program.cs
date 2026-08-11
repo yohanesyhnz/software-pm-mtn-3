@@ -34,7 +34,12 @@ builder.Services.AddHostedService<SmartNotificationMonitor>();
 builder.Services.AddSingleton<MachineDashboardSource>();
 builder.Services.AddSingleton<MachineDashboardHub>();
 builder.Services.AddSingleton<MachineImageStore>();
-builder.Services.AddHostedService<MachineDashboardMonitor>();
+builder.Services.AddSingleton<PostgreSqlDataSourceProvider>();
+builder.Services.AddSingleton<MachineRealtimeRegistry>();
+builder.Services.AddSingleton<MachineStatusEngine>();
+builder.Services.AddSingleton<MachineConfigurationStore>();
+builder.Services.AddSingleton<MachineStatePersistence>();
+builder.Services.AddHostedService<MachineDataAcquisitionService>();
 
 var app = builder.Build();
 app.UseCors();
@@ -46,6 +51,7 @@ app.UseWebSockets(new WebSocketOptions
 app.MapVersionManagementApi();
 app.MapSmartAssistantApi();
 app.MapMachineDashboardApi();
+app.MapMachineMonitoringApi();
 app.MapUserManagementApi();
 
 app.MapGet("/api/health", (StateStore store) => Results.Ok(new

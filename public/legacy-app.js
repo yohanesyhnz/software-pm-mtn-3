@@ -323,8 +323,6 @@ function ensureBoschMachinesExist() {
         running_hours_monthly: 0,
         last_updated: new Date().toISOString(),
         plc_protocol: 'PostgreSQL',
-        plc_ip: '10.165.41.45',
-        plc_port: 5432,
         plc_address: def.plc_address,
         plc_counter_address: def.plc_counter_address,
         counter_product: 0,
@@ -335,8 +333,6 @@ function ensureBoschMachinesExist() {
     } else {
       // Ensure critical PLC config fields are always correct
       if (!existing.plc_protocol) existing.plc_protocol = 'PostgreSQL';
-      if (!existing.plc_ip) existing.plc_ip = '10.165.41.45';
-      if (!existing.plc_port) existing.plc_port = 5432;
       if (!existing.plc_address || existing.plc_address.startsWith('DB1.')) existing.plc_address = def.plc_address;
       if (!existing.plc_counter_address || existing.plc_counter_address === 'DB5.DI114') existing.plc_counter_address = def.plc_counter_address;
       if (existing.counter_product === undefined) existing.counter_product = 0;
@@ -2147,7 +2143,8 @@ function _machineCardConfigurationFromForm() {
     showCounter: _machineField('modal-machine-show-counter').checked,
     showSpeed: _machineField('modal-machine-show-speed').checked,
     showRunningHours: _machineField('modal-machine-show-hours').checked,
-    showHealth: _machineField('modal-machine-show-health').checked
+    showHealth: _machineField('modal-machine-show-health').checked,
+    showRealtimeValue: _machineField('modal-machine-show-realtime-value').checked
   };
 }
 
@@ -2161,6 +2158,14 @@ function _populateMachineDynamicFields(machine) {
   _setMachineField('modal-machine-counter-tag', machine ? (machine.counter_tag || machine.plc_counter_address || '') : '');
   _setMachineField('modal-machine-speed-tag', machine ? machine.speed_tag : '');
   _setMachineField('modal-machine-running-hours-tag', machine ? machine.running_hours_tag : '');
+  _setMachineField('modal-machine-source-table', machine ? machine.source_table_name : '');
+  _setMachineField('modal-machine-source-timestamp', machine ? (machine.source_timestamp_column || 'timestamp_zone') : 'timestamp_zone');
+  _setMachineField('modal-machine-parameter-name', machine ? machine.parameter_name : '');
+  _setMachineField('modal-machine-parameter-type', machine ? (machine.parameter_type || 'COUNTER') : 'COUNTER');
+  _setMachineField('modal-machine-parameter-unit', machine ? machine.parameter_unit : '');
+  _setMachineField('modal-machine-running-threshold', machine && Number.isFinite(Number(machine.running_threshold)) ? machine.running_threshold : 0);
+  _setMachineField('modal-machine-stop-timeout', machine ? (machine.stop_timeout_seconds || 10) : 10);
+  _setMachineCheckbox('modal-machine-acquisition-enabled', machine ? machine.acquisition_enabled === true : false);
   _setMachineField('modal-machine-dashboard-url', machine ? machine.realtime_dashboard_url : '');
   _setMachineField('modal-machine-display-order', machine ? (machine.display_order || machine.id || 0) : (dbState.machines.length + 1));
   _setMachineField('modal-machine-display-mode', machine ? (machine.display_mode || 'AUTO') : 'AUTO');
@@ -2175,6 +2180,7 @@ function _populateMachineDynamicFields(machine) {
   _setMachineCheckbox('modal-machine-show-speed', config.showSpeed !== undefined ? config.showSpeed : true);
   _setMachineCheckbox('modal-machine-show-hours', config.showRunningHours !== undefined ? config.showRunningHours : true);
   _setMachineCheckbox('modal-machine-show-health', config.showHealth !== undefined ? config.showHealth : true);
+  _setMachineCheckbox('modal-machine-show-realtime-value', config.showRealtimeValue !== undefined ? config.showRealtimeValue : true);
   originalMachineImageUrl = machine ? (machine.machine_image_url || '') : '';
   _setMachineField('modal-machine-image-url', originalMachineImageUrl);
   _clearPendingMachineImage();
@@ -2322,6 +2328,25 @@ async function saveMachineData() {
     }
   }
 
+  const acquisitionEnabled = _machineField('modal-machine-acquisition-enabled').checked;
+  const sourceTableName = _machineField('modal-machine-source-table').value.trim().replace(/^public\./i, '').replace(/^"|"$/g, '');
+  const sourceTimestampColumn = _machineField('modal-machine-source-timestamp').value.trim() || 'timestamp_zone';
+  const parameterName = _machineField('modal-machine-parameter-name').value.trim();
+  const parameterType = _machineField('modal-machine-parameter-type').value || 'COUNTER';
+  const parameterUnit = _machineField('modal-machine-parameter-unit').value.trim();
+  const runningThreshold = Number(_machineField('modal-machine-running-threshold').value || 0);
+  const stopTimeoutSeconds = Number(_machineField('modal-machine-stop-timeout').value || 10);
+  if (acquisitionEnabled) {
+    if (!sourceTableName || !parameterName || !/^[A-Za-z0-9_ -]+$/.test(sourceTableName) || !/^[A-Za-z0-9_ -]+$/.test(sourceTimestampColumn) || !/^[A-Za-z0-9_ -]+$/.test(parameterName)) {
+      alert('Source Table, Timestamp Column, dan Parameter Name wajib berupa identifier PostgreSQL yang valid.');
+      return;
+    }
+    if (!['COUNTER', 'SPEED', 'WEIGHT'].includes(parameterType) || !Number.isFinite(runningThreshold) || !Number.isInteger(stopTimeoutSeconds) || stopTimeoutSeconds < 1 || stopTimeoutSeconds > 3600) {
+      alert('Konfigurasi parameter, threshold, atau Stop Timeout tidak valid.');
+      return;
+    }
+  }
+
   // Check unique asset number
   const duplicate = dbState.machines.find(m => m.asset_number.toUpperCase() === asset.toUpperCase() && m.id != modalId);
   if (duplicate) {
@@ -2359,6 +2384,14 @@ async function saveMachineData() {
     counter_tag: _machineField('modal-machine-counter-tag').value.trim(),
     speed_tag: _machineField('modal-machine-speed-tag').value.trim(),
     running_hours_tag: _machineField('modal-machine-running-hours-tag').value.trim(),
+    source_table_name: sourceTableName || null,
+    source_timestamp_column: sourceTimestampColumn,
+    parameter_name: parameterName || null,
+    parameter_type: parameterType,
+    parameter_unit: parameterUnit,
+    running_threshold: runningThreshold,
+    stop_timeout_seconds: stopTimeoutSeconds,
+    acquisition_enabled: acquisitionEnabled,
     realtime_dashboard_url: dashboardUrl || null,
     display_order: Math.max(0, Number(_machineField('modal-machine-display-order').value) || 0),
     display_mode: _machineField('modal-machine-display-mode').value || 'AUTO',
@@ -2426,7 +2459,15 @@ async function saveMachineData() {
     displayMode: dynamicValues.display_mode,
     isActive: dynamicValues.is_active,
     status,
-    cardConfiguration: dynamicValues.card_config
+    cardConfiguration: dynamicValues.card_config,
+    sourceTableName: dynamicValues.source_table_name,
+    sourceTimestampColumn: dynamicValues.source_timestamp_column,
+    parameterName: dynamicValues.parameter_name,
+    parameterType: dynamicValues.parameter_type,
+    parameterUnit: dynamicValues.parameter_unit,
+    runningThreshold: dynamicValues.running_threshold,
+    stopTimeoutSeconds: dynamicValues.stop_timeout_seconds,
+    acquisitionEnabled: dynamicValues.acquisition_enabled
   };
 
   try {

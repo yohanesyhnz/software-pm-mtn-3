@@ -104,6 +104,10 @@ export default function DynamicMachineDashboard() {
   }, [message]);
 
   const machines = query.data?.machines ?? [];
+  const databaseConnection = query.data?.connectionStatus ?? "UNAVAILABLE";
+  const realtimeConnection = connection !== "CONNECTED"
+    ? connection
+    : databaseConnection === "CONNECTED" ? "CONNECTED" : "OFFLINE";
   const groups = useMemo(() => {
     const grouped = new Map<string, MachineDashboardItem[]>();
     for (const machine of machines) {
@@ -156,8 +160,9 @@ export default function DynamicMachineDashboard() {
           <button type="button" className={ordering ? "active" : ""} onClick={() => setOrdering((value) => !value)} aria-pressed={ordering}>
             {ordering ? "Selesai Atur" : "Atur Urutan"}
           </button>
-          <span className={`realtime-connection ${connection.toLowerCase()}`} role="status">
-            <i aria-hidden="true" /> Realtime: {connection}
+          <span className={`realtime-connection ${realtimeConnection.toLowerCase()}`} role="status">
+            <i aria-hidden="true" /> Realtime: {realtimeConnection}
+            <small>PostgreSQL {databaseConnection}</small>
           </span>
         </div>
       </div>
