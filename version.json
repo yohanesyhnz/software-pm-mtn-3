@@ -1,22 +1,23 @@
 {
-  "version": "v3.0.2",
-  "previousVersion": "v3.0.1",
-  "build": "20260810.10",
-  "releaseDate": "2026-08-10",
+  "version": "v3.0.3",
+  "previousVersion": "v3.0.2",
+  "build": "20260811.11",
+  "releaseDate": "2026-08-11",
   "commitType": "fix",
   "bump": "patch",
-  "summary": "persist managed users and allow immediate login",
+  "summary": "optimize authentication for DS124 hardware",
   "changes": {
     "newFeatures": [],
     "improvements": [
-      "Store managed user passwords as PBKDF2 hashes in the backend credential store",
-      "Verify secure reset authorization through the backend authentication API"
+      "Rate-limit login attempts per client IP"
     ],
     "fixed": [
-      "persist managed users and allow immediate login",
-      "Persist newly managed users and allow immediate login"
+      "optimize authentication for DS124 hardware",
+      "Prevent NAS login and user creation from exceeding the Next.js proxy timeout"
     ],
-    "optimizations": [],
+    "optimizations": [
+      "Use a configurable PBKDF2 work factor with a DS124-appropriate deployment profile"
+    ],
     "breakingChanges": [],
     "knownIssues": [],
     "documentation": []

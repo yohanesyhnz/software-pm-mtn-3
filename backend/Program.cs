@@ -3,11 +3,26 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
     policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("login", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 8,
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1),
+                AutoReplenishment = true
+            }));
+});
 builder.Services.AddSingleton<StateStore>();
 builder.Services.AddSingleton<LocalUserCredentialStore>();
 builder.Services.AddSingleton<VersionManagementStore>();
@@ -23,6 +38,7 @@ builder.Services.AddHostedService<MachineDashboardMonitor>();
 
 var app = builder.Build();
 app.UseCors();
+app.UseRateLimiter();
 app.UseWebSockets(new WebSocketOptions
 {
     KeepAliveInterval = TimeSpan.FromSeconds(20)
@@ -77,7 +93,7 @@ app.MapPost("/api/auth/login", async (
             full_name = user["full_name"]?.GetValue<string>() ?? username
         }
     });
-});
+}).RequireRateLimiting("login");
 
 app.MapGet("/api/state", async (StateStore store, CancellationToken cancellationToken) =>
     Results.Json(await store.ReadAsync(cancellationToken)));

@@ -265,11 +265,23 @@ internal static partial class UserManagementApi
     private static partial Regex UsernamePattern();
 }
 
-internal sealed class LocalUserCredentialStore(IWebHostEnvironment environment)
+internal sealed class LocalUserCredentialStore
 {
-    private const int Iterations = 210_000;
+    private const int DefaultIterations = 210_000;
+    private const int MinimumIterations = 10_000;
+    private const int MaximumIterations = 1_000_000;
     private readonly SemaphoreSlim _gate = new(1, 1);
-    private readonly string _path = Path.Combine(environment.ContentRootPath, "data", "local-user-credentials.json");
+    private readonly string _path;
+    private readonly int _iterations;
+
+    public LocalUserCredentialStore(IWebHostEnvironment environment, IConfiguration configuration)
+    {
+        _path = Path.Combine(environment.ContentRootPath, "data", "local-user-credentials.json");
+        _iterations = Math.Clamp(
+            configuration.GetValue<int?>("LocalAuthentication:PasswordHashIterations") ?? DefaultIterations,
+            MinimumIterations,
+            MaximumIterations);
+    }
 
     public async Task<string?> GetHashAsync(string username, CancellationToken cancellationToken)
     {
@@ -294,10 +306,10 @@ internal sealed class LocalUserCredentialStore(IWebHostEnvironment environment)
         var derived = Rfc2898DeriveBytes.Pbkdf2(
             password,
             salt,
-            Iterations,
+            _iterations,
             HashAlgorithmName.SHA256,
             32);
-        var encoded = $"pbkdf2-sha256${Iterations}${Convert.ToBase64String(salt)}${Convert.ToBase64String(derived)}";
+        var encoded = $"pbkdf2-sha256${_iterations}${Convert.ToBase64String(salt)}${Convert.ToBase64String(derived)}";
 
         await _gate.WaitAsync(cancellationToken);
         try

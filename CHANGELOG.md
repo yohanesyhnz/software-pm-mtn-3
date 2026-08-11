@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [3.0.3] - 2026-08-11
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Rate-limit login attempts per client IP
+
+### Fixed
+
+- optimize authentication for DS124 hardware
+- Prevent NAS login and user creation from exceeding the Next.js proxy timeout
+
+### Optimizations
+
+- Use a configurable PBKDF2 work factor with a DS124-appropriate deployment profile
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [3.0.2] - 2026-08-10
 
 ### New Features

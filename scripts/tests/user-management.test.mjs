@@ -29,6 +29,20 @@ test("new user passwords are PBKDF2 hashes and login reads the managed store", (
   assert.match(program, /LocalUserCredentialStore\.VerifyPassword/);
 });
 
+test("authentication work factor is configurable for constrained NAS hardware", () => {
+  const backend = read("backend/UserManagement.cs");
+  const program = read("backend/Program.cs");
+  const nasStart = read("scripts/nas/start.sh");
+
+  assert.match(backend, /LocalAuthentication:PasswordHashIterations/);
+  assert.match(backend, /Math\.Clamp/);
+  assert.match(nasStart, /PREDICTACORE_PBKDF2_ITERATIONS:-30000/);
+  assert.match(nasStart, /LocalAuthentication__PasswordHashIterations/);
+  assert.match(nasStart, /LocalAuthentication__Users__YAO__PasswordHash/);
+  assert.match(program, /AddRateLimiter/);
+  assert.match(program, /RequireRateLimiting\("login"\)/);
+});
+
 test("user editor waits for the backend and never displays stored passwords", () => {
   const html = read("index.html");
   const app = read("app.js");

@@ -7,6 +7,9 @@ RUN_DIR="$APP_ROOT/run"
 LOG_DIR="$APP_ROOT/logs"
 NODE_BIN="${NODE_BIN:-/var/packages/Node.js_v20/target/usr/local/bin/node}"
 SMART_ASSISTANT_ENV="$APP_ROOT/shared/config/smart-assistant.env"
+PREDICTACORE_PBKDF2_ITERATIONS="${PREDICTACORE_PBKDF2_ITERATIONS:-30000}"
+DEFAULT_NAS_YAO_PASSWORD_HASH='pbkdf2-sha256$30000$NZZGhio+8Jv3S6ONeq3TUQ==$7CK3DylQxJFcLsxfyO9zLadpVRXgMql4jI6xQDqaccA='
+PREDICTACORE_YAO_PASSWORD_HASH="${PREDICTACORE_YAO_PASSWORD_HASH:-$DEFAULT_NAS_YAO_PASSWORD_HASH}"
 
 mkdir -p "$RUN_DIR" "$LOG_DIR"
 
@@ -37,6 +40,8 @@ fi
 (
   cd "$CURRENT/backend"
   ASPNETCORE_URLS="http://127.0.0.1:5080" \
+    LocalAuthentication__PasswordHashIterations="$PREDICTACORE_PBKDF2_ITERATIONS" \
+    LocalAuthentication__Users__YAO__PasswordHash="$PREDICTACORE_YAO_PASSWORD_HASH" \
     nohup ./PredictaCore.Api >>"$LOG_DIR/backend.log" 2>&1 &
   echo $! >"$RUN_DIR/backend.pid"
 )
