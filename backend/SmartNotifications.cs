@@ -68,11 +68,18 @@ public static class SmartAssistantEndpoints
             {
                 // Browser disconnected or the application is stopping.
             }
+            catch (WebSocketException)
+            {
+                // Browsers and reverse proxies may terminate a socket without a close handshake.
+            }
             finally
             {
                 hub.Unregister(connectionId);
                 if (socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
-                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                {
+                    try { await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None); }
+                    catch (WebSocketException) { }
+                }
             }
         });
 

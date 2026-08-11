@@ -63,11 +63,18 @@ public static class MachineDashboardEndpoints
             {
                 // Normal browser disconnect.
             }
+            catch (WebSocketException)
+            {
+                // Browsers and reverse proxies may terminate a socket without a close handshake.
+            }
             finally
             {
                 hub.Unregister(id);
                 if (socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
-                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                {
+                    try { await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None); }
+                    catch (WebSocketException) { }
+                }
             }
         });
 

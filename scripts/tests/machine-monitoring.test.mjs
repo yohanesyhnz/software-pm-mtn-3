@@ -57,6 +57,11 @@ test("legacy NAS machine ids resolve to the canonical realtime configuration", (
   assert.match(dashboard, /TryGet\(item\.MachineId, item\.LegacyId, out var runtime\)/);
 });
 
+test("WebSocket clients may disconnect without polluting server error logs", () => {
+  const sockets = read("backend/MachineDashboard.cs") + read("backend/SmartNotifications.cs");
+  assert.equal((sockets.match(/catch \(WebSocketException\)/g) ?? []).length, 4);
+});
+
 test("Machine Card renders the configured primary metric and database freshness", () => {
   const card = read("app/components/machine-dashboard/MachineCard.tsx");
   const dashboard = read("app/components/machine-dashboard/DynamicMachineDashboard.tsx");

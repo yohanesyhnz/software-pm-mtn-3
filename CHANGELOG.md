@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [4.0.2] - 2026-08-11
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Tidak ada.
+
+### Fixed
+
+- handle abrupt WebSocket client disconnects
+- Dashboard and assistant sockets now treat missing close handshakes as normal disconnects
+
+### Optimizations
+
+- Prevents routine browser reconnects from polluting Kestrel error logs
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [4.0.1] - 2026-08-11
 
 ### New Features
