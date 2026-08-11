@@ -81,8 +81,13 @@ test("PostgreSQL migration is additive and has a rollback companion", () => {
 
 test("NAS release package includes the version manifest used by the backend", () => {
   const workflow = read(".github/workflows/release.yml");
+  const updater = read("scripts/nas/update.sh");
   assert.match(workflow, /cp version\.json dist\/nas\/package\/backend\/version\.json/);
   assert.match(workflow, /predictacore-ds124-arm64\.tar\.gz/);
+  assert.match(workflow, /runtime-scripts/);
+  assert.match(updater, /scripts\/stop\.sh[\s\S]*tar -czf/);
+  assert.match(updater, /runtime-scripts[\s\S]*cp -f/);
+  assert.match(updater, /while \[ "\$attempt" -lt 20 \]/);
 });
 
 test("legacy compatibility bundles contain identical logic", () => {

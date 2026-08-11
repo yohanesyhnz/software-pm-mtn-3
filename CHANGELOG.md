@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [3.0.4] - 2026-08-11
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Ship and synchronize versioned runtime scripts with each NAS release
+
+### Fixed
+
+- make NAS updater snapshot and self-update safely
+- Prevent live database writes from aborting NAS backups
+
+### Optimizations
+
+- Retry health checks for up to 60 seconds before rollback
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [3.0.3] - 2026-08-11
 
 ### New Features

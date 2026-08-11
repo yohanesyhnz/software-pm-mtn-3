@@ -54,19 +54,47 @@ rm -rf "$target"
 mkdir -p "$target"
 tar -xzf "$archive" -C "$target"
 
+previous="$(readlink "$APP_ROOT/current" 2>/dev/null || true)"
+"$APP_ROOT/scripts/stop.sh" >/dev/null 2>&1 || true
+
 if [ -d "$SHARED_DATA" ] && [ "$(find "$SHARED_DATA" -mindepth 1 -maxdepth 1 2>/dev/null | head -n 1)" ]; then
   backup="$BACKUPS/data-$(date +%Y%m%d-%H%M%S).tar.gz"
-  tar -czf "$backup" -C "$SHARED_DATA" .
+  if ! tar -czf "$backup" -C "$SHARED_DATA" .; then
+    rm -f "$backup"
+    echo "Shared data backup failed. Existing release will be restarted." >&2
+    "$APP_ROOT/scripts/start.sh" || true
+    exit 1
+  fi
 fi
 
 rm -rf "$target/backend/data"
 ln -s "$SHARED_DATA" "$target/backend/data"
 
-previous="$(readlink "$APP_ROOT/current" 2>/dev/null || true)"
-"$APP_ROOT/scripts/stop.sh" >/dev/null 2>&1 || true
+if [ -d "$target/runtime-scripts" ]; then
+  if ! cp -f "$target/runtime-scripts"/*.sh "$APP_ROOT/scripts/"; then
+    echo "Runtime script synchronization failed. Existing release will be restarted." >&2
+    "$APP_ROOT/scripts/start.sh" || true
+    exit 1
+  fi
+  chmod 700 "$APP_ROOT/scripts"/*.sh
+fi
+
 ln -sfn "$target" "$APP_ROOT/current"
 
-if "$APP_ROOT/scripts/start.sh" && sleep 3 && "$APP_ROOT/scripts/health.sh" >/dev/null; then
+healthy=false
+if "$APP_ROOT/scripts/start.sh"; then
+  attempt=0
+  while [ "$attempt" -lt 20 ]; do
+    if "$APP_ROOT/scripts/health.sh" >/dev/null 2>&1; then
+      healthy=true
+      break
+    fi
+    attempt=$((attempt + 1))
+    sleep 3
+  done
+fi
+
+if [ "$healthy" = true ]; then
   printf '%s\n' "$latest" >"$APP_ROOT/current-version"
   echo "PredictaCore updated successfully to $latest"
   exit 0
