@@ -447,8 +447,9 @@
 .machine-health.health-n-a { color: var(--machine-muted); }
 
 .machine-image-frame {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: clamp(132px, 15vw, 178px);
   margin: 28px 0 10px;
@@ -475,6 +476,8 @@
   display: block;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;

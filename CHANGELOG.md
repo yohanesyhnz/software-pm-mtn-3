@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [3.0.6] - 2026-08-11
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Machine Card image layout now uses centered flex containment
+
+### Fixed
+
+- prevent machine images from overflowing card frames
+- Machine image boxes are constrained inside the padded responsive frame
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [3.0.5] - 2026-08-11
 
 ### New Features

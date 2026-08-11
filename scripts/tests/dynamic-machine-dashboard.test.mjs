@@ -26,8 +26,9 @@ test("card rendering is memoized and sanitizes invalid numeric UI values", () =>
   assert.match(card, /loading="lazy"/);
   assert.match(css, /object-fit: contain/);
   assert.match(css, /\.machine-image-frame[\s\S]*padding: clamp\(8px, 0\.8vw, 12px\)/);
+  assert.match(css, /\.machine-image-frame[\s\S]*display: flex[\s\S]*align-items: center[\s\S]*justify-content: center/);
   assert.match(css, /\.mode-compact \.machine-image-frame[\s\S]*height: clamp\(118px, 14vw, 142px\)/);
-  assert.match(css, /\.machine-image-frame img[\s\S]*max-width: 100%[\s\S]*max-height: 100%/);
+  assert.match(css, /\.machine-image-frame img[\s\S]*min-width: 0[\s\S]*min-height: 0[\s\S]*max-width: 100%[\s\S]*max-height: 100%/);
 });
 
 test("drag order is persisted through the backend API", () => {
