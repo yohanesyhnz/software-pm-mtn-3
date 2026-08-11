@@ -450,21 +450,33 @@
   display: grid;
   place-items: center;
   width: 100%;
-  height: clamp(105px, 13vw, 155px);
-  margin: 24px 0 8px;
+  height: clamp(132px, 15vw, 178px);
+  margin: 28px 0 10px;
+  padding: clamp(8px, 0.8vw, 12px);
   overflow: hidden;
+  box-sizing: border-box;
   border-radius: 9px;
   background:
     radial-gradient(circle at center, color-mix(in srgb, var(--machine-cyan) 9%, transparent), transparent 65%),
     color-mix(in srgb, var(--machine-surface-raised) 70%, transparent);
 }
 
-.mode-compact .machine-image-frame { height: 98px; }
-.mode-large .machine-image-frame { height: 210px; }
+.mode-compact .machine-image-frame {
+  height: clamp(118px, 14vw, 142px);
+  padding: 8px;
+}
+
+.mode-large .machine-image-frame {
+  height: clamp(210px, 20vw, 250px);
+  padding: 14px;
+}
 
 .machine-image-frame img {
+  display: block;
   width: 100%;
   height: 100%;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
   object-position: center;
 }

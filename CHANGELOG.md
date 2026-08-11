@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [3.0.5] - 2026-08-11
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Uploaded JPEG orientation is normalized before metadata cleanup
+
+### Fixed
+
+- keep uploaded machine images fully visible
+- Machine photos now remain fully visible inside responsive Machine Cards
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [3.0.4] - 2026-08-11
 
 ### New Features

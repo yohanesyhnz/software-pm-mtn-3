@@ -715,6 +715,7 @@ sealed class MachineImageStore(IWebHostEnvironment environment, StateStore state
             if ((!decodedIsPng && !decodedIsJpeg) || (file.ContentType == "image/png" && !decodedIsPng) || (file.ContentType == "image/jpeg" && !decodedIsJpeg))
                 return (null, "Isi file tidak sesuai dengan MIME type PNG/JPEG.", StatusCodes.Status415UnsupportedMediaType);
 
+            image.Mutate(context => context.AutoOrient());
             image.Metadata.ExifProfile = null;
             image.Metadata.IccProfile = null;
             image.Metadata.XmpProfile = null;

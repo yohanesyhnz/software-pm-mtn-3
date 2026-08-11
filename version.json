@@ -1,23 +1,21 @@
 {
-  "version": "v3.0.4",
-  "previousVersion": "v3.0.3",
-  "build": "20260811.12",
+  "version": "v3.0.5",
+  "previousVersion": "v3.0.4",
+  "build": "20260811.13",
   "releaseDate": "2026-08-11",
   "commitType": "fix",
   "bump": "patch",
-  "summary": "make NAS updater snapshot and self-update safely",
+  "summary": "keep uploaded machine images fully visible",
   "changes": {
     "newFeatures": [],
     "improvements": [
-      "Ship and synchronize versioned runtime scripts with each NAS release"
+      "Uploaded JPEG orientation is normalized before metadata cleanup"
     ],
     "fixed": [
-      "make NAS updater snapshot and self-update safely",
-      "Prevent live database writes from aborting NAS backups"
+      "keep uploaded machine images fully visible",
+      "Machine photos now remain fully visible inside responsive Machine Cards"
     ],
-    "optimizations": [
-      "Retry health checks for up to 60 seconds before rollback"
-    ],
+    "optimizations": [],
     "breakingChanges": [],
     "knownIssues": [],
     "documentation": []
