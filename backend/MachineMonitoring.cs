@@ -231,9 +231,14 @@ sealed class PostgreSqlDataSourceProvider : IAsyncDisposable
 sealed class MachineRealtimeRegistry
 {
     private readonly ConcurrentDictionary<string, MachineRuntimeState> _states = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<int, string> _legacyAliases = new();
 
-    public MachineRuntimeState GetOrCreate(MachineAcquisitionConfiguration configuration) =>
-        _states.GetOrAdd(configuration.MachineId, _ => new MachineRuntimeState
+    public MachineRuntimeState GetOrCreate(MachineAcquisitionConfiguration configuration)
+    {
+        if (configuration.LegacyId is not null)
+            _legacyAliases[configuration.LegacyId.Value] = configuration.MachineId;
+
+        return _states.GetOrAdd(configuration.MachineId, _ => new MachineRuntimeState
         {
             MachineId = configuration.MachineId,
             MachineName = configuration.MachineName,
@@ -241,10 +246,19 @@ sealed class MachineRealtimeRegistry
             ParameterType = configuration.ParameterType,
             ParameterUnit = configuration.ParameterUnit
         });
+    }
 
     public void Set(MachineRuntimeState state) => _states[state.MachineId] = state;
 
     public bool TryGet(string machineId, out MachineRuntimeState state) => _states.TryGetValue(machineId, out state!);
+
+    public bool TryGet(string machineId, int? legacyId, out MachineRuntimeState state)
+    {
+        if (TryGet(machineId, out state)) return true;
+        return legacyId is not null &&
+            _legacyAliases.TryGetValue(legacyId.Value, out var runtimeMachineId) &&
+            TryGet(runtimeMachineId, out state);
+    }
 
     public IReadOnlyList<MachineRuntimeState> Snapshot() => _states.Values.OrderBy(state => state.MachineId, StringComparer.OrdinalIgnoreCase).ToArray();
 
@@ -334,11 +348,42 @@ sealed class MachineConfigurationStore(StateStore stateStore)
     public async Task<IReadOnlyList<MachineAcquisitionConfiguration>> LoadAsync(CancellationToken cancellationToken)
     {
         var state = await stateStore.ReadAsync(cancellationToken);
-        return state["machines"]?.AsArray().OfType<JsonObject>()
+        var machines = state["machines"]?.AsArray().OfType<JsonObject>().ToArray() ?? [];
+        var result = new List<MachineAcquisitionConfiguration>(machines.Length + Defaults.Length);
+        var defaultLegacyIds = Defaults.Where(item => item.LegacyId is not null).Select(item => item.LegacyId!.Value).ToHashSet();
+        var defaultMachineIds = Defaults.Select(item => item.MachineId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var fallback in Defaults)
+        {
+            var machine = machines.FirstOrDefault(item =>
+                ReadInt(item, "id") == fallback.LegacyId ||
+                string.Equals(ReadString(item, "machine_id"), fallback.MachineId, StringComparison.OrdinalIgnoreCase));
+            var configured = machine is null ? null : Parse(machine);
+            var enabled = machine is null ? fallback.IsEnabled : ReadBool(machine, "acquisition_enabled") ?? fallback.IsEnabled;
+            var merged = configured is null
+                ? fallback with { IsEnabled = enabled }
+                : configured with
+                {
+                    MachineId = fallback.MachineId,
+                    LegacyId = fallback.LegacyId,
+                    IsEnabled = enabled
+                };
+            if (merged.IsEnabled) result.Add(merged);
+        }
+
+        result.AddRange(machines
+            .Where(machine =>
+            {
+                var legacyId = ReadInt(machine, "id");
+                var machineId = ReadString(machine, "machine_id");
+                return (legacyId is null || !defaultLegacyIds.Contains(legacyId.Value)) &&
+                    (string.IsNullOrWhiteSpace(machineId) || !defaultMachineIds.Contains(machineId));
+            })
             .Select(Parse)
             .Where(configuration => configuration is not null && configuration.IsEnabled)
-            .Cast<MachineAcquisitionConfiguration>()
-            .ToArray() ?? [];
+            .Cast<MachineAcquisitionConfiguration>());
+
+        return result;
     }
 
     public async Task<IReadOnlyList<MachineRuntimeState>> LoadRuntimeAsync(CancellationToken cancellationToken)

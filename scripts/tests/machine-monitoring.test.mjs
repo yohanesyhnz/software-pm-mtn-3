@@ -48,6 +48,15 @@ test("the ten audited Line 07 machine sources are configurable", () => {
   assert.match(backend, /infeed_counter/);
 });
 
+test("legacy NAS machine ids resolve to the canonical realtime configuration", () => {
+  const monitoring = read("backend/MachineMonitoring.cs");
+  const dashboard = read("backend/MachineDashboard.cs");
+  assert.match(monitoring, /_legacyAliases/);
+  assert.match(monitoring, /foreach \(var fallback in Defaults\)/);
+  assert.match(monitoring, /MachineId = fallback\.MachineId/);
+  assert.match(dashboard, /TryGet\(item\.MachineId, item\.LegacyId, out var runtime\)/);
+});
+
 test("Machine Card renders the configured primary metric and database freshness", () => {
   const card = read("app/components/machine-dashboard/MachineCard.tsx");
   const dashboard = read("app/components/machine-dashboard/DynamicMachineDashboard.tsx");

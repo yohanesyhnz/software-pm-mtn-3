@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [4.0.1] - 2026-08-11
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Default acquisition configuration survives legacy state synchronization
+
+### Fixed
+
+- map legacy NAS machine cards to realtime sources
+- Realtime PostgreSQL values now resolve through legacy machine IDs
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [4.0.0] - 2026-08-11
 
 ### New Features

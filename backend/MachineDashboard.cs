@@ -448,7 +448,7 @@ sealed class MachineDashboardSource(
 
     private MachineDashboardItem ApplyRealtime(MachineDashboardItem item, DateTimeOffset now)
     {
-        if (!realtimeRegistry.TryGet(item.MachineId, out var runtime)) return item;
+        if (!realtimeRegistry.TryGet(item.MachineId, item.LegacyId, out var runtime)) return item;
         var value = runtime.CurrentValue is not null && double.IsFinite(runtime.CurrentValue.Value) ? runtime.CurrentValue : null;
         return item with
         {
