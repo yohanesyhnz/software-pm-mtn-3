@@ -36,9 +36,27 @@ test("frontend uses the requested lightweight realtime and accessibility stack",
   assert.match(settings, /Enable Robot Animation/);
   assert.match(settings, /Enable Auto Popup/);
   assert.match(settings, /role="switch"/);
+  assert.match(settings, /System Information/);
+  assert.match(settings, /\/api\/software-versions\/current/);
+  assert.match(settings, /Riwayat versi lengkap/);
   assert.match(styles, /\.smart-assistant-dialog\s*\{[\s\S]*left:\s*50%;[\s\S]*top:\s*50%;[\s\S]*transform:\s*translate\(-50%,\s*-50%\)/);
   assert.match(styles, /width:\s*min\(700px,\s*calc\(100vw\s*-\s*32px\)\)/);
   assert.match(styles, /@media \(max-width:\s*639px\)[\s\S]*max-height:\s*calc\(100dvh\s*-\s*16px\)/);
+});
+
+test("obsolete admin tools are removed from navigation and machine master omits duplicate realtime metrics", () => {
+  const html = read("index.html");
+  const app = read("app.js");
+
+  assert.doesNotMatch(html, /id="nav-sql"/);
+  assert.doesNotMatch(html, /id="nav-api"/);
+  assert.doesNotMatch(html, /id="panel-sql"/);
+  assert.doesNotMatch(html, /id="panel-api"/);
+  assert.doesNotMatch(html, />\s*Software Version\s*</);
+  assert.doesNotMatch(html, />\s*About Software\s*</);
+  assert.doesNotMatch(app, /metricHtml/);
+  assert.doesNotMatch(app, /metricSpan\.innerHTML/);
+  assert.match(app, /settings: 'Settings & Informasi Sistem'/);
 });
 
 test("robot assistant is prominent and parks outside the dialog when space permits", () => {

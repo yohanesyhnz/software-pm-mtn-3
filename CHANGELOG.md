@@ -2,6 +2,39 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [4.0.4] - 2026-08-14
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- simplify machine master and application settings
+- Remove duplicate realtime counter and speed values from Master Mesin
+- Remove SQL Console and REST API Sandbox from the application UI
+- Move concise software version and product information into Settings
+
+### Fixed
+
+- Tidak ada.
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [4.0.3] - 2026-08-14
 
 ### New Features

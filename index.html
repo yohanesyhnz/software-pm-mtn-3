@@ -39,24 +39,12 @@
         <button class="nav-item" id="nav-integrations" onclick="switchTab('integrations')">
           <span class="icon">📡</span> PLC & Integrasi
         </button>
-        <button class="nav-item" id="nav-sql" onclick="switchTab('sql')">
-          <span class="icon">💻</span> SQL Console
-        </button>
-        <button class="nav-item" id="nav-api" onclick="switchTab('api')">
-          <span class="icon">🔌</span> REST API Sandbox
-        </button>
         <button class="nav-item" id="nav-system" onclick="switchTab('system')">
           <span class="icon">💾</span> Backup & Restore
         </button>
         <button class="nav-item" id="nav-settings" onclick="switchTab('settings')">
           <span class="icon">⚙️</span> Settings
         </button>
-        <a class="nav-item" href="/software-versions">
-          <span class="icon">V#</span> Software Version
-        </a>
-        <a class="nav-item" href="/about">
-          <span class="icon">i</span> About Software
-        </a>
         <button class="nav-item" id="nav-users" onclick="switchTab('users')" style="display: none;">
           <span class="icon">👥</span> Kelola User
         </button>
@@ -456,75 +444,6 @@
         </div>
       </section>
 
-      <!-- TAB 6: SQL RUNNER CONSOLE -->
-      <section class="tab-panel" id="panel-sql">
-        <div class="sql-container">
-          <div class="sql-input-panel">
-            <div class="sql-input-header">
-              <h3>SQL Query Editor (In-Memory Database Analyzer)</h3>
-              <span class="chart-subtitle">Tabel tersedia: <strong>machines</strong>, <strong>spare_parts</strong>, <strong>replacement_history</strong>, <strong>running_hours_log</strong></span>
-            </div>
-            <textarea id="sql-query-text" placeholder="Tuliskan query SQL Anda di sini...&#10;Contoh: SELECT name, code, current_running_hours, lifetime_hours FROM spare_parts WHERE current_running_hours > 500 ORDER BY current_running_hours DESC"></textarea>
-            <div class="sql-actions">
-              <button class="btn btn-primary" onclick="runSqlQuery()">⚡ Execute Query</button>
-              <button class="btn btn-secondary" onclick="clearSqlQuery()">Reset</button>
-            </div>
-          </div>
-
-          <div class="sql-result-panel">
-            <h3>Query Results</h3>
-            <div class="sql-result-wrapper" id="sql-result-table-container">
-              <div class="sql-empty-state">Masukkan query SQL dan klik 'Execute Query' untuk melihat analisis data.</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 7: REST API SANDBOX -->
-      <section class="tab-panel" id="panel-api">
-        <div class="api-sandbox-layout">
-          <div class="api-selector-panel">
-            <h3>Pilih Endpoint REST API</h3>
-            <div class="api-endpoints-list">
-              <button class="api-endpoint-item active" onclick="selectApiEndpoint('GET', '/api/machines')">
-                <span class="method get">GET</span> <span class="path">/api/machines</span>
-              </button>
-              <button class="api-endpoint-item" onclick="selectApiEndpoint('GET', '/api/spare-parts')">
-                <span class="method get">GET</span> <span class="path">/api/spare-parts</span>
-              </button>
-              <button class="api-endpoint-item" onclick="selectApiEndpoint('GET', '/api/analytics/dashboard')">
-                <span class="method get">GET</span> <span class="path">/api/analytics/dashboard</span>
-              </button>
-              <button class="api-endpoint-item" onclick="selectApiEndpoint('POST', '/api/machines/:id/running-hours')">
-                <span class="method post">POST</span> <span class="path">/api/machines/:id/running-hours</span>
-              </button>
-              <button class="api-endpoint-item" onclick="selectApiEndpoint('POST', '/api/spare-parts/:id/replace')">
-                <span class="method post">POST</span> <span class="path">/api/spare-parts/:id/replace</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="api-execution-panel">
-            <div class="api-execution-header">
-              <h3>API Simulator Console</h3>
-              <span class="api-url" id="api-request-url">GET http://localhost:5000/api/machines</span>
-            </div>
-            
-            <div id="api-body-section" class="api-body-editor hidden">
-              <h4>Request Body (JSON):</h4>
-              <textarea id="api-body-text" placeholder="Request body parameters..."></textarea>
-            </div>
-
-            <button class="btn btn-primary" onclick="sendApiRequest()">Kirim API Request</button>
-
-            <div class="api-response-wrapper">
-              <h4>HTTP Response:</h4>
-              <pre id="api-response-output" class="language-json">Click 'Kirim API Request' to test the JSON API response.</pre>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <!-- TAB 8: BACKUP & RESTORE SYSTEM -->
       <section class="tab-panel" id="panel-system">
         <!-- PredictaCore Emblem System Header Banner -->
@@ -627,7 +546,7 @@
         </div>
       </section>
 
-      <!-- TAB 10: SMART ASSISTANT SETTINGS -->
+      <!-- TAB 10: APPLICATION SETTINGS -->
       <section class="tab-panel" id="panel-settings">
         <div id="smart-assistant-settings-root" aria-live="polite"></div>
       </section>

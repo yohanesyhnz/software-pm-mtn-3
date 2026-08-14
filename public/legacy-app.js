@@ -690,11 +690,9 @@ function switchTab(tabName) {
     spareparts: 'Master Data Spare Part',
     history: 'Riwayat Preventive Maintenance',
     integrations: 'PLC & IoT Data Acquisition Panel',
-    sql: 'SQL Database Terminal Console',
-    api: 'REST API Sandbox Explorer',
     system: 'Sistem Backup & Restore Database',
     users: 'Kelola Akun Pengguna',
-    settings: 'Settings Smart Notification Assistant'
+    settings: 'Settings & Informasi Sistem'
   };
   document.getElementById('page-title').innerText = titles[tabName] || 'PREVENTIVE SYSTEM';
 
@@ -704,7 +702,6 @@ function switchTab(tabName) {
   if (tabName === 'spareparts') renderSparePartsTable();
   if (tabName === 'history') renderHistoryTable();
   if (tabName === 'integrations') updateIntegrationsPanel();
-  if (tabName === 'api') updateApiSandboxConsole();
   if (tabName === 'users') renderUsersTable();
 }
 
@@ -720,8 +717,6 @@ function applyRolePermissions() {
   // Sidebar elements
   const navUsers = document.getElementById('nav-users');
   const navIntegrations = document.getElementById('nav-integrations');
-  const navSql = document.getElementById('nav-sql');
-  const navApi = document.getElementById('nav-api');
   const navSystem = document.getElementById('nav-system');
 
   const isAdmin = activeUser.role === 'ADMIN';
@@ -745,8 +740,6 @@ function applyRolePermissions() {
   const adminOnlyTabs = [
     { el: navUsers, id: 'users' },
     { el: navIntegrations, id: 'integrations' },
-    { el: navSql, id: 'sql' },
-    { el: navApi, id: 'api' },
     { el: navSystem, id: 'system' }
   ];
 
@@ -1944,28 +1937,10 @@ function renderMachinesTable() {
       ? '<span class="badge" style="margin-left:5px;color:var(--color-red);border:1px solid currentColor;">INACTIVE</span>'
       : '<span class="badge badge-normal" style="margin-left:5px;">ACTIVE</span>';
 
-    const _getCol = (addr) => {
-      if (!addr) return '';
-      const parts = addr.split(';');
-      return parts.length > 1 ? parts[1].trim().toLowerCase() : '';
-    };
-    const _cCol = _getCol(m.plc_counter_address);
-    const isVelocityMachine = (m.plc_protocol === 'PostgreSQL') && (
-      (_cCol && (_cCol.includes('velo') || _cCol.includes('velocity') || _cCol.includes('speed') || _cCol.includes('m_s'))) ||
-      (!_cCol && ((m.name && m.name.toLowerCase().includes('hql')) || (m.asset_number && m.asset_number.toLowerCase().includes('hql'))))
-    );
-
-    const metricHtml = m.counter_product !== undefined 
-      ? (isVelocityMachine 
-          ? `<br><span style="font-size:11px; color:var(--predictacore-cyan);">📊 Kecepatan: <strong>${m.counter_product}</strong> m/s</span>` 
-          : `<br><span style="font-size:11px; color:var(--predictacore-cyan);">📊 Counter: <strong>${m.counter_product.toLocaleString()}</strong> pcs</span>`)
-      : '';
-
     rowsHtml.push(`
       <tr>
         <td>
           <strong>${m.name}</strong>
-          ${metricHtml}
         </td>
         <td><code style="font-family:'JetBrains Mono';">${m.asset_number}</code></td>
         <td>${m.line_code}</td>
@@ -4604,21 +4579,6 @@ function _updateMachineRowInDOM(m) {
     if (statusCell) {
       statusCell.className = `badge badge-${m.status.toLowerCase()}`;
       statusCell.textContent = m.status;
-    }
-
-    // Update metric value (col 1 span)
-    const metricSpan = tr.querySelector('td:nth-child(1) span');
-    if (metricSpan && m.counter_product !== undefined) {
-      const isVeloMachine = (m.plc_protocol === 'PostgreSQL') && (() => {
-        const col = (m.plc_counter_address || '').split(';')[1]?.trim().toLowerCase() || '';
-        return col.includes('velo') || col.includes('velocity') || col.includes('speed') ||
-               (!col && m.asset_number && m.asset_number.toLowerCase().includes('hql'));
-      })();
-      if (isVeloMachine) {
-        metricSpan.innerHTML = `📊 Kecepatan: <strong>${m.counter_product}</strong> m/s`;
-      } else {
-        metricSpan.innerHTML = `📊 Counter: <strong>${m.counter_product.toLocaleString()}</strong> pcs`;
-      }
     }
 
     // Update running hours (col 6)

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import type { SoftwareVersion } from "../../software-versions/types";
 import type {
   SmartAssistantConnectionState,
   SmartAssistantPreferences
@@ -23,6 +25,27 @@ export default function SmartAssistantSettings({
 }: SmartAssistantSettingsProps) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [software, setSoftware] = useState<SoftwareVersion | null>(null);
+  const [softwareStatus, setSoftwareStatus] = useState<"loading" | "online" | "offline">("loading");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/software-versions/current", { cache: "no-store", signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error("Version API unavailable");
+        return response.json() as Promise<SoftwareVersion>;
+      })
+      .then((data) => {
+        setSoftware(data);
+        setSoftwareStatus("online");
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setSoftwareStatus("offline");
+      });
+
+    return () => controller.abort();
+  }, []);
 
   async function update(key: keyof SmartAssistantPreferences, value: boolean) {
     setSaving(true);
@@ -89,7 +112,44 @@ export default function SmartAssistantSettings({
           Logout &amp; Login Ulang
         </button>
       </div>
+
+      <section className="tw-mt-6 tw-border-t tw-border-cyan-400/15 tw-pt-5" aria-labelledby="system-information-title">
+        <div className="tw-flex tw-flex-col tw-gap-2 sm:tw-flex-row sm:tw-items-start sm:tw-justify-between">
+          <div>
+            <span className="tw-text-[10px] tw-font-black tw-uppercase tw-tracking-[0.2em] tw-text-cyan-400">System Information</span>
+            <h2 id="system-information-title" className="tw-mb-1 tw-mt-2 tw-text-lg tw-font-extrabold">PredictaCore CMMS</h2>
+            <p className="smart-assistant-muted tw-m-0 tw-max-w-2xl tw-text-sm">
+              Dashboard monitoring mesin dan preventive maintenance berbasis Next.js, ASP.NET Core, dan PostgreSQL Acquisition.
+            </p>
+          </div>
+          <span className={`tw-inline-flex tw-w-fit tw-items-center tw-gap-2 tw-rounded-full tw-border tw-px-3 tw-py-2 tw-text-xs tw-font-bold ${softwareStatus === "online" ? "tw-border-emerald-400/30 tw-bg-emerald-500/10 tw-text-emerald-300" : softwareStatus === "offline" ? "tw-border-red-400/30 tw-bg-red-500/10 tw-text-red-300" : "tw-border-amber-400/30 tw-bg-amber-500/10 tw-text-amber-300"}`}>
+            <span className={`tw-h-2 tw-w-2 tw-rounded-full ${softwareStatus === "online" ? "tw-bg-emerald-400" : softwareStatus === "offline" ? "tw-bg-red-400" : "tw-bg-amber-400"}`} />
+            {softwareStatus === "online" ? "API Online" : softwareStatus === "offline" ? "API Offline" : "Memuat..."}
+          </span>
+        </div>
+
+        <dl className="tw-mb-0 tw-mt-4 tw-grid tw-gap-3 sm:tw-grid-cols-2 lg:tw-grid-cols-4">
+          <SystemInfo label="Versi" value={software?.version ?? "—"} />
+          <SystemInfo label="Build" value={software?.build ?? "—"} />
+          <SystemInfo label="Backend" value={software?.backendVersion ?? ".NET 10"} />
+          <SystemInfo label="Database" value={software?.postgreSqlVersion ?? "PostgreSQL"} />
+        </dl>
+
+        <div className="tw-mt-4 tw-flex tw-flex-wrap tw-items-center tw-gap-3 tw-text-xs">
+          <span className="smart-assistant-muted">{software?.copyright ?? "© 2026 PredictaCore"}</span>
+          <Link href="/software-versions" className="tw-font-bold tw-text-cyan-400 tw-no-underline hover:tw-text-cyan-300">Riwayat versi lengkap →</Link>
+        </div>
+      </section>
     </section>
+  );
+}
+
+function SystemInfo({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="smart-assistant-soft-surface tw-min-w-0 tw-rounded-xl tw-border tw-p-3">
+      <dt className="smart-assistant-muted tw-text-[10px] tw-font-black tw-uppercase tw-tracking-wider">{label}</dt>
+      <dd className="tw-m-0 tw-mt-1 tw-break-words tw-text-sm tw-font-extrabold">{value}</dd>
+    </div>
   );
 }
 

@@ -1,22 +1,20 @@
 {
-  "version": "v4.0.3",
-  "previousVersion": "v4.0.2",
-  "build": "20260814.18",
+  "version": "v4.0.4",
+  "previousVersion": "v4.0.3",
+  "build": "20260814.19",
   "releaseDate": "2026-08-14",
-  "commitType": "fix",
+  "commitType": "refactor",
   "bump": "patch",
-  "summary": "fix spare part entry and lifetime forecasting",
+  "summary": "simplify machine master and application settings",
   "changes": {
     "newFeatures": [],
     "improvements": [
-      "Tabel Master Spare Part membungkus teks dan adaptif di layar kecil"
+      "simplify machine master and application settings",
+      "Remove duplicate realtime counter and speed values from Master Mesin",
+      "Remove SQL Console and REST API Sandbox from the application UI",
+      "Move concise software version and product information into Settings"
     ],
-    "fixed": [
-      "fix spare part entry and lifetime forecasting",
-      "Spare part baru kini disimpan secara atomik melalui ASP.NET Core API",
-      "Prediksi sisa hari dan tanggal PM memakai kapasitas operasi terencana",
-      "Robot Smart Assistant tidak lagi menutupi dialog pada layar mobile"
-    ],
+    "fixed": [],
     "optimizations": [],
     "breakingChanges": [],
     "knownIssues": [],
