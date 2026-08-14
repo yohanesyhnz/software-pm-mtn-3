@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [5.2.0] - 2026-08-14
+
+### New Features
+
+- move maintenance analytics into Preventive Maintenance
+- Preventive Maintenance now contains remaining-life, spare-part condition, machine health, running-hours trend, maintenance cost, and replacement-frequency analytics
+
+### Improvements
+
+- Dashboard is focused on KPI and scalable realtime Machine Cards
+
+### Fixed
+
+- Tidak ada.
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [5.1.1] - 2026-08-14
 
 ### New Features

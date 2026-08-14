@@ -34,7 +34,7 @@
           <span class="icon">🔧</span> Master Spare Part
         </button>
         <button class="nav-item" id="nav-history" onclick="switchTab('history')">
-          <span class="icon">📜</span> Riwayat PM
+          <span class="icon">📜</span> Preventive Maintenance
         </button>
         <button class="nav-item" id="nav-integrations" onclick="switchTab('integrations')">
           <span class="icon">📡</span> PLC & Integrasi
@@ -178,98 +178,6 @@
           <span class="sr-only" id="machine-order-status" aria-live="polite"></span>
         </section>
 
-        <!-- Charts Row 1 -->
-        <div class="charts-row">
-          <!-- Radial Gauges (Remaining Life Analysis of Critical Parts) -->
-          <div class="chart-card flex-2">
-            <div class="chart-header">
-              <h3>Remaining Life Analysis (Critical Parts)</h3>
-              <span class="chart-subtitle">Persentase sisa umur spare part paling krusial saat ini</span>
-            </div>
-            <div class="radial-gauges-container" id="radial-gauges-list">
-              <!-- Rendered Dynamically -->
-            </div>
-          </div>
-
-          <!-- Spare Part Distribution Pie/Donut Chart -->
-          <div class="chart-card flex-1">
-            <div class="chart-header">
-              <h3>Status Kondisi Spare Part</h3>
-            </div>
-            <div class="chart-content flex-center">
-              <div id="condition-donut-chart" class="donut-chart-wrapper">
-                <!-- SVG Donut Chart -->
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Charts Row 2 -->
-        <div class="charts-row">
-          <!-- Status Kesehatan Mesin (Health Score) -->
-          <div class="chart-card flex-1">
-            <div class="chart-header">
-              <h3>Status Kesehatan Mesin (Health Score)</h3>
-              <span class="chart-subtitle">Indeks kesehatan berdasarkan sisa umur spare part & running hours</span>
-            </div>
-            <div class="chart-content">
-              <div id="machine-health-bar-chart" class="bar-chart-wrapper">
-                <!-- SVG Machine Health Bar Chart -->
-              </div>
-            </div>
-          </div>
-
-          <!-- Machine Running Hours Trend (Line Chart) -->
-          <div class="chart-card flex-1">
-            <div class="chart-header">
-              <h3>Tren Running Hours Harian Mesin</h3>
-              <span class="chart-subtitle">Monitoring 5 hari terakhir</span>
-            </div>
-            <div class="chart-content">
-              <div id="running-hours-line-chart" class="line-chart-wrapper">
-                <!-- SVG Line Chart -->
-              </div>
-            </div>
-          </div>
-
-          <!-- Monthly Maintenance Cost Trend (Bar Chart) -->
-          <div class="chart-card flex-1">
-            <div class="chart-header">
-              <h3>Biaya Pemeliharaan Bulanan (Historical)</h3>
-              <span class="chart-subtitle">Dalam Jutaan Rupiah (IDR)</span>
-            </div>
-            <div class="chart-content">
-              <div id="maintenance-cost-bar-chart" class="bar-chart-wrapper">
-                <!-- SVG Bar Chart -->
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Bottom Row: Top Replaced Spare Parts -->
-        <div class="table-section">
-          <div class="table-header">
-            <h3>Top 10 Spare Part Paling Sering Diganti</h3>
-            <span class="chart-subtitle">Data frekuensi breakdown / preventive maintenance per part</span>
-          </div>
-          <div class="table-container">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Spare Part & Kode</th>
-                  <th>Mesin Asosiasi</th>
-                  <th>Frekuensi Penggantian</th>
-                  <th>Total Biaya (IDR)</th>
-                  <th>Rekomendasi Tindakan</th>
-                </tr>
-              </thead>
-              <tbody id="top-replaced-parts-tbody">
-                <!-- Loaded dynamically -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
       </section>
 
       <!-- TAB 2: MASTER MESIN -->
@@ -362,8 +270,92 @@
         </div>
       </section>
 
-      <!-- TAB 4: RIWAYAT MAINTENANCE & EXPORT -->
+      <!-- TAB 4: PREVENTIVE MAINTENANCE ANALYTICS & HISTORY -->
       <section class="tab-panel" id="panel-history">
+        <div class="charts-row">
+          <div class="chart-card flex-2">
+            <div class="chart-header">
+              <h3>Remaining Life Analysis (Critical Parts)</h3>
+              <span class="chart-subtitle">Persentase sisa umur spare part paling krusial saat ini</span>
+            </div>
+            <div class="radial-gauges-container" id="radial-gauges-list">
+              <!-- Rendered Dynamically -->
+            </div>
+          </div>
+
+          <div class="chart-card flex-1">
+            <div class="chart-header">
+              <h3>Status Kondisi Spare Part</h3>
+            </div>
+            <div class="chart-content flex-center">
+              <div id="condition-donut-chart" class="donut-chart-wrapper">
+                <!-- SVG Donut Chart -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <div class="chart-card flex-1">
+            <div class="chart-header">
+              <h3>Status Kesehatan Mesin (Health Score)</h3>
+              <span class="chart-subtitle">Indeks kesehatan berdasarkan sisa umur spare part & running hours</span>
+            </div>
+            <div class="chart-content">
+              <div id="machine-health-bar-chart" class="bar-chart-wrapper">
+                <!-- SVG Machine Health Bar Chart -->
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card flex-1">
+            <div class="chart-header">
+              <h3>Tren Running Hours Harian Mesin</h3>
+              <span class="chart-subtitle">Monitoring 5 hari terakhir</span>
+            </div>
+            <div class="chart-content">
+              <div id="running-hours-line-chart" class="line-chart-wrapper">
+                <!-- SVG Line Chart -->
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card flex-1">
+            <div class="chart-header">
+              <h3>Biaya Pemeliharaan Bulanan (Historical)</h3>
+              <span class="chart-subtitle">Dalam Jutaan Rupiah (IDR)</span>
+            </div>
+            <div class="chart-content">
+              <div id="maintenance-cost-bar-chart" class="bar-chart-wrapper">
+                <!-- SVG Bar Chart -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-section">
+          <div class="table-header">
+            <h3>Top 10 Spare Part Paling Sering Diganti</h3>
+            <span class="chart-subtitle">Data frekuensi breakdown / preventive maintenance per part</span>
+          </div>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Spare Part & Kode</th>
+                  <th>Mesin Asosiasi</th>
+                  <th>Frekuensi Penggantian</th>
+                  <th>Total Biaya (IDR)</th>
+                  <th>Rekomendasi Tindakan</th>
+                </tr>
+              </thead>
+              <tbody id="top-replaced-parts-tbody">
+                <!-- Loaded dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="action-bar">
           <div class="search-box">
             <span class="search-icon">🔍</span>

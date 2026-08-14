@@ -556,7 +556,7 @@ function refreshCurrentTabView() {
   if (currentTab === 'dashboard') loadDashboardData();
   if (currentTab === 'machines') renderMachinesTable();
   if (currentTab === 'spareparts') renderSparePartsTable();
-  if (currentTab === 'history') renderHistoryTable();
+  if (currentTab === 'history') loadPreventiveMaintenanceData();
   if (currentTab === 'users') renderUsersTable();
   populateLoginUserDropdown();
 }
@@ -688,7 +688,7 @@ function switchTab(tabName) {
     dashboard: 'Dashboard Analisis CMMS',
     machines: 'Master Data Mesin',
     spareparts: 'Master Data Spare Part',
-    history: 'Riwayat Preventive Maintenance',
+    history: 'Preventive Maintenance',
     integrations: 'PLC & IoT Data Acquisition Panel',
     system: 'Sistem Backup & Restore Database',
     users: 'Kelola Akun Pengguna',
@@ -700,7 +700,7 @@ function switchTab(tabName) {
   if (tabName === 'dashboard') loadDashboardData();
   if (tabName === 'machines') renderMachinesTable();
   if (tabName === 'spareparts') renderSparePartsTable();
-  if (tabName === 'history') renderHistoryTable();
+  if (tabName === 'history') loadPreventiveMaintenanceData();
   if (tabName === 'integrations') updateIntegrationsPanel();
   if (tabName === 'users') renderUsersTable();
 }
@@ -893,20 +893,15 @@ async function performDesktopLogin() {
 
 // --- DYNAMIC RENDERING: DASHBOARD ---
 
-function loadDashboardData() {
+function getPreventiveMaintenanceAnalyticsData() {
   if (!dbState.machines || !Array.isArray(dbState.machines)) dbState.machines = [];
   if (!dbState.spare_parts || !Array.isArray(dbState.spare_parts)) dbState.spare_parts = [];
   if (!dbState.replacement_history || !Array.isArray(dbState.replacement_history)) dbState.replacement_history = [];
 
-  const totalMachines = dbState.machines.length;
-  const totalParts = dbState.spare_parts.length;
-
-  // Process all parts to calculate conditions
   let warningCount = 0;
   let overdueCount = 0;
   let actionRequiredCount = 0;
   let normalCount = 0;
-  let totalCost = 0;
 
   const partsDetails = dbState.spare_parts.map(p => {
     const machine = findMachineForSparePart(p);
@@ -920,6 +915,15 @@ function loadDashboardData() {
     else if (p.status === 'WARNING LEVEL 2' || p.status === 'WARNING LEVEL 1') warningCount++;
     else normalCount++;
   });
+
+  return { partsDetails, warningCount, overdueCount, actionRequiredCount, normalCount };
+}
+
+function loadDashboardData() {
+  const { warningCount, overdueCount, actionRequiredCount } = getPreventiveMaintenanceAnalyticsData();
+  const totalMachines = dbState.machines.length;
+  const totalParts = dbState.spare_parts.length;
+  let totalCost = 0;
 
   // Total Maintenance Cost
   dbState.replacement_history.forEach(h => {
@@ -943,27 +947,21 @@ function loadDashboardData() {
   // 0. Render Live Machine Status Cards Grid (Green when RUNNING)
   renderDashboardMachineCards();
 
-  // 1. Draw Remaining Life Radial Gauges (Top 4 critical elements)
-  renderRadialGauges(partsDetails);
-
-  // 2. Draw Donut Chart
-  renderDonutChart(normalCount, warningCount, actionRequiredCount + overdueCount);
-
-  // 3. Draw Machine Health Bar Chart
-  renderMachineHealthChart();
-
-  // 3.5. Draw Line Chart of running hours
-  renderLineChart();
-
-  // 4. Draw Bar Chart of Monthly costs
-  renderBarChart();
-
-  // 5. Draw Top 10 Replaced Parts Table
-  renderTopReplacedParts();
-
   window.dispatchEvent(new CustomEvent('predictacore:dashboard-ready', {
     detail: { user: { ...activeUser } }
   }));
+}
+
+function loadPreventiveMaintenanceData() {
+  const { partsDetails, warningCount, overdueCount, actionRequiredCount, normalCount } = getPreventiveMaintenanceAnalyticsData();
+
+  renderRadialGauges(partsDetails);
+  renderDonutChart(normalCount, warningCount, actionRequiredCount + overdueCount);
+  renderMachineHealthChart();
+  renderLineChart();
+  renderBarChart();
+  renderTopReplacedParts();
+  renderHistoryTable();
 }
 
 function refreshDashboardData() {
@@ -3717,7 +3715,7 @@ function executeClearAllReplacementHistory(authUser) {
   saveDatabase();
   logToConsole('SYSTEM', `SECURITY AUDIT: Seluruh data Riwayat Maintenance (${currentCount} catatan) telah dikosongkan oleh ${authUser ? authUser.full_name : 'Admin'} (${authUser ? authUser.role : 'ADMIN'}).`);
 
-  renderHistoryTable();
+  loadPreventiveMaintenanceData();
   if (typeof updateUIPendingItems === 'function') updateUIPendingItems();
   if (currentTab === 'dashboard' && typeof loadDashboardData === 'function') loadDashboardData();
 

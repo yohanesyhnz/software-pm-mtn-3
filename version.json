@@ -1,18 +1,20 @@
 {
-  "version": "v5.1.1",
-  "previousVersion": "v5.1.0",
-  "build": "20260814.25",
+  "version": "v5.2.0",
+  "previousVersion": "v5.1.1",
+  "build": "20260814.26",
   "releaseDate": "2026-08-14",
-  "commitType": "fix",
-  "bump": "patch",
-  "summary": "align FILLING PDS16 live metrics",
+  "commitType": "feat",
+  "bump": "minor",
+  "summary": "move maintenance analytics into Preventive Maintenance",
   "changes": {
-    "newFeatures": [],
-    "improvements": [],
-    "fixed": [
-      "align FILLING PDS16 live metrics",
-      "Act Speed and Output Count now render side by side while Running Hours remains full width"
+    "newFeatures": [
+      "move maintenance analytics into Preventive Maintenance",
+      "Preventive Maintenance now contains remaining-life, spare-part condition, machine health, running-hours trend, maintenance cost, and replacement-frequency analytics"
     ],
+    "improvements": [
+      "Dashboard is focused on KPI and scalable realtime Machine Cards"
+    ],
+    "fixed": [],
     "optimizations": [],
     "breakingChanges": [],
     "knownIssues": [],

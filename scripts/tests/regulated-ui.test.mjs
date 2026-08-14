@@ -72,11 +72,11 @@ test("real-time machine status sits directly below the KPI summary and adapts to
   const app = sourceFiles.find(({ path }) => path.endsWith("app.js"))?.contents ?? "";
   const kpiGridIndex = html.indexOf('<div class="kpi-grid">');
   const machineStatusIndex = html.indexOf('<section class="machine-status-section"');
-  const firstChartsRowIndex = html.indexOf('<div class="charts-row">');
+  const dashboardEndIndex = html.indexOf('<!-- TAB 2: MASTER MESIN -->');
 
   assert.ok(kpiGridIndex >= 0, "dashboard KPI grid is missing");
   assert.ok(machineStatusIndex > kpiGridIndex, "machine status must follow the KPI grid");
-  assert.ok(firstChartsRowIndex > machineStatusIndex, "machine status must precede dashboard charts");
+  assert.ok(dashboardEndIndex > machineStatusIndex, "machine status must remain inside the dashboard panel");
   assert.equal((html.match(/id="dashboard-machine-status-grid"/g) ?? []).length, 1);
   assert.match(html, /id="machine-order-toggle"[^>]*onclick="toggleDashboardMachineOrderMode\(\)"/);
   assert.match(html, /id="machine-order-reset"[^>]*onclick="resetDashboardMachineOrder\(\)"/);
@@ -88,6 +88,35 @@ test("real-time machine status sits directly below the KPI summary and adapts to
   assert.match(app, /variants\.has\('A'\) && variants\.has\('B'\)/);
   assert.match(app, /function moveDashboardMachineGroup\(encodedLineKey, encodedGroupKey, direction\)/);
   assert.match(app, /window\.localStorage\.setItem\(DASHBOARD_MACHINE_ORDER_STORAGE_KEY/);
+});
+
+test("preventive maintenance owns all analytical panels while dashboard stays machine-focused", () => {
+  const html = sourceFiles.find(({ path }) => path.endsWith("index.html"))?.contents ?? "";
+  const app = sourceFiles.find(({ path }) => path.endsWith("app.js"))?.contents ?? "";
+  const dashboardPanel = html.slice(html.indexOf('id="panel-dashboard"'), html.indexOf('<!-- TAB 2: MASTER MESIN -->'));
+  const preventivePanel = html.slice(html.indexOf('id="panel-history"'), html.indexOf('<!-- TAB 5:'));
+  const analyticsTitles = [
+    "Remaining Life Analysis (Critical Parts)",
+    "Status Kondisi Spare Part",
+    "Status Kesehatan Mesin (Health Score)",
+    "Tren Running Hours Harian Mesin",
+    "Biaya Pemeliharaan Bulanan (Historical)",
+    "Top 10 Spare Part Paling Sering Diganti"
+  ];
+
+  assert.match(html, /id="nav-history"[\s\S]*?Preventive Maintenance/);
+  for (const title of analyticsTitles) {
+    assert.doesNotMatch(dashboardPanel, new RegExp(title.replace(/[()]/g, "\\$&")));
+    assert.match(preventivePanel, new RegExp(title.replace(/[()]/g, "\\$&")));
+  }
+
+  const dashboardLoader = app.slice(app.indexOf("function loadDashboardData()"), app.indexOf("function loadPreventiveMaintenanceData()"));
+  const preventiveLoader = app.slice(app.indexOf("function loadPreventiveMaintenanceData()"), app.indexOf("function refreshDashboardData()"));
+  assert.doesNotMatch(dashboardLoader, /renderRadialGauges|renderDonutChart|renderMachineHealthChart|renderLineChart|renderBarChart|renderTopReplacedParts/);
+  assert.match(preventiveLoader, /renderRadialGauges/);
+  assert.match(preventiveLoader, /renderTopReplacedParts/);
+  assert.match(app, /history:\s*'Preventive Maintenance'/);
+  assert.match(app, /if \(tabName === 'history'\) loadPreventiveMaintenanceData\(\);/);
 });
 
 test("dashboard machine grouping orders lines numerically and keeps A/B partners together", () => {
