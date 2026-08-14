@@ -1,21 +1,17 @@
 {
-  "version": "v5.0.0",
-  "previousVersion": "v4.0.4",
-  "build": "20260814.20",
+  "version": "v5.0.1",
+  "previousVersion": "v5.0.0",
+  "build": "20260814.21",
   "releaseDate": "2026-08-14",
-  "commitType": "feat",
-  "bump": "major",
-  "summary": "extend realtime acquisition to four LINE 08 machines",
+  "commitType": "fix",
+  "bump": "patch",
+  "summary": "activate legacy LINE 08 acquisition mappings once",
   "changes": {
-    "newFeatures": [
-      "extend realtime acquisition to four LINE 08 machines",
-      "Four LINE 08 machine cards use the shared PostgreSQL acquisition service"
-    ],
-    "improvements": [
-      "Audited physical columns and timestamp indexes for latest-row acquisition"
-    ],
+    "newFeatures": [],
+    "improvements": [],
     "fixed": [
-      "Stop timeout now uses observed time when source rows are unchanged"
+      "activate legacy LINE 08 acquisition mappings once",
+      "Previously inactive NAS assets are enabled once without overriding later administrator choices"
     ],
     "optimizations": [],
     "breakingChanges": [],

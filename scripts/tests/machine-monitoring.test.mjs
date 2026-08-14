@@ -65,6 +65,8 @@ test("the four audited Line 08 assets extend the shared acquisition service with
   }
   assert.match(backend, /ReadInt\(item, "id"\) == configuration\.LegacyId/);
   assert.match(backend, /machine\["line_code"\] = configuration\.Line/);
+  assert.match(backend, /acquisition_bootstrap_version/);
+  assert.match(backend, /configuration\.Line == "LINE 08"/);
   assert.match(up, /timestamp_zone DESC/g);
   assert.match(up, /ON CONFLICT \(machine_id\) DO UPDATE/);
   assert.match(down, /acquisition_enabled = false/);

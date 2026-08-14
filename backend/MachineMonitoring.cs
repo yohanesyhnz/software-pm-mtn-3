@@ -346,7 +346,20 @@ sealed class MachineConfigurationStore(StateStore stateStore)
                 if (machine["parameter_unit"] is null) machine["parameter_unit"] = configuration.ParameterUnit;
                 machine["running_threshold"] ??= configuration.RunningThreshold;
                 machine["stop_timeout_seconds"] ??= configuration.StopTimeoutSeconds;
-                machine["acquisition_enabled"] ??= true;
+                const string line08BootstrapVersion = "line08-v1";
+                if (configuration.Line == "LINE 08" &&
+                    !string.Equals(ReadString(machine, "acquisition_bootstrap_version"), line08BootstrapVersion, StringComparison.Ordinal))
+                {
+                    // Existing NAS assets 24-27 were deliberately inactive before their
+                    // PostgreSQL mappings existed. Enable them once during this additive
+                    // bootstrap, then preserve any later administrator choice.
+                    machine["acquisition_enabled"] = true;
+                    machine["acquisition_bootstrap_version"] = line08BootstrapVersion;
+                }
+                else
+                {
+                    machine["acquisition_enabled"] ??= true;
+                }
             }
             return true;
         }, cancellationToken);

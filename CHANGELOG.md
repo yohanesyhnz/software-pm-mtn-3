@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [5.0.1] - 2026-08-14
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Tidak ada.
+
+### Fixed
+
+- activate legacy LINE 08 acquisition mappings once
+- Previously inactive NAS assets are enabled once without overriding later administrator choices
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [5.0.0] - 2026-08-14
 
 ### New Features
