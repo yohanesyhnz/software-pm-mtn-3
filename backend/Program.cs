@@ -179,8 +179,37 @@ static async Task<IResult> SaveCompatibilityStateAsync(
         return Results.BadRequest(new { status = "error", message = "Payload input kosong / tidak valid." });
 
     body.Remove("action");
+    var existing = await store.ReadAsync(cancellationToken);
+    var existingMachines = (existing["machines"] as JsonArray)?.OfType<JsonObject>()
+        .Select(machine => (Key: CompatibilityMachineKey(machine), Machine: machine))
+        .Where(item => item.Key is not null)
+        .ToDictionary(item => item.Key!, item => item.Machine, StringComparer.OrdinalIgnoreCase)
+        ?? new Dictionary<string, JsonObject>(StringComparer.OrdinalIgnoreCase);
+
+    foreach (var incoming in (body["machines"] as JsonArray)?.OfType<JsonObject>() ?? [])
+    {
+        var key = CompatibilityMachineKey(incoming);
+        if (key is null || !existingMachines.TryGetValue(key, out var persisted)) continue;
+
+        // A dashboard tab opened before a backend configuration bootstrap does not
+        // know the marker yet. Preserve the backend-owned activation decision once;
+        // subsequent payloads carry the marker and can express an admin change.
+        if (incoming["acquisition_bootstrap_version"] is null &&
+            persisted["acquisition_bootstrap_version"] is not null)
+        {
+            incoming["acquisition_bootstrap_version"] = persisted["acquisition_bootstrap_version"]!.DeepClone();
+            incoming["acquisition_enabled"] = persisted["acquisition_enabled"]?.DeepClone();
+        }
+    }
     await store.WriteAsync(body, cancellationToken);
     return Results.Ok(new { status = "success", message = "Data terpusat berhasil tersimpan melalui ASP.NET Core Web API." });
+}
+
+static string? CompatibilityMachineKey(JsonObject machine)
+{
+    var machineId = machine["machine_id"]?.GetValue<string>()?.Trim();
+    if (!string.IsNullOrWhiteSpace(machineId)) return $"machine:{machineId}";
+    return machine["id"] is JsonValue idValue && idValue.TryGetValue<int>(out var id) ? $"legacy:{id}" : null;
 }
 
 static async Task<IResult> TestPlcAsync(HttpRequest request, CancellationToken cancellationToken)
