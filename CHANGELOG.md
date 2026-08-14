@@ -2,6 +2,39 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [4.0.3] - 2026-08-14
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Tabel Master Spare Part membungkus teks dan adaptif di layar kecil
+
+### Fixed
+
+- fix spare part entry and lifetime forecasting
+- Spare part baru kini disimpan secara atomik melalui ASP.NET Core API
+- Prediksi sisa hari dan tanggal PM memakai kapasitas operasi terencana
+- Robot Smart Assistant tidak lagi menutupi dialog pada layar mobile
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [4.0.2] - 2026-08-11
 
 ### New Features

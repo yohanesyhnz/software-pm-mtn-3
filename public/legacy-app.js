@@ -568,11 +568,29 @@ function resetDbState() {
 }
 
 // Calculate remaining life percentages and forecast dates
-function getSparePartCalculatedDetails(part, dailyHours = 20) {
-  const lifetime = part.lifetime_hours;
-  const currentHours = part.current_running_hours || 0;
+function getPlannedOperatingHoursPerDay(machine) {
+  const configuredHours = Number(
+    machine && (machine.operating_hours_per_day ?? machine.planned_running_hours_per_day)
+  );
+  return Number.isFinite(configuredHours) && configuredHours > 0 && configuredHours <= 24
+    ? configuredHours
+    : 20;
+}
+
+function formatLocalIsoDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getSparePartCalculatedDetails(part, operatingHoursPerDay = 20) {
+  const lifetime = Math.max(0, Number(part.lifetime_hours) || 0);
+  const currentHours = Math.max(0, Number(part.current_running_hours) || 0);
   const remainingHours = Math.max(0, lifetime - currentHours);
-  const remainingLifePct = Number((((lifetime - currentHours) / lifetime) * 100).toFixed(1));
+  const remainingLifePct = lifetime > 0
+    ? Number(((remainingHours / lifetime) * 100).toFixed(1))
+    : 0;
 
   // Determine Condition
   let status = 'NORMAL';
@@ -602,14 +620,16 @@ function getSparePartCalculatedDetails(part, dailyHours = 20) {
     message = 'Persiapkan spare part baru & jadwalkan preventive maintenance';
   }
 
-  // Predict Lifetime Sisa Hari
-  const machineDaily = dailyHours > 0 ? dailyHours : 20; // Default to 20 hours per day
-  const remainingDays = Number((remainingHours / machineDaily).toFixed(1));
+  // Forecast uses planned operating capacity, never today's partial accumulated hours.
+  const plannedHoursPerDay = Number.isFinite(Number(operatingHoursPerDay)) && Number(operatingHoursPerDay) > 0
+    ? Math.min(24, Number(operatingHoursPerDay))
+    : 20;
+  const remainingDays = remainingHours > 0 ? Math.ceil(remainingHours / plannedHoursPerDay) : 0;
 
   // Predict PM Date
   const nextPMDate = new Date();
   nextPMDate.setDate(nextPMDate.getDate() + Math.ceil(remainingDays));
-  const pmDateStr = nextPMDate.toISOString().split('T')[0];
+  const pmDateStr = formatLocalIsoDate(nextPMDate);
 
   return {
     ...part,
@@ -620,7 +640,8 @@ function getSparePartCalculatedDetails(part, dailyHours = 20) {
     badgeClass,
     status_message: message,
     remaining_days: remainingDays,
-    predicted_pm_date: pmDateStr
+    predicted_pm_date: pmDateStr,
+    operating_hours_per_day: plannedHoursPerDay
   };
 }
 
@@ -631,7 +652,7 @@ function getMachineOverallHealth(machineId) {
   const parts = dbState.spare_parts.filter(sp => sp.machine_id === machineId);
   if (parts.length === 0) return 'NORMAL';
 
-  const dailyHours = machine.running_hours_daily > 0 ? machine.running_hours_daily : 20;
+  const dailyHours = getPlannedOperatingHoursPerDay(machine);
   const calculatedParts = parts.map(p => getSparePartCalculatedDetails(p, dailyHours));
 
   if (calculatedParts.some(p => p.status === 'OVERDUE' || p.status === 'ACTION REQUIRED')) {
@@ -896,7 +917,7 @@ function loadDashboardData() {
 
   const partsDetails = dbState.spare_parts.map(p => {
     const machine = findMachineForSparePart(p);
-    const daily = machine ? machine.running_hours_daily : 20;
+    const daily = getPlannedOperatingHoursPerDay(machine);
     return getSparePartCalculatedDetails(p, daily);
   });
 
@@ -2527,7 +2548,7 @@ function viewMachineDetails(id) {
   if (!m) return;
 
   const parts = dbState.spare_parts.filter(sp => sp.machine_id === m.id);
-  const daily = m.running_hours_daily > 0 ? m.running_hours_daily : 20;
+  const daily = getPlannedOperatingHoursPerDay(m);
   const calculatedParts = parts.map(p => getSparePartCalculatedDetails(p, daily));
 
   const qrDataText = `Preventive Maintenance System\nMachine: ${m.name}\nAsset: ${m.asset_number}\nRunning Hours: ${m.running_hours_total.toFixed(1)}`;
@@ -2751,9 +2772,9 @@ function renderSparePartsTable() {
     }
     const mName = machine ? machine.name : 'Unknown Machine';
     const mAsset = machine ? machine.asset_number : '';
-    const mDaily = machine ? machine.running_hours_daily : 20;
+    const plannedHoursPerDay = getPlannedOperatingHoursPerDay(machine);
 
-    const calc = getSparePartCalculatedDetails(p, mDaily);
+    const calc = getSparePartCalculatedDetails(p, plannedHoursPerDay);
 
     // Apply filters
     const matchesSearch = !searchVal ||
@@ -2770,18 +2791,18 @@ function renderSparePartsTable() {
       
       rowsHtml.push(`
         <tr data-part-id="${p.id}">
-          <td><strong>${p.name}</strong><br><span style="font-size:10px; color:var(--text-secondary);">${p.vendor || 'General Supplier'}</span></td>
-          <td><code style="font-family:'JetBrains Mono';">${p.code}</code></td>
-          <td><strong>${mName}</strong>${mAsset ? `<br><code style="font-size:10px; color:var(--predictacore-cyan);">${mAsset}</code>` : ''}</td>
-          <td><span class="badge ${critBadge}">${p.critical_level}</span></td>
-          <td>${p.lifetime_hours} Hrs</td>
-          <td class="sp-rh-cell" data-rh-part="${p.id}">${p.current_running_hours.toFixed(1)} Hrs</td>
-          <td class="sp-pct-cell" data-pct-part="${p.id}">${calc.remaining_life_pct}%</td>
-          <td class="sp-status-cell" data-status-part="${p.id}"><span class="badge ${calc.badgeClass}">${calc.status}</span></td>
-          <td><strong>${p.safety_stock || 1} Qty</strong></td>
-          <td class="sp-days-cell" data-days-part="${p.id}">${calc.remaining_days} Hari</td>
-          <td><code>${calc.predicted_pm_date}</code></td>
-          <td>
+          <td data-label="Spare Part"><strong>${p.name}</strong><br><span style="font-size:10px; color:var(--text-secondary);">${p.vendor || 'General Supplier'}</span></td>
+          <td data-label="Kode"><code style="font-family:'JetBrains Mono';">${p.code}</code></td>
+          <td data-label="Mesin"><strong>${mName}</strong>${mAsset ? `<br><code style="font-size:10px; color:var(--predictacore-cyan);">${mAsset}</code>` : ''}</td>
+          <td data-label="Critical Level"><span class="badge ${critBadge}">${p.critical_level}</span></td>
+          <td data-label="Lifetime">${Number(p.lifetime_hours) || 0} Hrs</td>
+          <td data-label="Running Hours" class="sp-rh-cell" data-rh-part="${p.id}">${(Number(p.current_running_hours) || 0).toFixed(1)} Hrs</td>
+          <td data-label="Remaining Life" class="sp-pct-cell" data-pct-part="${p.id}">${calc.remaining_life_pct}%</td>
+          <td data-label="Kondisi Status" class="sp-status-cell" data-status-part="${p.id}"><span class="badge ${calc.badgeClass}">${calc.status}</span></td>
+          <td data-label="Stok / Qty"><strong>${p.safety_stock || 1} Qty</strong></td>
+          <td data-label="Prediksi Sisa Hari" class="sp-days-cell" data-days-part="${p.id}" title="${calc.remaining_hours.toFixed(1)} jam tersisa ÷ ${calc.operating_hours_per_day} jam operasi/hari">${calc.remaining_days} Hari</td>
+          <td data-label="Estimasi Tgl PM" class="sp-pm-date-cell" data-pm-date-part="${p.id}"><code>${calc.predicted_pm_date}</code></td>
+          <td data-label="Actions">
             <div style="display:flex; gap:3px; flex-wrap:wrap; align-items:center;">
               <button class="btn-action-icon" title="Log Replacement" onclick="openReplacementModal(${p.id})">🔧 Ganti</button>
               ${(activeUser.role === 'ADMIN' || activeUser.role === 'SUPERVISOR') ? `<button class="btn-action-icon" title="Reset Running Hours" style="color:var(--color-orange);" onclick="resetSparePartHours(${p.id})">🔄 Reset</button>` : ''}
@@ -3480,7 +3501,7 @@ function executeMachineImport() {
   alert(`✅ Berhasil mengimpor ${validItems.length} Master Mesin (${newCount} Mesin Baru, ${updateCount} Data Diperbarui) ke dalam sistem!`);
 }
 
-function saveSparePartData() {
+async function saveSparePartData() {
   const modalId = document.getElementById('modal-part-id').value;
   const machine_id = parseInt(document.getElementById('modal-part-machine-id').value);
   const name = document.getElementById('modal-part-name').value.trim();
@@ -3493,8 +3514,18 @@ function saveSparePartData() {
   const safety_stock = parseInt(document.getElementById('modal-part-safetystock').value);
   const critical_level = document.getElementById('modal-part-critical').value;
 
+  if (!Number.isInteger(machine_id) || machine_id <= 0) {
+    alert('Pilih mesin asosiasi yang valid.');
+    return;
+  }
+
   if (!name || !code || !vendor || isNaN(price) || isNaN(lifetime_hours) || isNaN(safety_stock) || isNaN(current_running_hours)) {
     alert('Harap isi semua kolom wajib dengan format angka yang benar (*)');
+    return;
+  }
+
+  if (price < 0 || lifetime_hours <= 0 || current_running_hours < 0 || safety_stock < 0) {
+    alert('Lifetime harus lebih besar dari 0. Harga, Running Hours, dan Stok tidak boleh negatif.');
     return;
   }
 
@@ -3517,55 +3548,83 @@ function saveSparePartData() {
     return;
   }
 
-  if (modalId) {
-    const p = dbState.spare_parts.find(sp => sp.id == modalId);
-    p.machine_id = machine_id;
-    p.name = name;
-    p.code = code;
-    p.description = description;
-    p.vendor = vendor;
-    p.price = price;
-    p.lifetime_hours = lifetime_hours;
-    p.current_running_hours = current_running_hours;
-    p.safety_stock = safety_stock;
-    p.critical_level = critical_level;
-    logToConsole('SYSTEM', `Spare part ${name} [${code}] diperbarui.`);
-  } else {
-    const maxExistingId = dbState.spare_parts.reduce((max, sp) => Math.max(max, Number(sp.id) || 0), 0);
-    const nextId = maxExistingId + 1;
-    dbState.spare_parts.push({
-      id: nextId,
-      machine_id,
-      name,
-      code,
-      description,
-      vendor,
-      price,
-      lifetime_hours,
-      safety_stock,
-      critical_level,
-      last_replacement_date: new Date().toISOString().split('T')[0],
-      current_running_hours: current_running_hours
-    });
-    logToConsole('SYSTEM', `Spare part baru ditambahkan: ${name} [${code}].`);
+  const saveButton = document.getElementById('save-sparepart-btn');
+  const originalLabel = saveButton ? saveButton.textContent : 'Simpan Data';
+  if (saveButton) {
+    saveButton.disabled = true;
+    saveButton.textContent = 'Menyimpan...';
   }
 
-  saveDatabase();
-  closeSparePartModal();
-  renderSparePartsTable();
+  try {
+    const response = await fetch(modalId ? `/api/spare-parts/${modalId}` : '/api/spare-parts', {
+      method: modalId ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        machineId: machine_id,
+        name,
+        code,
+        description,
+        vendor,
+        price,
+        lifetimeHours: lifetime_hours,
+        currentRunningHours: current_running_hours,
+        safetyStock: safety_stock,
+        criticalLevel: critical_level
+      })
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result || result.status !== 'success' || !result.spare_part) {
+      throw new Error(result && result.message ? result.message : 'Server tidak dapat menyimpan data spare part.');
+    }
+
+    const savedPart = result.spare_part;
+    const existingIndex = dbState.spare_parts.findIndex(sp => Number(sp.id) === Number(savedPart.id));
+    if (existingIndex >= 0) dbState.spare_parts[existingIndex] = savedPart;
+    else dbState.spare_parts.push(savedPart);
+    localStorage.setItem('pm_system_db', JSON.stringify(dbState));
+
+    logToConsole('SYSTEM', modalId
+      ? `Spare part ${name} [${code}] diperbarui.`
+      : `Spare part baru ditambahkan: ${name} [${code}].`);
+    closeSparePartModal();
+    renderSparePartsTable();
+    updateUIPendingItems();
+    if (typeof showSystemNotificationBanner === 'function') {
+      showSystemNotificationBanner(`✅ ${result.message}`, 'success');
+    }
+  } catch (error) {
+    console.error('Gagal menyimpan spare part:', error);
+    alert(`Gagal menyimpan spare part:\n${error instanceof Error ? error.message : 'Kesalahan tidak diketahui.'}`);
+  } finally {
+    if (saveButton) {
+      saveButton.disabled = false;
+      saveButton.textContent = originalLabel;
+    }
+  }
 }
 
-function deleteSparePart(id) {
+async function deleteSparePart(id) {
   if (activeUser.role === 'TECHNICIAN') {
     alert('Akses Ditolak: Level user TECHNICIAN tidak diizinkan menghapus spare part.');
     return;
   }
 
   if (confirm('Apakah Anda yakin ingin menghapus spare part ini?')) {
-    dbState.spare_parts = dbState.spare_parts.filter(sp => sp.id !== id);
-    saveDatabase();
-    renderSparePartsTable();
-    logToConsole('SYSTEM', `Spare part ID: ${id} dihapus dari master.`);
+    try {
+      const response = await fetch(`/api/spare-parts/${id}`, { method: 'DELETE' });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result || result.status !== 'success') {
+        throw new Error(result && result.message ? result.message : 'Server tidak dapat menghapus spare part.');
+      }
+      dbState.spare_parts = dbState.spare_parts.filter(sp => Number(sp.id) !== Number(id));
+      localStorage.setItem('pm_system_db', JSON.stringify(dbState));
+      renderSparePartsTable();
+      updateUIPendingItems();
+      logToConsole('SYSTEM', `Spare part ID: ${id} dihapus dari master.`);
+    } catch (error) {
+      console.error('Gagal menghapus spare part:', error);
+      alert(`Gagal menghapus spare part:\n${error instanceof Error ? error.message : 'Kesalahan tidak diketahui.'}`);
+    }
   }
 }
 
@@ -4736,7 +4795,7 @@ function _updateSparePartRunningHoursInDOM(sp) {
   if (!rhEl) return;
 
   const machine = findMachineForSparePart(sp);
-  const mDaily = machine ? machine.running_hours_daily : 20;
+  const mDaily = getPlannedOperatingHoursPerDay(machine);
   const calc = getSparePartCalculatedDetails(sp, mDaily);
 
   rhEl.textContent = `${sp.current_running_hours.toFixed(1)} Hrs`;
@@ -4749,6 +4808,9 @@ function _updateSparePartRunningHoursInDOM(sp) {
 
   const daysEl = document.querySelector(`.sp-days-cell[data-days-part="${sp.id}"]`);
   if (daysEl) daysEl.textContent = `${calc.remaining_days} Hari`;
+
+  const pmDateEl = document.querySelector(`.sp-pm-date-cell[data-pm-date-part="${sp.id}"] code`);
+  if (pmDateEl) pmDateEl.textContent = calc.predicted_pm_date;
 }
 
 function incrementTelemetryRunningHours(machineId, addedHours, protocol) {
@@ -4894,7 +4956,7 @@ function addRunningHoursToDatabase(machineId, addedHours, updatedBy, source) {
 
 function checkPartsThresholdAlarms(machine) {
   const parts = dbState.spare_parts.filter(sp => sp.machine_id === machine.id);
-  const daily = machine.running_hours_daily > 0 ? machine.running_hours_daily : 20;
+  const daily = getPlannedOperatingHoursPerDay(machine);
 
   parts.forEach(p => {
     const calc = getSparePartCalculatedDetails(p, daily);
@@ -4956,7 +5018,7 @@ function getActiveSystemNotifications() {
 
   dbState.spare_parts.forEach(p => {
     const machine = dbState.machines.find(m => Number(m.id) === Number(p.machine_id));
-    const mDaily = machine ? (machine.running_hours_daily > 0 ? machine.running_hours_daily : 20) : 20;
+    const mDaily = getPlannedOperatingHoursPerDay(machine);
     const mName = machine ? machine.name : 'Unknown Machine';
     const mAsset = machine ? machine.asset_number : 'SN-UNKNOWN';
 
@@ -5263,7 +5325,7 @@ function sendApiRequest() {
       } else if (ep === '/api/spare-parts') {
         mockResponse = dbState.spare_parts.map(p => {
           const machine = dbState.machines.find(m => m.id === p.machine_id);
-          const daily = machine ? machine.running_hours_daily : 20;
+          const daily = getPlannedOperatingHoursPerDay(machine);
           return getSparePartCalculatedDetails(p, daily);
         });
       } else if (ep === '/api/analytics/dashboard') {
@@ -5271,7 +5333,7 @@ function sendApiRequest() {
         let warning = 0; let overdue = 0; let active = 0; let cost = 0;
         dbState.spare_parts.forEach(p => {
           const m = dbState.machines.find(mac => mac.id === p.machine_id);
-          const c = getSparePartCalculatedDetails(p, m ? m.running_hours_daily : 20);
+          const c = getSparePartCalculatedDetails(p, getPlannedOperatingHoursPerDay(m));
           if (c.status === 'OVERDUE') overdue++;
           else if (c.status === 'ACTION REQUIRED') active++;
           else if (c.status.includes('WARNING')) warning++;
@@ -6119,7 +6181,7 @@ function getMachineHealthPercentage(machineId) {
   const parts = dbState.spare_parts.filter(sp => sp.machine_id === machineId);
   if (parts.length === 0) return 100;
 
-  const dailyHours = m.running_hours_daily > 0 ? m.running_hours_daily : 20;
+  const dailyHours = getPlannedOperatingHoursPerDay(m);
   
   let totalWeight = 0;
   let weightedSum = 0;

@@ -58,11 +58,12 @@ test("version and about pages use a full-screen responsive shell", () => {
 test("spare-parts table is readable in light mode and adapts locally", () => {
   const css = sourceFiles.find(({ path }) => path.endsWith("style.css"))?.contents ?? "";
 
-  assert.match(css, /#panel-spareparts \.data-table\s*\{[^}]*min-width:\s*1260px;[^}]*table-layout:\s*fixed;/s);
+  assert.match(css, /#panel-spareparts \.data-table\s*\{[^}]*min-width:\s*100%;[^}]*table-layout:\s*auto;/s);
   assert.match(css, /:root\[data-theme="light"\] #panel-spareparts \.data-table td:first-child\s*\{[^}]*color:\s*#14253a;[^}]*background:\s*#edf3f8;/s);
   assert.match(css, /:root\[data-theme="light"\] #panel-spareparts \.data-table th:first-child\s*\{[^}]*color:\s*#294761;[^}]*background:\s*#dfe8f2;/s);
-  assert.match(css, /@media screen and \(max-width: 1200px\)[^{]*\{[\s\S]*?#panel-spareparts \.data-table\s*\{[^}]*min-width:\s*1080px;/s);
-  assert.match(css, /@media screen and \(max-width: 768px\)[^{]*\{[\s\S]*?#panel-spareparts \.table-container\s*\{[^}]*max-height:\s*60dvh;/s);
+  assert.match(css, /@media screen and \(max-width: 1200px\)[^{]*\{[\s\S]*?#panel-spareparts \.data-table\s*\{[^}]*min-width:\s*100%;[^}]*table-layout:\s*fixed;/s);
+  assert.match(css, /@media screen and \(max-width: 768px\)[^{]*\{[\s\S]*?#panel-spareparts \.spareparts-responsive-table tbody tr\s*\{[^}]*display:\s*grid;/s);
+  assert.match(css, /#panel-spareparts \.spareparts-responsive-table tbody td::before\s*\{[^}]*content:\s*attr\(data-label\);/s);
 });
 
 test("real-time machine status sits directly below the KPI summary and adapts to narrow screens", () => {

@@ -53,6 +53,7 @@ app.MapSmartAssistantApi();
 app.MapMachineDashboardApi();
 app.MapMachineMonitoringApi();
 app.MapUserManagementApi();
+app.MapSparePartManagementApi();
 
 app.MapGet("/api/health", (StateStore store) => Results.Ok(new
 {

@@ -1,21 +1,23 @@
 {
-  "version": "v4.0.2",
-  "previousVersion": "v4.0.1",
-  "build": "20260811.17",
-  "releaseDate": "2026-08-11",
+  "version": "v4.0.3",
+  "previousVersion": "v4.0.2",
+  "build": "20260814.18",
+  "releaseDate": "2026-08-14",
   "commitType": "fix",
   "bump": "patch",
-  "summary": "handle abrupt WebSocket client disconnects",
+  "summary": "fix spare part entry and lifetime forecasting",
   "changes": {
     "newFeatures": [],
-    "improvements": [],
+    "improvements": [
+      "Tabel Master Spare Part membungkus teks dan adaptif di layar kecil"
+    ],
     "fixed": [
-      "handle abrupt WebSocket client disconnects",
-      "Dashboard and assistant sockets now treat missing close handshakes as normal disconnects"
+      "fix spare part entry and lifetime forecasting",
+      "Spare part baru kini disimpan secara atomik melalui ASP.NET Core API",
+      "Prediksi sisa hari dan tanggal PM memakai kapasitas operasi terencana",
+      "Robot Smart Assistant tidak lagi menutupi dialog pada layar mobile"
     ],
-    "optimizations": [
-      "Prevents routine browser reconnects from polluting Kestrel error logs"
-    ],
+    "optimizations": [],
     "breakingChanges": [],
     "knownIssues": [],
     "documentation": []

@@ -26,7 +26,7 @@ export default function SmartAssistantRobot({
       src="/assets/smart_assistant_robot.png"
       alt=""
       aria-hidden="true"
-      className="tw-pointer-events-none tw-fixed tw-left-0 tw-top-0 tw-z-[11020] tw-h-auto tw-select-none"
+      className="tw-pointer-events-none tw-fixed tw-left-0 tw-top-0 tw-z-[11005] tw-h-auto tw-select-none"
       style={{ width: flight.size, filter: "drop-shadow(0 18px 28px rgba(0, 0, 0, 0.42))" }}
       initial={{
         x: flight.startX,

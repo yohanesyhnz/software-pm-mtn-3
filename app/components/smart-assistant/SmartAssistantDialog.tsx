@@ -164,7 +164,7 @@ function Metric({ label, value, critical = false }: { label: string; value: stri
   return (
     <div className="smart-assistant-soft-surface tw-min-w-0 tw-rounded-lg tw-border tw-p-2.5">
       <span className="smart-assistant-muted tw-block tw-text-[9px] tw-font-bold tw-uppercase tw-tracking-wide">{label}</span>
-      <strong className={`tw-mt-1 tw-block tw-truncate tw-text-xs ${critical ? "smart-assistant-critical-text" : "tw-text-inherit"}`}>{value}</strong>
+      <strong className={`tw-mt-1 tw-block tw-break-words tw-text-xs ${critical ? "smart-assistant-critical-text" : "tw-text-inherit"}`}>{value}</strong>
     </div>
   );
 }
