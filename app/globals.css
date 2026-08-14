@@ -604,6 +604,11 @@
   text-align: center;
 }
 
+.machine-metrics.has-secondary-metric .machine-primary-metric {
+  grid-column: auto;
+  text-align: left;
+}
+
 .machine-metrics dt {
   color: var(--machine-muted);
   font-size: 7px;

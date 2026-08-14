@@ -13,8 +13,18 @@ test("dashboard uses one reusable MachineCard per machine and realtime WebSocket
   assert.match(card, /machine-image-frame/);
   assert.match(card, /machine-status-label/);
   assert.match(card, /machine-metrics/);
+  assert.match(card, /has-secondary-metric/);
   assert.match(card, /RUNNING HOURS/);
   assert.match(card, /machine-health/);
+});
+
+test("primary and secondary realtime values share one metric row", () => {
+  const css = read("app/globals.css");
+  const card = read("app/components/machine-dashboard/MachineCard.tsx");
+
+  assert.match(card, /showSecondaryParameter \? " has-secondary-metric"/);
+  assert.match(css, /\.machine-metrics\.has-secondary-metric \.machine-primary-metric\s*\{[\s\S]*?grid-column:\s*auto;/);
+  assert.match(css, /\.machine-metrics \.running-hours-metric\s*\{[\s\S]*?grid-column:\s*1 \/ -1;/);
 });
 
 test("card rendering is memoized and sanitizes invalid numeric UI values", () => {

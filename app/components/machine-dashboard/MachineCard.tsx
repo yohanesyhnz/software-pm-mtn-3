@@ -64,6 +64,7 @@ function MachineCardComponent({
     ? config.showCounter
     : machine.parameterType === "SPEED" ? config.showSpeed : true;
   const showPrimaryParameter = Boolean(parameterLabel) && config.showRealtimeValue !== false && parameterEnabled;
+  const showSecondaryParameter = Boolean(machine.secondaryParameterName) && config.showCounter;
   const lastUpdate = machine.sourceTimestamp ?? machine.realtimeUpdatedAt;
   const lastUpdateLabel = lastUpdate && !Number.isNaN(Date.parse(lastUpdate)) ? timestampFormatter.format(new Date(lastUpdate)) : "--";
 
@@ -136,15 +137,15 @@ function MachineCardComponent({
         </div>
       ) : null}
 
-      <dl className="machine-metrics">
+      <dl className={`machine-metrics${showSecondaryParameter ? " has-secondary-metric" : ""}`}>
         {showPrimaryParameter ? (
           <div className="machine-primary-metric" title={machine.parameterName ?? parameterLabel ?? undefined}>
             <dt>{parameterLabel}</dt>
             <dd>{safeNumber(machine.parameterValue)} <small>{machine.parameterValue === null ? "" : machine.parameterUnit}</small></dd>
           </div>
         ) : null}
-        {machine.secondaryParameterName && config.showCounter ? (
-          <div className="machine-secondary-metric" title={machine.secondaryParameterName}>
+        {showSecondaryParameter ? (
+          <div className="machine-secondary-metric" title={machine.secondaryParameterName ?? undefined}>
             <dt>{machine.secondaryParameterLabel ?? machine.secondaryParameterName}</dt>
             <dd>{safeNumber(machine.secondaryParameterValue)} <small>{machine.secondaryParameterValue === null ? "" : machine.secondaryParameterUnit}</small></dd>
           </div>

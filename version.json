@@ -1,20 +1,18 @@
 {
-  "version": "v5.1.0",
-  "previousVersion": "v5.0.3",
-  "build": "20260814.24",
+  "version": "v5.1.1",
+  "previousVersion": "v5.1.0",
+  "build": "20260814.25",
   "releaseDate": "2026-08-14",
-  "commitType": "feat",
-  "bump": "minor",
-  "summary": "show FILLING PDS16 output count beside act speed",
+  "commitType": "fix",
+  "bump": "patch",
+  "summary": "align FILLING PDS16 live metrics",
   "changes": {
-    "newFeatures": [
-      "show FILLING PDS16 output count beside act speed",
-      "FILLING PDS16 displays Act Speed and Output Count from the same latest PostgreSQL record"
+    "newFeatures": [],
+    "improvements": [],
+    "fixed": [
+      "align FILLING PDS16 live metrics",
+      "Act Speed and Output Count now render side by side while Running Hours remains full width"
     ],
-    "improvements": [
-      "Machine status and running hours remain driven exclusively by Act Speed"
-    ],
-    "fixed": [],
     "optimizations": [],
     "breakingChanges": [],
     "knownIssues": [],

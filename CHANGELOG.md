@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [5.1.1] - 2026-08-14
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Tidak ada.
+
+### Fixed
+
+- align FILLING PDS16 live metrics
+- Act Speed and Output Count now render side by side while Running Hours remains full width
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [5.1.0] - 2026-08-14
 
 ### New Features
