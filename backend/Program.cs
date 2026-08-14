@@ -194,11 +194,21 @@ static async Task<IResult> SaveCompatibilityStateAsync(
         // A dashboard tab opened before a backend configuration bootstrap does not
         // know the marker yet. Preserve the backend-owned activation decision once;
         // subsequent payloads carry the marker and can express an admin change.
-        if (incoming["acquisition_bootstrap_version"] is null &&
-            persisted["acquisition_bootstrap_version"] is not null)
+        var incomingBootstrap = incoming["acquisition_bootstrap_version"]?.GetValue<string>();
+        var persistedBootstrap = persisted["acquisition_bootstrap_version"]?.GetValue<string>();
+        if (!string.Equals(incomingBootstrap, persistedBootstrap, StringComparison.Ordinal) &&
+            !string.IsNullOrWhiteSpace(persistedBootstrap))
         {
-            incoming["acquisition_bootstrap_version"] = persisted["acquisition_bootstrap_version"]!.DeepClone();
-            incoming["acquisition_enabled"] = persisted["acquisition_enabled"]?.DeepClone();
+            foreach (var field in new[]
+            {
+                "machine_id", "line_code", "area", "source_table_name", "source_timestamp_column",
+                "parameter_name", "parameter_label", "parameter_type", "parameter_unit",
+                "running_threshold", "stop_timeout_seconds", "acquisition_enabled",
+                "acquisition_bootstrap_version"
+            })
+            {
+                incoming[field] = persisted[field]?.DeepClone();
+            }
         }
     }
     await store.WriteAsync(body, cancellationToken);

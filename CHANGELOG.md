@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [5.0.3] - 2026-08-14
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Tidak ada.
+
+### Fixed
+
+- correct LINE 08 speed acquisition types
+- Tunnel and Filling now use SPEED status logic after upgrading legacy machine metadata
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [5.0.2] - 2026-08-14
 
 ### New Features
