@@ -36,6 +36,10 @@ export type MachineDashboardItem = {
   parameterType: MachineParameterType | null;
   parameterUnit: string | null;
   parameterValue: number | null;
+  secondaryParameterName: string | null;
+  secondaryParameterLabel: string | null;
+  secondaryParameterUnit: string | null;
+  secondaryParameterValue: number | null;
   runningHours: number | null;
   health: number | null;
   healthStatus: "HEALTHY" | "GOOD" | "WARNING" | "CRITICAL" | "N/A";

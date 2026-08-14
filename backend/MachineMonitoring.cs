@@ -25,7 +25,10 @@ public sealed record MachineAcquisitionConfiguration(
     string ParameterUnit,
     double RunningThreshold,
     int StopTimeoutSeconds,
-    bool IsEnabled);
+    bool IsEnabled,
+    string SecondaryParameterName = "",
+    string SecondaryParameterLabel = "",
+    string SecondaryParameterUnit = "");
 
 public sealed record MachineRuntimeState
 {
@@ -35,6 +38,10 @@ public sealed record MachineRuntimeState
     public required string ParameterName { get; init; }
     public required MachineParameterType ParameterType { get; init; }
     public string ParameterUnit { get; init; } = string.Empty;
+    public string SecondaryParameterName { get; init; } = string.Empty;
+    public string SecondaryParameterLabel { get; init; } = string.Empty;
+    public string SecondaryParameterUnit { get; init; } = string.Empty;
+    public double? SecondaryParameterValue { get; init; }
     public double? CurrentValue { get; init; }
     public double? PreviousValue { get; init; }
     public DateTimeOffset? LastChangeTime { get; init; }
@@ -242,7 +249,10 @@ sealed class MachineRealtimeRegistry
             Line = configuration.Line,
             ParameterName = configuration.ParameterLabel,
             ParameterType = configuration.ParameterType,
-            ParameterUnit = configuration.ParameterUnit
+            ParameterUnit = configuration.ParameterUnit,
+            SecondaryParameterName = configuration.SecondaryParameterName,
+            SecondaryParameterLabel = configuration.SecondaryParameterLabel,
+            SecondaryParameterUnit = configuration.SecondaryParameterUnit
         });
     }
 
@@ -270,6 +280,9 @@ sealed class MachineRealtimeRegistry
             ParameterName = configuration.ParameterLabel,
             ParameterType = configuration.ParameterType,
             ParameterUnit = configuration.ParameterUnit,
+            SecondaryParameterName = configuration.SecondaryParameterName,
+            SecondaryParameterLabel = configuration.SecondaryParameterLabel,
+            SecondaryParameterUnit = configuration.SecondaryParameterUnit,
             ConnectionStatus = connectionStatus,
             LastUpdate = now
         });
@@ -292,7 +305,8 @@ sealed class MachineConfigurationStore(StateStore stateStore)
         Default("LABELING_RE400_B", 2, "LABELING RE-400_B", "LINE 07", "Labeling", "ILE7_LABELLING_ROTA_B", "infeed_counter", "infeed_counter", MachineParameterType.Counter, "pcs", 0, 10),
         Default("ILE8_WASHING_KQCLS20_3", 24, "WASHING KQCLS20/3", "LINE 08", "Washing", "ILE8_WASHING_RTF", "single_shift_output", "Output Washing", MachineParameterType.Counter, "", 0, 10),
         Default("ILE8_TUNNEL_KSZ_200_60M", 25, "TUNNEL KSZ/200/60M", "LINE 08", "Tunnel", "ILE8_TUNNEL_RTF", "air_speed_heating_zone", "Velocity Heating Zone", MachineParameterType.Speed, "", 0, 10),
-        Default("ILE8_FILLING_PDS16", 26, "FILLING PDS16", "LINE 08", "Filling", "ILE8_FILLING_RTF", "act_speed", "Act Speed", MachineParameterType.Speed, "", 0, 10),
+        Default("ILE8_FILLING_PDS16", 26, "FILLING PDS16", "LINE 08", "Filling", "ILE8_FILLING_RTF", "act_speed", "Act Speed", MachineParameterType.Speed, "", 0, 10,
+            secondaryParameter: "output_count", secondaryLabel: "Output Count"),
         Default("ILE8_CAPPING_2G16", 27, "CAPPING 2G16", "LINE 08", "Capping", "ILE8_CAPPING_RTF", "infeed_number", "Input Count", MachineParameterType.Counter, "", 0, 10)
     ];
 
@@ -346,7 +360,7 @@ sealed class MachineConfigurationStore(StateStore stateStore)
                 if (machine["parameter_unit"] is null) machine["parameter_unit"] = configuration.ParameterUnit;
                 machine["running_threshold"] ??= configuration.RunningThreshold;
                 machine["stop_timeout_seconds"] ??= configuration.StopTimeoutSeconds;
-                const string line08BootstrapVersion = "line08-v2";
+                const string line08BootstrapVersion = "line08-v3";
                 if (configuration.Line == "LINE 08" &&
                     !string.Equals(ReadString(machine, "acquisition_bootstrap_version"), line08BootstrapVersion, StringComparison.Ordinal))
                 {
@@ -361,6 +375,9 @@ sealed class MachineConfigurationStore(StateStore stateStore)
                     machine["parameter_unit"] = configuration.ParameterUnit;
                     machine["running_threshold"] = configuration.RunningThreshold;
                     machine["stop_timeout_seconds"] = configuration.StopTimeoutSeconds;
+                    machine["secondary_parameter_name"] = configuration.SecondaryParameterName;
+                    machine["secondary_parameter_label"] = configuration.SecondaryParameterLabel;
+                    machine["secondary_parameter_unit"] = configuration.SecondaryParameterUnit;
                     machine["acquisition_enabled"] = true;
                     machine["acquisition_bootstrap_version"] = line08BootstrapVersion;
                 }
@@ -448,7 +465,10 @@ sealed class MachineConfigurationStore(StateStore stateStore)
             ReadString(machine, "parameter_unit") ?? string.Empty,
             ReadDouble(machine, "running_threshold") ?? (type == MachineParameterType.Weight ? 1 : 0),
             Math.Clamp(ReadInt(machine, "stop_timeout_seconds") ?? 10, 1, 3600),
-            ReadBool(machine, "acquisition_enabled") ?? false);
+            ReadBool(machine, "acquisition_enabled") ?? false,
+            ReadString(machine, "secondary_parameter_name") ?? string.Empty,
+            ReadString(machine, "secondary_parameter_label") ?? string.Empty,
+            ReadString(machine, "secondary_parameter_unit") ?? string.Empty);
     }
 
     private static MachineRuntimeState? ParseRuntime(JsonObject item)
@@ -464,6 +484,10 @@ sealed class MachineConfigurationStore(StateStore stateStore)
             ParameterName = ReadString(item, "parameter_name") ?? string.Empty,
             ParameterType = type,
             ParameterUnit = ReadString(item, "parameter_unit") ?? string.Empty,
+            SecondaryParameterName = ReadString(item, "secondary_parameter_name") ?? string.Empty,
+            SecondaryParameterLabel = ReadString(item, "secondary_parameter_label") ?? string.Empty,
+            SecondaryParameterUnit = ReadString(item, "secondary_parameter_unit") ?? string.Empty,
+            SecondaryParameterValue = ReadDouble(item, "secondary_parameter_value"),
             CurrentValue = ReadDouble(item, "current_value"),
             PreviousValue = ReadDouble(item, "previous_value"),
             LastChangeTime = ReadDate(item, "last_change_time"),
@@ -477,8 +501,13 @@ sealed class MachineConfigurationStore(StateStore stateStore)
         };
     }
 
-    private static MachineAcquisitionConfiguration Default(string id, int legacyId, string name, string line, string area, string table, string parameter, string label, MachineParameterType type, string unit, double threshold, int timeout) =>
-        new(id, legacyId, name, line, area, table, "timestamp_zone", parameter, label, type, unit, threshold, timeout, true);
+    private static MachineAcquisitionConfiguration Default(
+        string id, int legacyId, string name, string line, string area, string table,
+        string parameter, string label, MachineParameterType type, string unit,
+        double threshold, int timeout, string secondaryParameter = "",
+        string secondaryLabel = "", string secondaryUnit = "") =>
+        new(id, legacyId, name, line, area, table, "timestamp_zone", parameter, label,
+            type, unit, threshold, timeout, true, secondaryParameter, secondaryLabel, secondaryUnit);
     internal static string NormalizeTableName(string? value)
     {
         var table = value?.Trim() ?? string.Empty;
@@ -529,6 +558,10 @@ sealed class MachineStatePersistence(
                 machine["parameter_label"] = runtime.ParameterName;
                 machine["parameter_type"] = runtime.ParameterType.ToString().ToUpperInvariant();
                 machine["parameter_unit"] = runtime.ParameterUnit;
+                machine["secondary_parameter_name"] = runtime.SecondaryParameterName;
+                machine["secondary_parameter_label"] = runtime.SecondaryParameterLabel;
+                machine["secondary_parameter_unit"] = runtime.SecondaryParameterUnit;
+                machine["secondary_parameter_value"] = runtime.SecondaryParameterValue;
                 machine["running_hours_total"] = runtime.RunningHoursAt(now);
                 machine["connection_status"] = runtime.ConnectionStatus;
                 machine["realtime_updated_at"] = runtime.LastUpdate;
@@ -665,6 +698,10 @@ sealed class MachineStatePersistence(
         ["parameter_name"] = runtime.ParameterName,
         ["parameter_type"] = runtime.ParameterType.ToString().ToUpperInvariant(),
         ["parameter_unit"] = runtime.ParameterUnit,
+        ["secondary_parameter_name"] = runtime.SecondaryParameterName,
+        ["secondary_parameter_label"] = runtime.SecondaryParameterLabel,
+        ["secondary_parameter_unit"] = runtime.SecondaryParameterUnit,
+        ["secondary_parameter_value"] = runtime.SecondaryParameterValue,
         ["current_value"] = runtime.CurrentValue,
         ["previous_value"] = runtime.PreviousValue,
         ["last_change_time"] = runtime.LastChangeTime,
@@ -782,14 +819,16 @@ sealed class MachineDataAcquisitionService(
         var unavailable = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in items)
         {
-            if (columns.TryGetValue(item.SourceTableName, out var names) && names.Contains(item.SourceTimestampColumn) && names.Contains(item.ParameterName))
+            var secondaryAvailable = string.IsNullOrWhiteSpace(item.SecondaryParameterName) ||
+                (columns.TryGetValue(item.SourceTableName, out var secondaryNames) && secondaryNames.Contains(item.SecondaryParameterName));
+            if (columns.TryGetValue(item.SourceTableName, out var names) && names.Contains(item.SourceTimestampColumn) && names.Contains(item.ParameterName) && secondaryAvailable)
             {
                 valid.Add(item);
             }
             else
             {
                 registry.MarkUnavailable(item, "DATA UNAVAILABLE", DateTimeOffset.UtcNow);
-                var key = $"{item.SourceTableName}:{item.ParameterName}:{item.SourceTimestampColumn}";
+                var key = $"{item.SourceTableName}:{item.ParameterName}:{item.SecondaryParameterName}:{item.SourceTimestampColumn}";
                 unavailable.Add(key);
                 if (_loggedUnavailableSources.Add(key))
                     logger.LogWarning("Machine source unavailable for {MachineId}: public.{Table}.{Parameter} ordered by {Timestamp}", item.MachineId, item.SourceTableName, item.ParameterName, item.SourceTimestampColumn);
@@ -809,7 +848,11 @@ sealed class MachineDataAcquisitionService(
             var union = string.Join("\nUNION ALL\n", groups.Select(group =>
             {
                 var timestamp = QuoteIdentifier(group.First().SourceTimestampColumn);
-                var parameters = string.Join(", ", group.Select(item => item.ParameterName).Distinct(StringComparer.Ordinal).Select(QuoteIdentifier));
+                var parameters = string.Join(", ", group
+                    .SelectMany(item => new[] { item.ParameterName, item.SecondaryParameterName })
+                    .Where(parameter => !string.IsNullOrWhiteSpace(parameter))
+                    .Distinct(StringComparer.Ordinal)
+                    .Select(QuoteIdentifier));
                 var table = QuoteIdentifier(group.Key);
                 var key = group.Key.Replace("'", "''", StringComparison.Ordinal);
                 return $"SELECT '{key}' AS source_key, to_jsonb(src) AS payload FROM (SELECT {timestamp}, {parameters} FROM public.{table} ORDER BY {timestamp} DESC NULLS LAST LIMIT 1) src";
@@ -837,7 +880,19 @@ sealed class MachineDataAcquisitionService(
 
                 var previous = registry.GetOrCreate(item);
                 var evaluation = statusEngine.Evaluate(item, previous, currentValue, sourceTimestamp, observedAt);
-                registry.Set(evaluation.State);
+                double? secondaryValue = null;
+                if (!string.IsNullOrWhiteSpace(item.SecondaryParameterName) &&
+                    TryReadDouble(row, item.SecondaryParameterName, out var parsedSecondaryValue))
+                    secondaryValue = parsedSecondaryValue;
+                var nextState = evaluation.State with
+                {
+                    SecondaryParameterName = item.SecondaryParameterName,
+                    SecondaryParameterLabel = item.SecondaryParameterLabel,
+                    SecondaryParameterUnit = item.SecondaryParameterUnit,
+                    SecondaryParameterValue = secondaryValue
+                };
+                evaluation = evaluation with { State = nextState };
+                registry.Set(nextState);
                 if (evaluation.StatusChanged && previous.OperationalStatus is "RUNNING" or "STOPPED")
                 {
                     var changedAt = evaluation.State.OperationalStatus == "STOPPED" ? observedAt : sourceTimestamp;
@@ -931,6 +986,10 @@ public static class MachineMonitoringEndpoints
                     parameterType = state.ParameterType.ToString().ToUpperInvariant(),
                     state.ParameterName,
                     state.CurrentValue,
+                    state.SecondaryParameterName,
+                    state.SecondaryParameterLabel,
+                    state.SecondaryParameterUnit,
+                    state.SecondaryParameterValue,
                     status = state.DisplayStatus,
                     runningHours = state.RunningHoursAt(DateTimeOffset.UtcNow),
                     state.SourceTimestamp,

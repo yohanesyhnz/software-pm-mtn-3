@@ -249,7 +249,11 @@ public sealed record MachineDashboardItem(
     string ConnectionStatus,
     DateTimeOffset? SourceTimestamp,
     DateTimeOffset? RealtimeUpdatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    string? SecondaryParameterName = null,
+    string? SecondaryParameterLabel = null,
+    string? SecondaryParameterUnit = null,
+    double? SecondaryParameterValue = null);
 
 public sealed record MachineDashboardSnapshot(
     IReadOnlyList<MachineDashboardItem> Machines,
@@ -469,6 +473,12 @@ sealed class MachineDashboardSource(
             ParameterType = runtime.ParameterType.ToString().ToUpperInvariant(),
             ParameterUnit = runtime.ParameterUnit,
             ParameterValue = value,
+            SecondaryParameterName = string.IsNullOrWhiteSpace(runtime.SecondaryParameterName) ? null : runtime.SecondaryParameterName,
+            SecondaryParameterLabel = string.IsNullOrWhiteSpace(runtime.SecondaryParameterLabel) ? null : runtime.SecondaryParameterLabel,
+            SecondaryParameterUnit = string.IsNullOrWhiteSpace(runtime.SecondaryParameterUnit) ? null : runtime.SecondaryParameterUnit,
+            SecondaryParameterValue = runtime.SecondaryParameterValue is not null && double.IsFinite(runtime.SecondaryParameterValue.Value)
+                ? runtime.SecondaryParameterValue
+                : null,
             RunningHours = runtime.RunningHoursAt(now),
             ConnectionStatus = runtime.ConnectionStatus,
             SourceTimestamp = runtime.SourceTimestamp,
@@ -528,7 +538,11 @@ sealed class MachineDashboardSource(
                 ReadString(machine, "connection_status") ?? "DATA UNAVAILABLE",
                 ReadDateTime(machine, "source_timestamp"),
                 ReadDateTime(machine, "realtime_updated_at", "last_updated"),
-                updatedAt));
+                updatedAt,
+                ReadString(machine, "secondary_parameter_name"),
+                ReadString(machine, "secondary_parameter_label"),
+                ReadString(machine, "secondary_parameter_unit"),
+                FiniteOrNull(ReadDouble(machine, "secondary_parameter_value"))));
         }
         return result;
     }

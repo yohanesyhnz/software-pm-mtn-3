@@ -66,7 +66,7 @@ test("the four audited Line 08 assets extend the shared acquisition service with
   assert.match(backend, /ReadInt\(item, "id"\) == configuration\.LegacyId/);
   assert.match(backend, /machine\["line_code"\] = configuration\.Line/);
   assert.match(backend, /acquisition_bootstrap_version/);
-  assert.match(backend, /line08-v2/);
+  assert.match(backend, /line08-v3/);
   assert.match(backend, /configuration\.Line == "LINE 08"/);
   const program = read("backend/Program.cs");
   assert.match(program, /CompatibilityMachineKey/);
@@ -76,6 +76,18 @@ test("the four audited Line 08 assets extend the shared acquisition service with
   assert.match(up, /ON CONFLICT \(machine_id\) DO UPDATE/);
   assert.match(down, /acquisition_enabled = false/);
   assert.doesNotMatch(down, /DELETE FROM master_machine/);
+});
+
+test("FILLING PDS16 uses Act Speed for status and exposes Output Count as a second live metric", () => {
+  const monitoring = read("backend/MachineMonitoring.cs");
+  const dashboard = read("backend/MachineDashboard.cs");
+  const card = read("app/components/machine-dashboard/MachineCard.tsx");
+  assert.match(monitoring, /"ILE8_FILLING_PDS16"[\s\S]*?"act_speed"[\s\S]*?MachineParameterType\.Speed[\s\S]*?secondaryParameter: "output_count"[\s\S]*?secondaryLabel: "Output Count"/);
+  assert.match(monitoring, /SecondaryParameterValue = secondaryValue/);
+  assert.match(monitoring, /SelectMany\(item => new\[\] \{ item\.ParameterName, item\.SecondaryParameterName \}\)/);
+  assert.match(dashboard, /SecondaryParameterValue = runtime\.SecondaryParameterValue/);
+  assert.match(card, /machine-secondary-metric/);
+  assert.match(card, /machine\.secondaryParameterLabel \?\? machine\.secondaryParameterName/);
 });
 
 test("stop timeout uses observed time even when the latest PostgreSQL row is unchanged", () => {

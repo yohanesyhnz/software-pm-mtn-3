@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [5.1.0] - 2026-08-14
+
+### New Features
+
+- show FILLING PDS16 output count beside act speed
+- FILLING PDS16 displays Act Speed and Output Count from the same latest PostgreSQL record
+
+### Improvements
+
+- Machine status and running hours remain driven exclusively by Act Speed
+
+### Fixed
+
+- Tidak ada.
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [5.0.3] - 2026-08-14
 
 ### New Features

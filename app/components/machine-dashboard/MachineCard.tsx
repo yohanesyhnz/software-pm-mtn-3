@@ -56,9 +56,10 @@ function MachineCardComponent({
 
   const stopCardClick = (event: MouseEvent<HTMLButtonElement>) => event.stopPropagation();
   const healthLabel = machine.health === null ? "N/A" : `${safeNumber(machine.health)}%`;
-  const parameterLabel = machine.parameterType === "WEIGHT"
+  const genericParameterLabel = machine.parameterType === "WEIGHT"
     ? "BOBOT AKTUAL"
     : machine.parameterType === "SPEED" ? "SPEED" : machine.parameterType === "COUNTER" ? "COUNTER" : null;
+  const parameterLabel = machine.secondaryParameterName ? (machine.parameterName ?? genericParameterLabel) : genericParameterLabel;
   const parameterEnabled = machine.parameterType === "COUNTER"
     ? config.showCounter
     : machine.parameterType === "SPEED" ? config.showSpeed : true;
@@ -140,6 +141,12 @@ function MachineCardComponent({
           <div className="machine-primary-metric" title={machine.parameterName ?? parameterLabel ?? undefined}>
             <dt>{parameterLabel}</dt>
             <dd>{safeNumber(machine.parameterValue)} <small>{machine.parameterValue === null ? "" : machine.parameterUnit}</small></dd>
+          </div>
+        ) : null}
+        {machine.secondaryParameterName && config.showCounter ? (
+          <div className="machine-secondary-metric" title={machine.secondaryParameterName}>
+            <dt>{machine.secondaryParameterLabel ?? machine.secondaryParameterName}</dt>
+            <dd>{safeNumber(machine.secondaryParameterValue)} <small>{machine.secondaryParameterValue === null ? "" : machine.secondaryParameterUnit}</small></dd>
           </div>
         ) : null}
         {!machine.parameterType && config.showCounter ? (

@@ -203,6 +203,7 @@ static async Task<IResult> SaveCompatibilityStateAsync(
             {
                 "machine_id", "line_code", "area", "source_table_name", "source_timestamp_column",
                 "parameter_name", "parameter_label", "parameter_type", "parameter_unit",
+                "secondary_parameter_name", "secondary_parameter_label", "secondary_parameter_unit",
                 "running_threshold", "stop_timeout_seconds", "acquisition_enabled",
                 "acquisition_bootstrap_version"
             })

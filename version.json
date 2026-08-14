@@ -1,18 +1,20 @@
 {
-  "version": "v5.0.3",
-  "previousVersion": "v5.0.2",
-  "build": "20260814.23",
+  "version": "v5.1.0",
+  "previousVersion": "v5.0.3",
+  "build": "20260814.24",
   "releaseDate": "2026-08-14",
-  "commitType": "fix",
-  "bump": "patch",
-  "summary": "correct LINE 08 speed acquisition types",
+  "commitType": "feat",
+  "bump": "minor",
+  "summary": "show FILLING PDS16 output count beside act speed",
   "changes": {
-    "newFeatures": [],
-    "improvements": [],
-    "fixed": [
-      "correct LINE 08 speed acquisition types",
-      "Tunnel and Filling now use SPEED status logic after upgrading legacy machine metadata"
+    "newFeatures": [
+      "show FILLING PDS16 output count beside act speed",
+      "FILLING PDS16 displays Act Speed and Output Count from the same latest PostgreSQL record"
     ],
+    "improvements": [
+      "Machine status and running hours remain driven exclusively by Act Speed"
+    ],
+    "fixed": [],
     "optimizations": [],
     "breakingChanges": [],
     "knownIssues": [],
