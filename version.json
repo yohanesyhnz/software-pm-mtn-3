@@ -1,20 +1,22 @@
 {
-  "version": "v4.0.4",
-  "previousVersion": "v4.0.3",
-  "build": "20260814.19",
+  "version": "v5.0.0",
+  "previousVersion": "v4.0.4",
+  "build": "20260814.20",
   "releaseDate": "2026-08-14",
-  "commitType": "refactor",
-  "bump": "patch",
-  "summary": "simplify machine master and application settings",
+  "commitType": "feat",
+  "bump": "major",
+  "summary": "extend realtime acquisition to four LINE 08 machines",
   "changes": {
-    "newFeatures": [],
-    "improvements": [
-      "simplify machine master and application settings",
-      "Remove duplicate realtime counter and speed values from Master Mesin",
-      "Remove SQL Console and REST API Sandbox from the application UI",
-      "Move concise software version and product information into Settings"
+    "newFeatures": [
+      "extend realtime acquisition to four LINE 08 machines",
+      "Four LINE 08 machine cards use the shared PostgreSQL acquisition service"
     ],
-    "fixed": [],
+    "improvements": [
+      "Audited physical columns and timestamp indexes for latest-row acquisition"
+    ],
+    "fixed": [
+      "Stop timeout now uses observed time when source rows are unchanged"
+    ],
     "optimizations": [],
     "breakingChanges": [],
     "knownIssues": [],

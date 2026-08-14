@@ -48,6 +48,35 @@ test("the ten audited Line 07 machine sources are configurable", () => {
   assert.match(backend, /infeed_counter/);
 });
 
+test("the four audited Line 08 assets extend the shared acquisition service without duplicates", () => {
+  const backend = read("backend/MachineMonitoring.cs");
+  const up = read("backend/Migrations/20260814_line08_machine_acquisition.up.sql");
+  const down = read("backend/Migrations/20260814_line08_machine_acquisition.down.sql");
+  const configurations = [
+    ["ILE8_WASHING_KQCLS20_3", "24", "ILE8_WASHING_RTF", "single_shift_output", "Output Washing", "Counter"],
+    ["ILE8_TUNNEL_KSZ_200_60M", "25", "ILE8_TUNNEL_RTF", "air_speed_heating_zone", "Velocity Heating Zone", "Speed"],
+    ["ILE8_FILLING_PDS16", "26", "ILE8_FILLING_RTF", "act_speed", "Act Speed", "Speed"],
+    ["ILE8_CAPPING_2G16", "27", "ILE8_CAPPING_RTF", "infeed_number", "Input Count", "Counter"],
+  ];
+
+  for (const [id, legacyId, table, column, label, type] of configurations) {
+    assert.match(backend, new RegExp(`Default\\(\"${id}\", ${legacyId},[\\s\\S]*?\"LINE 08\"[\\s\\S]*?\"${table}\"[\\s\\S]*?\"${column}\"[\\s\\S]*?\"${label}\"[\\s\\S]*?MachineParameterType\\.${type}`));
+    assert.match(up, new RegExp(id));
+  }
+  assert.match(backend, /ReadInt\(item, "id"\) == configuration\.LegacyId/);
+  assert.match(backend, /machine\["line_code"\] = configuration\.Line/);
+  assert.match(up, /timestamp_zone DESC/g);
+  assert.match(up, /ON CONFLICT \(machine_id\) DO UPDATE/);
+  assert.match(down, /acquisition_enabled = false/);
+  assert.doesNotMatch(down, /DELETE FROM master_machine/);
+});
+
+test("stop timeout uses observed time even when the latest PostgreSQL row is unchanged", () => {
+  const backend = read("backend/MachineMonitoring.cs");
+  assert.match(backend, /\(observedAt - stopCandidate\.Value\)\.TotalSeconds >= configuration\.StopTimeoutSeconds/);
+  assert.doesNotMatch(backend, /previous\.SourceTimestamp == sourceTimestamp && previous\.CurrentValue == currentValue/);
+});
+
 test("legacy NAS machine ids resolve to the canonical realtime configuration", () => {
   const monitoring = read("backend/MachineMonitoring.cs");
   const dashboard = read("backend/MachineDashboard.cs");

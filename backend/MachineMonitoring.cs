@@ -15,9 +15,12 @@ public sealed record MachineAcquisitionConfiguration(
     string MachineId,
     int? LegacyId,
     string MachineName,
+    string Line,
+    string Area,
     string SourceTableName,
     string SourceTimestampColumn,
     string ParameterName,
+    string ParameterLabel,
     MachineParameterType ParameterType,
     string ParameterUnit,
     double RunningThreshold,
@@ -28,6 +31,7 @@ public sealed record MachineRuntimeState
 {
     public required string MachineId { get; init; }
     public required string MachineName { get; init; }
+    public required string Line { get; init; }
     public required string ParameterName { get; init; }
     public required MachineParameterType ParameterType { get; init; }
     public string ParameterUnit { get; init; } = string.Empty;
@@ -75,15 +79,6 @@ public sealed class MachineStatusEngine
         if (!double.IsFinite(currentValue))
             return new(previous with { ConnectionStatus = "DATA UNAVAILABLE", LastUpdate = observedAt }, false, null);
 
-        if (previous.SourceTimestamp == sourceTimestamp && previous.CurrentValue == currentValue)
-        {
-            return new(previous with
-            {
-                ConnectionStatus = "REALTIME CONNECTED",
-                LastUpdate = observedAt
-            }, false, null);
-        }
-
         var status = previous.OperationalStatus;
         var lastChange = previous.LastChangeTime;
         var stopCandidate = previous.StopCandidateStartedAt;
@@ -96,7 +91,7 @@ public sealed class MachineStatusEngine
                 if (priorValue is null)
                 {
                     lastChange = sourceTimestamp;
-                    stopCandidate = sourceTimestamp;
+                    stopCandidate = observedAt;
                 }
                 else if (currentValue > priorValue.Value)
                 {
@@ -108,12 +103,12 @@ public sealed class MachineStatusEngine
                 {
                     counterEvent = "COUNTER_RESET";
                     lastChange = sourceTimestamp;
-                    stopCandidate = sourceTimestamp;
+                    stopCandidate = observedAt;
                 }
                 else
                 {
-                    stopCandidate ??= lastChange ?? sourceTimestamp;
-                    if ((sourceTimestamp - stopCandidate.Value).TotalSeconds >= configuration.StopTimeoutSeconds)
+                    stopCandidate ??= observedAt;
+                    if ((observedAt - stopCandidate.Value).TotalSeconds >= configuration.StopTimeoutSeconds)
                         status = "STOPPED";
                 }
                 break;
@@ -127,8 +122,8 @@ public sealed class MachineStatusEngine
                 }
                 else
                 {
-                    stopCandidate ??= sourceTimestamp;
-                    if ((sourceTimestamp - stopCandidate.Value).TotalSeconds >= configuration.StopTimeoutSeconds)
+                    stopCandidate ??= observedAt;
+                    if ((observedAt - stopCandidate.Value).TotalSeconds >= configuration.StopTimeoutSeconds)
                         status = "STOPPED";
                 }
                 break;
@@ -140,20 +135,22 @@ public sealed class MachineStatusEngine
                 break;
         }
 
+        var transitionAt = status == "STOPPED" ? observedAt : sourceTimestamp;
         var totalSeconds = previous.TotalRunningSeconds;
         var runningStartedAt = previous.RunningStartedAt;
         var operationalChanged = status != previous.OperationalStatus && status is "RUNNING" or "STOPPED";
         if (operationalChanged)
         {
             if (previous.OperationalStatus == "RUNNING" && runningStartedAt is not null)
-                totalSeconds += Math.Max(0, (sourceTimestamp - runningStartedAt.Value).TotalSeconds);
-            runningStartedAt = status == "RUNNING" ? sourceTimestamp : null;
+                totalSeconds += Math.Max(0, (transitionAt - runningStartedAt.Value).TotalSeconds);
+            runningStartedAt = status == "RUNNING" ? transitionAt : null;
         }
 
         var next = previous with
         {
             MachineName = configuration.MachineName,
-            ParameterName = configuration.ParameterName,
+            Line = configuration.Line,
+            ParameterName = configuration.ParameterLabel,
             ParameterType = configuration.ParameterType,
             ParameterUnit = configuration.ParameterUnit,
             PreviousValue = priorValue,
@@ -242,7 +239,8 @@ sealed class MachineRealtimeRegistry
         {
             MachineId = configuration.MachineId,
             MachineName = configuration.MachineName,
-            ParameterName = configuration.ParameterName,
+            Line = configuration.Line,
+            ParameterName = configuration.ParameterLabel,
             ParameterType = configuration.ParameterType,
             ParameterUnit = configuration.ParameterUnit
         });
@@ -268,7 +266,8 @@ sealed class MachineRealtimeRegistry
         Set(previous with
         {
             MachineName = configuration.MachineName,
-            ParameterName = configuration.ParameterName,
+            Line = configuration.Line,
+            ParameterName = configuration.ParameterLabel,
             ParameterType = configuration.ParameterType,
             ParameterUnit = configuration.ParameterUnit,
             ConnectionStatus = connectionStatus,
@@ -281,16 +280,20 @@ sealed class MachineConfigurationStore(StateStore stateStore)
 {
     private static readonly MachineAcquisitionConfiguration[] Defaults =
     [
-        Default("WASHING_RRU_A", 17, "WASHING RRU_A", "ILE7_D0710_BOSCH_RRU_3085_01_A", "counting_product", MachineParameterType.Counter, "pcs", 0, 10),
-        Default("TUNNEL_HQL_A", 15, "TUNNEL HQL_A", "ILE7_D0710_BOSCH_RRU_3085_01_A", "velocity_belt", MachineParameterType.Speed, "", 0, 10),
-        Default("WASHING_RRU_B", 18, "WASHING RRU_B", "ILE7_D0710_BOSCH_RRU_3085_01_B", "counting_product", MachineParameterType.Counter, "pcs", 0, 10),
-        Default("TUNNEL_HQL_B", 16, "TUNNEL HQL_B", "ILE7_D0710_BOSCH_RRU_3085_01_B", "velocity_belt", MachineParameterType.Speed, "", 0, 10),
-        Default("FILLING_ALF_A", 19, "FILLING ALF_A", "ILE7_D0703_BOSCH_ALF_4080_01_A", "counting_product", MachineParameterType.Counter, "pcs", 0, 10),
-        Default("FILLING_ALF_B", 20, "FILLING ALF_B", "ILE7_D0703_BOSCH_ALF_4080_01_B", "counting_product", MachineParameterType.Counter, "pcs", 0, 10),
-        Default("MIXING_AR_TK101_A", 22, "MIXING AR/TK101_A", "ILE7_MIXING_AUSTAR_A", "bobot_actual", MachineParameterType.Weight, "kg", 1, 10),
-        Default("MIXING_AR_TK101_B", 23, "MIXING AR/TK101_B", "ILE7_MIXING_AUSTAR_B", "bobot_actual", MachineParameterType.Weight, "kg", 1, 10),
-        Default("LABELING_RE400_A", 1, "LABELING RE-400_A", "ILE7_LABELLING_ROTA_A", "infeed_counter", MachineParameterType.Counter, "pcs", 0, 10),
-        Default("LABELING_RE400_B", 2, "LABELING RE-400_B", "ILE7_LABELLING_ROTA_B", "infeed_counter", MachineParameterType.Counter, "pcs", 0, 10)
+        Default("WASHING_RRU_A", 17, "WASHING RRU_A", "LINE 07", "Washing", "ILE7_D0710_BOSCH_RRU_3085_01_A", "counting_product", "counting_product", MachineParameterType.Counter, "pcs", 0, 10),
+        Default("TUNNEL_HQL_A", 15, "TUNNEL HQL_A", "LINE 07", "Tunnel", "ILE7_D0710_BOSCH_RRU_3085_01_A", "velocity_belt", "velocity_belt", MachineParameterType.Speed, "", 0, 10),
+        Default("WASHING_RRU_B", 18, "WASHING RRU_B", "LINE 07", "Washing", "ILE7_D0710_BOSCH_RRU_3085_01_B", "counting_product", "counting_product", MachineParameterType.Counter, "pcs", 0, 10),
+        Default("TUNNEL_HQL_B", 16, "TUNNEL HQL_B", "LINE 07", "Tunnel", "ILE7_D0710_BOSCH_RRU_3085_01_B", "velocity_belt", "velocity_belt", MachineParameterType.Speed, "", 0, 10),
+        Default("FILLING_ALF_A", 19, "FILLING ALF_A", "LINE 07", "Filling", "ILE7_D0703_BOSCH_ALF_4080_01_A", "counting_product", "counting_product", MachineParameterType.Counter, "pcs", 0, 10),
+        Default("FILLING_ALF_B", 20, "FILLING ALF_B", "LINE 07", "Filling", "ILE7_D0703_BOSCH_ALF_4080_01_B", "counting_product", "counting_product", MachineParameterType.Counter, "pcs", 0, 10),
+        Default("MIXING_AR_TK101_A", 22, "MIXING AR/TK101_A", "LINE 07", "Mixing", "ILE7_MIXING_AUSTAR_A", "bobot_actual", "bobot_actual", MachineParameterType.Weight, "kg", 1, 10),
+        Default("MIXING_AR_TK101_B", 23, "MIXING AR/TK101_B", "LINE 07", "Mixing", "ILE7_MIXING_AUSTAR_B", "bobot_actual", "bobot_actual", MachineParameterType.Weight, "kg", 1, 10),
+        Default("LABELING_RE400_A", 1, "LABELING RE-400_A", "LINE 07", "Labeling", "ILE7_LABELLING_ROTA_A", "infeed_counter", "infeed_counter", MachineParameterType.Counter, "pcs", 0, 10),
+        Default("LABELING_RE400_B", 2, "LABELING RE-400_B", "LINE 07", "Labeling", "ILE7_LABELLING_ROTA_B", "infeed_counter", "infeed_counter", MachineParameterType.Counter, "pcs", 0, 10),
+        Default("ILE8_WASHING_KQCLS20_3", 24, "WASHING KQCLS20/3", "LINE 08", "Washing", "ILE8_WASHING_RTF", "single_shift_output", "Output Washing", MachineParameterType.Counter, "", 0, 10),
+        Default("ILE8_TUNNEL_KSZ_200_60M", 25, "TUNNEL KSZ/200/60M", "LINE 08", "Tunnel", "ILE8_TUNNEL_RTF", "air_speed_heating_zone", "Velocity Heating Zone", MachineParameterType.Speed, "", 0, 10),
+        Default("ILE8_FILLING_PDS16", 26, "FILLING PDS16", "LINE 08", "Filling", "ILE8_FILLING_RTF", "act_speed", "Act Speed", MachineParameterType.Speed, "", 0, 10),
+        Default("ILE8_CAPPING_2G16", 27, "CAPPING 2G16", "LINE 08", "Capping", "ILE8_CAPPING_RTF", "infeed_number", "Input Count", MachineParameterType.Counter, "", 0, 10)
     ];
 
     public async Task EnsureDefaultsAsync(CancellationToken cancellationToken)
@@ -314,7 +317,7 @@ sealed class MachineConfigurationStore(StateStore stateStore)
                     {
                         ["id"] = configuration.LegacyId,
                         ["asset_number"] = configuration.MachineId,
-                        ["line_code"] = "LINE 07",
+                        ["line_code"] = configuration.Line,
                         ["manufacturer"] = "",
                         ["install_date"] = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                         ["status"] = "DATA UNAVAILABLE",
@@ -330,13 +333,17 @@ sealed class MachineConfigurationStore(StateStore stateStore)
                 {
                     machine["name"] = configuration.MachineName;
                     machine["machine_code"] = configuration.MachineId;
-                    machine["area"] = AreaFor(configuration.ParameterType);
+                    machine["area"] = configuration.Area;
                 }
-                machine["source_table_name"] ??= configuration.SourceTableName;
-                machine["source_timestamp_column"] ??= configuration.SourceTimestampColumn;
-                machine["parameter_name"] ??= configuration.ParameterName;
-                machine["parameter_type"] ??= configuration.ParameterType.ToString().ToUpperInvariant();
-                machine["parameter_unit"] ??= configuration.ParameterUnit;
+                machine["line_code"] = configuration.Line;
+                if (string.IsNullOrWhiteSpace(ReadString(machine, "source_table_name"))) machine["source_table_name"] = configuration.SourceTableName;
+                if (string.IsNullOrWhiteSpace(ReadString(machine, "source_timestamp_column"))) machine["source_timestamp_column"] = configuration.SourceTimestampColumn;
+                var configuredParameter = ReadString(machine, "parameter_name");
+                if (string.IsNullOrWhiteSpace(configuredParameter) || string.Equals(configuredParameter, configuration.ParameterLabel, StringComparison.OrdinalIgnoreCase))
+                    machine["parameter_name"] = configuration.ParameterName;
+                if (string.IsNullOrWhiteSpace(ReadString(machine, "parameter_label"))) machine["parameter_label"] = configuration.ParameterLabel;
+                if (string.IsNullOrWhiteSpace(ReadString(machine, "parameter_type"))) machine["parameter_type"] = configuration.ParameterType.ToString().ToUpperInvariant();
+                if (machine["parameter_unit"] is null) machine["parameter_unit"] = configuration.ParameterUnit;
                 machine["running_threshold"] ??= configuration.RunningThreshold;
                 machine["stop_timeout_seconds"] ??= configuration.StopTimeoutSeconds;
                 machine["acquisition_enabled"] ??= true;
@@ -410,9 +417,12 @@ sealed class MachineConfigurationStore(StateStore stateStore)
             machineId,
             ReadInt(machine, "id"),
             ReadString(machine, "name", "machine_name") ?? machineId,
+            ReadString(machine, "line", "line_code") ?? "Tanpa Line",
+            ReadString(machine, "area") ?? string.Empty,
             table,
             timestamp,
             parameter,
+            ReadString(machine, "parameter_label") ?? parameter,
             type,
             ReadString(machine, "parameter_unit") ?? string.Empty,
             ReadDouble(machine, "running_threshold") ?? (type == MachineParameterType.Weight ? 1 : 0),
@@ -429,6 +439,7 @@ sealed class MachineConfigurationStore(StateStore stateStore)
         {
             MachineId = machineId,
             MachineName = ReadString(item, "machine_name") ?? machineId,
+            Line = ReadString(item, "line") ?? "Tanpa Line",
             ParameterName = ReadString(item, "parameter_name") ?? string.Empty,
             ParameterType = type,
             ParameterUnit = ReadString(item, "parameter_unit") ?? string.Empty,
@@ -445,9 +456,8 @@ sealed class MachineConfigurationStore(StateStore stateStore)
         };
     }
 
-    private static MachineAcquisitionConfiguration Default(string id, int legacyId, string name, string table, string parameter, MachineParameterType type, string unit, double threshold, int timeout) =>
-        new(id, legacyId, name, table, "timestamp_zone", parameter, type, unit, threshold, timeout, true);
-    private static string AreaFor(MachineParameterType type) => type switch { MachineParameterType.Weight => "Mixing", MachineParameterType.Speed => "Tunnel", _ => "Production" };
+    private static MachineAcquisitionConfiguration Default(string id, int legacyId, string name, string line, string area, string table, string parameter, string label, MachineParameterType type, string unit, double threshold, int timeout) =>
+        new(id, legacyId, name, line, area, table, "timestamp_zone", parameter, label, type, unit, threshold, timeout, true);
     internal static string NormalizeTableName(string? value)
     {
         var table = value?.Trim() ?? string.Empty;
@@ -495,7 +505,7 @@ sealed class MachineStatePersistence(
                 machine["telemetry_status"] = runtime.DisplayStatus;
                 machine["status"] = runtime.DisplayStatus;
                 machine["parameter_value"] = runtime.CurrentValue;
-                machine["parameter_name"] = runtime.ParameterName;
+                machine["parameter_label"] = runtime.ParameterName;
                 machine["parameter_type"] = runtime.ParameterType.ToString().ToUpperInvariant();
                 machine["parameter_unit"] = runtime.ParameterUnit;
                 machine["running_hours_total"] = runtime.RunningHoursAt(now);
@@ -551,15 +561,15 @@ sealed class MachineStatePersistence(
         {
             const string sql = """
                 INSERT INTO machine_realtime
-                    (machine_id, status, parameter_name, parameter_type, parameter_value, previous_value,
+                    (machine_id, line, status, parameter_name, parameter_type, parameter_value, previous_value,
                      last_change_time, running_started_at, total_running_seconds, running_hours,
                      source_timestamp, connection_status, updated_at)
                 VALUES
-                    (@machine_id, @status, @parameter_name, @parameter_type, @parameter_value, @previous_value,
+                    (@machine_id, @line, @status, @parameter_name, @parameter_type, @parameter_value, @previous_value,
                      @last_change_time, @running_started_at, @total_seconds, @running_hours,
                      @source_timestamp, @connection_status, @updated_at)
                 ON CONFLICT (machine_id) DO UPDATE SET
-                    status = EXCLUDED.status, parameter_name = EXCLUDED.parameter_name,
+                    line = EXCLUDED.line, status = EXCLUDED.status, parameter_name = EXCLUDED.parameter_name,
                     parameter_type = EXCLUDED.parameter_type, parameter_value = EXCLUDED.parameter_value,
                     previous_value = EXCLUDED.previous_value, last_change_time = EXCLUDED.last_change_time,
                     running_started_at = EXCLUDED.running_started_at,
@@ -569,6 +579,7 @@ sealed class MachineStatePersistence(
                 """;
             await using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("machine_id", runtime.MachineId);
+            command.Parameters.AddWithValue("line", runtime.Line);
             command.Parameters.AddWithValue("status", runtime.DisplayStatus);
             command.Parameters.AddWithValue("parameter_name", runtime.ParameterName);
             command.Parameters.AddWithValue("parameter_type", runtime.ParameterType.ToString().ToUpperInvariant());
@@ -588,11 +599,11 @@ sealed class MachineStatePersistence(
         {
             const string sql = """
                 INSERT INTO machine_status_history
-                    (machine_id, machine_name, previous_status, status, parameter_value, parameter_name, changed_at, duration_seconds)
-                VALUES (@machine_id, @machine_name, @previous_status, @status, @parameter_value, @parameter_name, @changed_at, @duration_seconds);
+                    (machine_id, machine_name, line, previous_status, status, parameter_value, parameter_name, changed_at, duration_seconds)
+                VALUES (@machine_id, @machine_name, @line, @previous_status, @status, @parameter_value, @parameter_name, @changed_at, @duration_seconds);
                 """;
             await using var command = new NpgsqlCommand(sql, connection, transaction);
-            AddJsonParameters(command, history, ["machine_id", "machine_name", "previous_status", "status", "parameter_name"]);
+            AddJsonParameters(command, history, ["machine_id", "machine_name", "line", "previous_status", "status", "parameter_name"]);
             command.Parameters.AddWithValue("parameter_value", JsonDouble(history, "parameter_value") is { } value ? value : DBNull.Value);
             command.Parameters.AddWithValue("changed_at", JsonDate(history, "changed_at") ?? DateTimeOffset.UtcNow);
             command.Parameters.AddWithValue("duration_seconds", JsonDouble(history, "duration_seconds") is { } duration ? duration : DBNull.Value);
@@ -629,6 +640,7 @@ sealed class MachineStatePersistence(
     {
         ["machine_id"] = runtime.MachineId,
         ["machine_name"] = runtime.MachineName,
+        ["line"] = runtime.Line,
         ["parameter_name"] = runtime.ParameterName,
         ["parameter_type"] = runtime.ParameterType.ToString().ToUpperInvariant(),
         ["parameter_unit"] = runtime.ParameterUnit,
@@ -807,18 +819,20 @@ sealed class MachineDataAcquisitionService(
                 registry.Set(evaluation.State);
                 if (evaluation.StatusChanged && previous.OperationalStatus is "RUNNING" or "STOPPED")
                 {
+                    var changedAt = evaluation.State.OperationalStatus == "STOPPED" ? observedAt : sourceTimestamp;
                     var duration = previous.OperationalStatus == "RUNNING" && previous.RunningStartedAt is not null
-                        ? Math.Max(0, (sourceTimestamp - previous.RunningStartedAt.Value).TotalSeconds)
+                        ? Math.Max(0, (changedAt - previous.RunningStartedAt.Value).TotalSeconds)
                         : 0;
                     _pendingHistory.Add(new JsonObject
                     {
                         ["machine_id"] = item.MachineId,
                         ["machine_name"] = item.MachineName,
+                        ["line"] = item.Line,
                         ["previous_status"] = previous.OperationalStatus,
                         ["status"] = evaluation.State.OperationalStatus,
                         ["parameter_value"] = currentValue,
-                        ["parameter_name"] = item.ParameterName,
-                        ["changed_at"] = sourceTimestamp,
+                        ["parameter_name"] = item.ParameterLabel,
+                        ["changed_at"] = changedAt,
                         ["duration_seconds"] = duration
                     });
                 }
@@ -829,7 +843,7 @@ sealed class MachineDataAcquisitionService(
                         ["machine_id"] = item.MachineId,
                         ["machine_name"] = item.MachineName,
                         ["event_type"] = evaluation.CounterEvent,
-                        ["parameter_name"] = item.ParameterName,
+                        ["parameter_name"] = item.ParameterLabel,
                         ["previous_value"] = previous.CurrentValue,
                         ["current_value"] = currentValue,
                         ["occurred_at"] = sourceTimestamp
@@ -892,6 +906,7 @@ public static class MachineMonitoringEndpoints
                 {
                     state.MachineId,
                     state.MachineName,
+                    state.Line,
                     parameterType = state.ParameterType.ToString().ToUpperInvariant(),
                     state.ParameterName,
                     state.CurrentValue,

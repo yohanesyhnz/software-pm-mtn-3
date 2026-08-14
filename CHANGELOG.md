@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [5.0.0] - 2026-08-14
+
+### New Features
+
+- extend realtime acquisition to four LINE 08 machines
+- Four LINE 08 machine cards use the shared PostgreSQL acquisition service
+
+### Improvements
+
+- Audited physical columns and timestamp indexes for latest-row acquisition
+
+### Fixed
+
+- Stop timeout now uses observed time when source rows are unchanged
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [4.0.4] - 2026-08-14
 
 ### New Features

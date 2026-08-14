@@ -40,6 +40,28 @@ public sealed class MachineStatusEngineTests
     }
 
     [Fact]
+    public void CounterStopsAfterTenObservedSecondsEvenWhenSourceRowIsUnchanged()
+    {
+        var config = Configuration(MachineParameterType.Counter);
+        var running = State(config) with
+        {
+            CurrentValue = 1001,
+            OperationalStatus = "RUNNING",
+            RunningStartedAt = Start,
+            LastChangeTime = Start,
+            StopCandidateStartedAt = Start,
+            SourceTimestamp = Start
+        };
+
+        var afterFiveSeconds = _engine.Evaluate(config, running, 1001, Start, Start.AddSeconds(5)).State;
+        var afterTenSeconds = _engine.Evaluate(config, afterFiveSeconds, 1001, Start, Start.AddSeconds(10)).State;
+
+        Assert.Equal("RUNNING", afterFiveSeconds.OperationalStatus);
+        Assert.Equal("STOPPED", afterTenSeconds.OperationalStatus);
+        Assert.Equal(10, afterTenSeconds.TotalRunningSeconds);
+    }
+
+    [Fact]
     public void CounterResetCreatesEventWithoutForcingStopped()
     {
         var config = Configuration(MachineParameterType.Counter);
@@ -72,6 +94,18 @@ public sealed class MachineStatusEngineTests
         Assert.Equal("STOPPED", stopped.OperationalStatus);
     }
 
+    [Fact]
+    public void SpeedRecoveryBeforeTimeoutClearsStopCandidate()
+    {
+        var config = Configuration(MachineParameterType.Speed);
+        var running = _engine.Evaluate(config, State(config), 5, Start, Start).State;
+        var zero = _engine.Evaluate(config, running, 0, Start.AddSeconds(1), Start.AddSeconds(1)).State;
+        var recovered = _engine.Evaluate(config, zero, 8, Start.AddSeconds(5), Start.AddSeconds(5)).State;
+
+        Assert.Equal("RUNNING", recovered.OperationalStatus);
+        Assert.Null(recovered.StopCandidateStartedAt);
+    }
+
     [Theory]
     [InlineData(0.5, "STOPPED")]
     [InlineData(1.0, "STOPPED")]
@@ -99,12 +133,13 @@ public sealed class MachineStatusEngineTests
     }
 
     private static MachineAcquisitionConfiguration Configuration(MachineParameterType type, double threshold = 0) =>
-        new("TEST_MACHINE", 1, "TEST MACHINE", "test_table", "timestamp_zone", "test_value", type, "", threshold, 10, true);
+        new("TEST_MACHINE", 1, "TEST MACHINE", "LINE 08", "Test", "test_table", "timestamp_zone", "test_value", "Test Value", type, "", threshold, 10, true);
 
     private static MachineRuntimeState State(MachineAcquisitionConfiguration configuration) => new()
     {
         MachineId = configuration.MachineId,
         MachineName = configuration.MachineName,
+        Line = configuration.Line,
         ParameterName = configuration.ParameterName,
         ParameterType = configuration.ParameterType,
         ParameterUnit = configuration.ParameterUnit,
