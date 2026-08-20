@@ -1098,7 +1098,9 @@ body {
 .user-identity-cell { display: flex; align-items: center; gap: 10px; min-width: 160px; }
 .user-avatar { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px; border: 1px solid rgba(0,229,255,.25); border-radius: 10px; color: var(--predictacore-cyan); background: rgba(0,229,255,.08); font: 900 10px 'JetBrains Mono', monospace; }
 .user-avatar.admin { color: #fb7185; border-color: rgba(251,113,133,.3); background: rgba(251,113,133,.08); }
+.user-avatar.manager { color: #a78bfa; border-color: rgba(167,139,250,.3); background: rgba(167,139,250,.08); }
 .user-avatar.supervisor { color: #fbbf24; border-color: rgba(251,191,36,.3); background: rgba(251,191,36,.08); }
+.user-avatar.viewer { color: #94a3b8; border-color: rgba(148,163,184,.3); background: rgba(148,163,184,.08); }
 .user-identity-cell strong,
 .user-full-name { color: var(--text-primary); font-size: 11px; }
 .user-identity-cell small,
@@ -1110,7 +1112,9 @@ body {
 .user-role-chip i,
 .user-session-chip i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 7px currentColor; }
 .user-role-chip.admin { color: #fb7185; border-color: rgba(251,113,133,.25); background: rgba(251,113,133,.07); }
+.user-role-chip.manager { color: #a78bfa; border-color: rgba(167,139,250,.25); background: rgba(167,139,250,.07); }
 .user-role-chip.supervisor { color: #fbbf24; border-color: rgba(251,191,36,.25); background: rgba(251,191,36,.07); }
+.user-role-chip.viewer { color: #94a3b8; border-color: rgba(148,163,184,.25); background: rgba(148,163,184,.07); }
 .user-session-chip { color: var(--color-green); border-color: rgba(16,185,129,.25); background: rgba(16,185,129,.07); }
 .user-row-actions { display: flex; align-items: center; gap: 6px; }
 .user-row-action { min-height: 30px; padding: 0 10px; border: 1px solid var(--border-color); border-radius: 7px; color: var(--text-primary); background: var(--bg-input); font-size: 9px; font-weight: 800; cursor: pointer; }
@@ -1175,7 +1179,9 @@ body {
 .rbac-role-card-header { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
 .rbac-role-monogram { display: grid; place-items: center; width: 33px; height: 33px; flex: 0 0 33px; border: 1px solid rgba(0,229,255,.28); border-radius: 9px; color: var(--predictacore-cyan); background: rgba(0,229,255,.07); font: 900 9px 'JetBrains Mono', monospace; }
 .rbac-role-monogram.admin { color: #fb7185; border-color: rgba(251,113,133,.3); background: rgba(251,113,133,.07); }
+.rbac-role-monogram.manager { color: #a78bfa; border-color: rgba(167,139,250,.3); background: rgba(167,139,250,.07); }
 .rbac-role-monogram.supervisor { color: #fbbf24; border-color: rgba(251,191,36,.3); background: rgba(251,191,36,.07); }
+.rbac-role-monogram.viewer { color: #94a3b8; border-color: rgba(148,163,184,.3); background: rgba(148,163,184,.07); }
 .rbac-role-card-header div { min-width: 0; }
 .rbac-role-card-header strong { display: block; color: var(--text-primary); font: 900 10px 'JetBrains Mono', monospace; }
 .rbac-role-card-header small { display: block; margin-top: 3px; color: var(--text-muted); font-size: 8px; }

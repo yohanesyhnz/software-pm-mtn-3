@@ -788,6 +788,8 @@ function applyRolePermissions() {
   const navSettings = document.getElementById('nav-settings');
   const machineOrderToggle = document.getElementById('machine-order-toggle');
   const securityAuditPanel = document.getElementById('security-audit-panel');
+  const addUserButton = document.querySelector('.user-add-button');
+  const rbacManagement = document.querySelector('.rbac-management');
 
   if (addMachineBtn) addMachineBtn.style.display = hasPermission('machines.manage') ? 'inline-flex' : 'none';
   if (securityAuditPanel) securityAuditPanel.style.display = hasPermission('audit.view') ? 'block' : 'none';
@@ -800,13 +802,15 @@ function applyRolePermissions() {
   if (importMachineBtn) importMachineBtn.style.display = hasPermission('imports.manage') ? 'inline-flex' : 'none';
   if (resetAllPartsBtn) resetAllPartsBtn.style.display = hasPermission('running-hours.reset') ? 'inline-flex' : 'none';
   if (machineOrderToggle) machineOrderToggle.style.display = hasPermission('machines.order') ? 'inline-flex' : 'none';
+  if (addUserButton) addUserButton.style.display = hasPermission('users.manage') ? 'inline-flex' : 'none';
+  if (rbacManagement) rbacManagement.style.display = hasPermission('users.manage') ? 'block' : 'none';
 
   const protectedTabs = [
     { el: navDashboard, id: 'dashboard', allowed: hasPermission('dashboard.view') },
     { el: navMachines, id: 'machines', allowed: hasPermission('machines.view') },
     { el: navSpareParts, id: 'spareparts', allowed: hasPermission('spare-parts.view') },
     { el: navHistory, id: 'history', allowed: hasPermission('maintenance.view') },
-    { el: navUsers, id: 'users', allowed: hasPermission('users.manage') },
+    { el: navUsers, id: 'users', allowed: hasPermission('users.manage') || hasPermission('audit.view') },
     { el: navIntegrations, id: 'integrations', allowed: hasPermission('integrations.manage') },
     { el: navSystem, id: 'system', allowed: hasPermission('system.backup') || hasPermission('system.restore') },
     { el: navSettings, id: 'settings', allowed: hasPermission('settings.view') }
@@ -5808,7 +5812,7 @@ function updateMachineSelectDropdowns() {
   }
 }
 
-// --- USER MANAGEMENT FUNCTIONS (ADMIN ONLY) ---
+// --- USER MANAGEMENT & BACKEND RBAC FUNCTIONS ---
 
 let rbacSnapshot = null;
 
@@ -5817,8 +5821,10 @@ function getRoleOptionsHTML(selectedRole = '') {
     ? rbacSnapshot.roles
     : [
         { code: 'ADMIN', name: 'Administrator' },
+        { code: 'MANAGER', name: 'Manager' },
         { code: 'SUPERVISOR', name: 'Supervisor' },
-        { code: 'TECHNICIAN', name: 'Technician' }
+        { code: 'TECHNICIAN', name: 'Teknisi / Operator' },
+        { code: 'VIEWER', name: 'Viewer' }
       ];
   return roles.map(role => `<option value="${_escapeDashboardText(role.code)}" ${role.code === selectedRole ? 'selected' : ''}>${_escapeDashboardText(role.code)} (${_escapeDashboardText(role.name)})</option>`).join('');
 }
@@ -6015,9 +6021,10 @@ function renderUsersTable() {
     if (matchesSearch) {
       visibleCount++;
       const isSelf = u.username === activeUser.username;
-      const deleteBtn = isSelf 
+      const canManageUsers = hasPermission('users.manage');
+      const deleteBtn = isSelf
         ? '<span class="user-session-chip"><i></i> Sesi Aktif</span>'
-        : `<button class="user-row-action danger" title="Hapus User" aria-label="Hapus ${_escapeDashboardText(u.username)}" onclick="deleteUser(${Number(u.id)})">Hapus</button>`;
+        : canManageUsers ? `<button class="user-row-action danger" title="Hapus User" aria-label="Hapus ${_escapeDashboardText(u.username)}" onclick="deleteUser(${Number(u.id)})">Hapus</button>` : '<span class="user-session-chip">Read Only</span>';
       
       const maskedPass = '••••••••';
       const safeUsername = _escapeDashboardText(u.username || '--');
@@ -6034,7 +6041,7 @@ function renderUsersTable() {
           <td data-label="Role/Hak Akses"><span class="user-role-chip ${roleClass}"><i></i>${safeRole}</span></td>
           <td data-label="Actions">
             <div class="user-row-actions">
-              <button class="user-row-action" title="Edit User" aria-label="Edit ${safeUsername}" onclick="openUserModal(${Number(u.id)})">Edit</button>
+              ${canManageUsers ? `<button class="user-row-action" title="Edit User" aria-label="Edit ${safeUsername}" onclick="openUserModal(${Number(u.id)})">Edit</button>` : ''}
               ${deleteBtn}
             </div>
           </td>

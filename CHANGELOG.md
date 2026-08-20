@@ -2,6 +2,38 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [7.0.0] - 2026-08-20
+
+### New Features
+
+- introduce five-role access governance
+- Add Administrator, Manager, Supervisor, Technician/Operator, and Viewer roles
+- Apply a persistent least-privilege permission matrix editable from User Management
+
+### Improvements
+
+- Audit user creation, updates, and deletion in the backend security log
+
+### Fixed
+
+- Protect the last administrator from role downgrade, self-deletion, and deletion
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Document RBAC schema v2 migration and NAS rollback path
+
 ## [6.2.1] - 2026-08-20
 
 ### New Features

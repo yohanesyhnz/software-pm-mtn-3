@@ -108,6 +108,8 @@ internal static class PermissionEndpointExtensions
 
 internal sealed class RbacStore(StateStore stateStore)
 {
+    private const int CurrentSchemaVersion = 2;
+
     public async Task EnsureDefaultsAsync(CancellationToken cancellationToken) =>
         await stateStore.UpdateAsync(state =>
         {
@@ -145,7 +147,7 @@ internal sealed class RbacStore(StateStore stateStore)
         EnsureDefaults(state);
         var access = await GetCurrentAccessAsync(principal, cancellationToken);
         return new RbacSnapshot(
-            1,
+            CurrentSchemaVersion,
             PermissionNames.Catalog,
             GetRoles(state).Select(ToRole).OrderBy(role => role.DisplayOrder).ToArray(),
             access?.Permissions ?? []);
@@ -209,7 +211,7 @@ internal sealed class RbacStore(StateStore stateStore)
             rbac = new JsonObject();
             state["rbac"] = rbac;
         }
-        rbac["schema_version"] = 1;
+        var previousSchemaVersion = rbac["schema_version"]?.GetValue<int>() ?? 0;
         var roles = rbac["roles"] as JsonArray;
         if (roles is null)
         {
@@ -217,24 +219,48 @@ internal sealed class RbacStore(StateStore stateStore)
             rbac["roles"] = roles;
         }
 
-        MergeRole(roles, "ADMIN", "Administrator", "Full access dan pengelolaan keamanan", 10, PermissionNames.Known);
-        MergeRole(roles, "SUPERVISOR", "Supervisor", "Approval, master data, dan reset operasional", 20,
+        var migrateRecommendedFiveRoleMatrix = previousSchemaVersion < CurrentSchemaVersion;
+        MergeRole(roles, "ADMIN", "Administrator", "Keamanan, konfigurasi sistem, integrasi, dan pemulihan", 10,
+            PermissionNames.Known, migrateRecommendedFiveRoleMatrix);
+        MergeRole(roles, "MANAGER", "Manager", "Pengawasan, laporan, persetujuan manajerial, dan audit", 20,
+        [
+            PermissionNames.DashboardView, PermissionNames.MachinesView, PermissionNames.SparePartsView,
+            PermissionNames.MaintenanceView, PermissionNames.ReportsExport, PermissionNames.SettingsView,
+            PermissionNames.AuditView
+        ], migrateRecommendedFiveRoleMatrix);
+        MergeRole(roles, "SUPERVISOR", "Supervisor", "Pengelolaan operasional, master data, dan verifikasi pekerjaan", 30,
         [
             PermissionNames.DashboardView, PermissionNames.MachinesView, PermissionNames.MachinesManage,
             PermissionNames.MachinesOrder, PermissionNames.SparePartsView, PermissionNames.SparePartsManage,
             PermissionNames.ReplacementsCreate, PermissionNames.MaintenanceView, PermissionNames.ReportsExport,
             PermissionNames.RunningHoursReset, PermissionNames.SettingsView, PermissionNames.SettingsManage,
             PermissionNames.AuditView
-        ]);
-        MergeRole(roles, "TECHNICIAN", "Technician", "Monitoring dan pencatatan penggantian", 30,
+        ], migrateRecommendedFiveRoleMatrix);
+        MergeRole(roles, "TECHNICIAN", "Teknisi / Operator", "Pelaksanaan maintenance dan pencatatan pekerjaan lapangan", 40,
         [
             PermissionNames.DashboardView, PermissionNames.MachinesView, PermissionNames.SparePartsView,
             PermissionNames.ReplacementsCreate, PermissionNames.MaintenanceView, PermissionNames.ReportsExport,
-            PermissionNames.SettingsView, PermissionNames.SettingsManage
-        ]);
+            PermissionNames.SettingsView
+        ], migrateRecommendedFiveRoleMatrix);
+        MergeRole(roles, "VIEWER", "Viewer", "Pemantauan read-only tanpa izin mengubah atau mengekspor data", 50,
+        [
+            PermissionNames.DashboardView, PermissionNames.MachinesView, PermissionNames.SparePartsView,
+            PermissionNames.MaintenanceView, PermissionNames.SettingsView
+        ], migrateRecommendedFiveRoleMatrix);
+
+        rbac["schema_version"] = CurrentSchemaVersion;
+        if (migrateRecommendedFiveRoleMatrix)
+            rbac["five_role_matrix_migrated_at"] = DateTimeOffset.UtcNow.ToString("O");
     }
 
-    private static void MergeRole(JsonArray roles, string code, string name, string description, int displayOrder, IEnumerable<string> defaults)
+    private static void MergeRole(
+        JsonArray roles,
+        string code,
+        string name,
+        string description,
+        int displayOrder,
+        IEnumerable<string> defaults,
+        bool replaceExistingPermissions)
     {
         var role = roles.OfType<JsonObject>().FirstOrDefault(item =>
             string.Equals(ReadString(item, "code"), code, StringComparison.OrdinalIgnoreCase));
@@ -252,11 +278,12 @@ internal sealed class RbacStore(StateStore stateStore)
             return;
         }
 
-        role["name"] ??= name;
-        role["description"] ??= description;
-        role["display_order"] ??= displayOrder;
+        role["name"] = name;
+        if (replaceExistingPermissions || role["description"] is null) role["description"] = description;
+        role["display_order"] = displayOrder;
         role["is_system"] ??= true;
-        role["permissions"] ??= new JsonArray(defaults.OrderBy(item => item).Select(item => (JsonNode?)JsonValue.Create(item)).ToArray());
+        if (replaceExistingPermissions || role["permissions"] is null)
+            role["permissions"] = new JsonArray(defaults.OrderBy(item => item).Select(item => (JsonNode?)JsonValue.Create(item)).ToArray());
     }
 
     private static IEnumerable<JsonObject> GetRoles(JsonObject state) =>

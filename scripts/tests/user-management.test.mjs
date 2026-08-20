@@ -17,6 +17,18 @@ test("managed users are persisted through dedicated backend endpoints", () => {
   assert.match(backend, /stateStore\.UpdateAsync/);
 });
 
+test("user management accepts five roles and protects the final administrator", () => {
+  const backend = read("backend/UserManagement.cs");
+  for (const role of ["ADMIN", "MANAGER", "SUPERVISOR", "TECHNICIAN", "VIEWER"])
+    assert.match(backend, new RegExp(`"${role}"`));
+  assert.match(backend, /Administrator terakhir tidak dapat diturunkan rolenya/);
+  assert.match(backend, /Administrator terakhir tidak dapat dihapus/);
+  assert.match(backend, /tidak dapat menghapus akunnya sendiri/);
+  assert.match(backend, /USER_CREATED/);
+  assert.match(backend, /USER_UPDATED/);
+  assert.match(backend, /USER_DELETED/);
+});
+
 test("new user passwords are PBKDF2 hashes and login reads the managed store", () => {
   const backend = read("backend/UserManagement.cs");
   const program = read("backend/Program.cs");

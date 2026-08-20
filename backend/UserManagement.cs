@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 internal static partial class UserManagementApi
 {
     private static readonly HashSet<string> AllowedRoles =
-        new(StringComparer.OrdinalIgnoreCase) { "ADMIN", "SUPERVISOR", "TECHNICIAN" };
+        new(StringComparer.OrdinalIgnoreCase) { "ADMIN", "MANAGER", "SUPERVISOR", "TECHNICIAN", "VIEWER" };
 
     public static void MapUserManagementApi(this WebApplication app)
     {
@@ -20,6 +20,8 @@ internal static partial class UserManagementApi
         UserMutationRequest request,
         StateStore stateStore,
         LocalUserCredentialStore credentialStore,
+        HttpContext context,
+        SecurityAuditStore auditStore,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -72,6 +74,8 @@ internal static partial class UserManagementApi
                 statusCode: StatusCodes.Status500InternalServerError);
         }
 
+        await WriteUserAuditAsync(auditStore, context, "USER_CREATED", $"{mutation.User!.Username}:{mutation.User.Role}", cancellationToken);
+
         return Results.Ok(new
         {
             status = "success",
@@ -85,6 +89,8 @@ internal static partial class UserManagementApi
         UserMutationRequest request,
         StateStore stateStore,
         LocalUserCredentialStore credentialStore,
+        HttpContext context,
+        SecurityAuditStore auditStore,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -115,6 +121,12 @@ internal static partial class UserManagementApi
             }
 
             var previous = ToResponse(existing);
+            if (string.Equals(previous.Role, "ADMIN", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(role, "ADMIN", StringComparison.OrdinalIgnoreCase) &&
+                CountAdministrators(users) <= 1)
+            {
+                return UserMutationResult.Conflict("Administrator terakhir tidak dapat diturunkan rolenya.");
+            }
             existing["username"] = username;
             existing["full_name"] = fullName;
             existing["role"] = role;
@@ -158,6 +170,14 @@ internal static partial class UserManagementApi
                 statusCode: StatusCodes.Status500InternalServerError);
         }
 
+
+        await WriteUserAuditAsync(
+            auditStore,
+            context,
+            "USER_UPDATED",
+            $"{mutation.PreviousUser!.Username}:{mutation.PreviousUser.Role}->{mutation.User!.Username}:{mutation.User.Role}",
+            cancellationToken);
+
         return Results.Ok(new
         {
             status = "success",
@@ -170,6 +190,8 @@ internal static partial class UserManagementApi
         int id,
         StateStore stateStore,
         LocalUserCredentialStore credentialStore,
+        HttpContext context,
+        SecurityAuditStore auditStore,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -181,6 +203,10 @@ internal static partial class UserManagementApi
                 return UserMutationResult.NotFound("User yang akan dihapus tidak ditemukan.");
 
             var removed = ToResponse(existing);
+            if (string.Equals(removed.Username, context.User.Identity?.Name, StringComparison.OrdinalIgnoreCase))
+                return UserMutationResult.Conflict("User yang sedang aktif tidak dapat menghapus akunnya sendiri.");
+            if (string.Equals(removed.Role, "ADMIN", StringComparison.OrdinalIgnoreCase) && CountAdministrators(users) <= 1)
+                return UserMutationResult.Conflict("Administrator terakhir tidak dapat dihapus.");
             users.Remove(existing);
             return UserMutationResult.Success(removed, previousUsername: removed.Username);
         }, cancellationToken);
@@ -198,8 +224,29 @@ internal static partial class UserManagementApi
                 .LogWarning(exception, "Orphaned credential cleanup failed for user {Username}.", mutation.PreviousUsername);
         }
 
+
+        await WriteUserAuditAsync(auditStore, context, "USER_DELETED", $"{mutation.User!.Username}:{mutation.User.Role}", cancellationToken);
+
         return Results.Ok(new { status = "success", message = "User berhasil dihapus." });
     }
+
+    private static int CountAdministrators(JsonArray users) => users
+        .OfType<JsonObject>()
+        .Count(user => string.Equals(ReadString(user, "role"), "ADMIN", StringComparison.OrdinalIgnoreCase));
+
+    private static async Task WriteUserAuditAsync(
+        SecurityAuditStore auditStore,
+        HttpContext context,
+        string action,
+        string resource,
+        CancellationToken cancellationToken) =>
+        await auditStore.WriteAsync(new SecurityAuditEntry(
+            DateTimeOffset.UtcNow,
+            context.User.Identity?.Name ?? "unknown",
+            context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "UNKNOWN",
+            action,
+            resource,
+            "SUCCESS"), cancellationToken);
 
     private static object Error(string message) => new { status = "error", message };
 

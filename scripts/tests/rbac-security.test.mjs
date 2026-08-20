@@ -29,6 +29,21 @@ test('RBAC permissions are backend policies loaded from persistent state', () =>
   assert.match(security, /Minimal satu role/);
 });
 
+test('five-role least-privilege matrix is migrated once and then remains editable', () => {
+  assert.match(security, /CurrentSchemaVersion = 2/);
+  for (const role of ['ADMIN', 'MANAGER', 'SUPERVISOR', 'TECHNICIAN', 'VIEWER'])
+    assert.match(security, new RegExp(`MergeRole\\(roles, "${role}"`));
+  assert.match(security, /migrateRecommendedFiveRoleMatrix/);
+  const technician = security.slice(security.indexOf('MergeRole(roles, "TECHNICIAN"'), security.indexOf('MergeRole(roles, "VIEWER"'));
+  assert.doesNotMatch(technician, /SettingsManage/);
+  assert.match(app, /\{ code: 'MANAGER', name: 'Manager' \}/);
+  assert.match(app, /\{ code: 'VIEWER', name: 'Viewer' \}/);
+  assert.match(html, /value="MANAGER"/);
+  assert.match(html, /value="VIEWER"/);
+  assert.match(app, /navUsers, id: 'users', allowed: hasPermission\('users\.manage'\) \|\| hasPermission\('audit\.view'\)/);
+  assert.match(app, /rbacManagement\.style\.display = hasPermission\('users\.manage'\)/);
+});
+
 test('mutating domain endpoints enforce granular permissions', () => {
   assert.match(maintenance, /\/api\/replacements[\s\S]*PermissionNames\.ReplacementsCreate/);
   assert.match(maintenance, /\/api\/running-hours\/reset[\s\S]*PermissionNames\.RunningHoursReset/);
