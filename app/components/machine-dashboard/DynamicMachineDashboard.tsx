@@ -45,6 +45,7 @@ function groupKey(machine: MachineDashboardItem, grouping: MachineGrouping): str
 
 export default function DynamicMachineDashboard() {
   const queryClient = useQueryClient();
+  const [authenticated, setAuthenticated] = useState(false);
   const [connection, setConnection] = useState<"CONNECTED" | "CONNECTING" | "OFFLINE">("CONNECTING");
   const [grouping, setGrouping] = useState<MachineGrouping>("LINE");
   const [displayMode, setDisplayMode] = useState<MachineDisplayMode>("AUTO");
@@ -60,9 +61,28 @@ export default function DynamicMachineDashboard() {
     queryFn: ({ signal }) => fetchMachineDashboard(signal),
     staleTime: 30_000,
     retry: 2,
+    enabled: authenticated,
   });
 
   useEffect(() => {
+    const onAuthenticated = () => setAuthenticated(true);
+    const onLoggedOut = () => setAuthenticated(false);
+    setAuthenticated(window.predictaCoreIsAuthenticated?.() ?? false);
+    window.addEventListener("predictacore:authenticated", onAuthenticated);
+    window.addEventListener("predictacore:logout", onLoggedOut);
+    window.addEventListener("predictacore:session-expired", onLoggedOut);
+    return () => {
+      window.removeEventListener("predictacore:authenticated", onAuthenticated);
+      window.removeEventListener("predictacore:logout", onLoggedOut);
+      window.removeEventListener("predictacore:session-expired", onLoggedOut);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!authenticated) {
+      setConnection("OFFLINE");
+      return;
+    }
     let socket: WebSocket | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let stopped = false;
@@ -95,7 +115,7 @@ export default function DynamicMachineDashboard() {
       if (retryTimer) clearTimeout(retryTimer);
       socket?.close();
     };
-  }, [queryClient]);
+  }, [authenticated, queryClient]);
 
   useEffect(() => {
     if (!message) return;

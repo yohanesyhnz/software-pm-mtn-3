@@ -55,6 +55,7 @@ function SmartAssistantController() {
   const [bellSlot, setBellSlot] = useState<HTMLElement | null>(null);
   const [settingsSlot, setSettingsSlot] = useState<HTMLElement | null>(null);
   const [username, setUsername] = useState("default");
+  const [authenticated, setAuthenticated] = useState(false);
   const [authenticatedSequence, setAuthenticatedSequence] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [robotVisible, setRobotVisible] = useState(false);
@@ -69,12 +70,13 @@ function SmartAssistantController() {
     preferencesLoading,
     connectionState,
     updatePreferences
-  } = useSmartAssistantData(username);
+  } = useSmartAssistantData(username, authenticated);
 
   useEffect(() => {
     setBellSlot(document.getElementById("smart-assistant-bell-slot"));
     setSettingsSlot(document.getElementById("smart-assistant-settings-root"));
     setUsername(readActiveUsername());
+    setAuthenticated(window.predictaCoreIsAuthenticated?.() ?? false);
   }, []);
 
   const closeAssistant = useCallback(() => {
@@ -141,12 +143,14 @@ function SmartAssistantController() {
     const onAuthenticated = (event: Event) => {
       const detail = (event as CustomEvent<AuthenticatedEventDetail>).detail;
       setUsername(detail?.user?.username?.trim() || readActiveUsername());
+      setAuthenticated(true);
       autoShown.current = false;
       setAuthenticatedSequence((sequence) => sequence + 1);
     };
     const onLogout = () => {
       autoShown.current = false;
       setUsername("default");
+      setAuthenticated(false);
       closeAssistant();
     };
 

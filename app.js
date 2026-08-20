@@ -2,6 +2,10 @@
 
 const predictaCoreNativeFetch = window.fetch.bind(window);
 let predictaCoreCsrfToken = '';
+let predictaCoreAuthState = 'anonymous';
+let predictaCoreSessionExpiredNotified = false;
+
+window.predictaCoreIsAuthenticated = () => predictaCoreAuthState === 'authenticated';
 
 async function getPredictaCoreCsrfToken(forceRefresh = false) {
   if (predictaCoreCsrfToken && !forceRefresh) return predictaCoreCsrfToken;
@@ -35,7 +39,14 @@ window.fetch = async function predictaCoreSecureFetch(input, init = {}) {
     retryHeaders.set('X-CSRF-TOKEN', await getPredictaCoreCsrfToken(true));
     response = await predictaCoreNativeFetch(input, { ...options, headers: retryHeaders });
   }
-  if (isSameOrigin && response.status === 401 && !target.pathname.startsWith('/api/auth/')) {
+  if (
+    isSameOrigin &&
+    response.status === 401 &&
+    !target.pathname.startsWith('/api/auth/') &&
+    predictaCoreAuthState === 'authenticated' &&
+    !predictaCoreSessionExpiredNotified
+  ) {
+    predictaCoreSessionExpiredNotified = true;
     window.dispatchEvent(new CustomEvent('predictacore:session-expired'));
   }
   return response;
@@ -140,7 +151,6 @@ function toggleTheme() {
 // Initialize System
 window.onload = function() {
   applyTheme(getPreferredTheme());
-  loadDatabase();
   switchTab('dashboard');
   
   // Assign embedded PredictaCore logo data URI if available
@@ -166,19 +176,8 @@ window.onload = function() {
   // Load select options
   updateMachineSelectDropdowns();
   
-  // Start Silent Auto-Sync Polling Engine (Every 8 Seconds)
-  startAutoSyncPolling();
-  
-  // Start Real-Time PLC Telemetry Running Hours Synchronizer (Every 1 Second)
-  startTelemetrySyncLoop();
-  
-  // Start Industrial SCADA Real-Time SSE (Server-Sent Events) Telemetry Stream Engine
-  startSseTelemetryEngine();
-
-  // Require authenticated access on every supported viewport.
-  setTimeout(function() {
-    openLoginModal();
-  }, 150);
+  // Validate the server-side cookie before any protected data or telemetry request.
+  restorePredictaCoreServerSession();
 
   // Custom console simulation logs
   logToConsole('SYSTEM', 'In-Memory Relational Engine & Silent Auto-Sync initialized successfully.');
@@ -188,7 +187,10 @@ let autoRefreshTimer = null;
 
 function startAutoSyncPolling() {
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-  autoRefreshTimer = setInterval(silentAutoSyncFromSynology, 8000);
+  if (predictaCoreAuthState !== 'authenticated') return;
+  autoRefreshTimer = setInterval(() => {
+    if (predictaCoreAuthState === 'authenticated') silentAutoSyncFromSynology();
+  }, 8000);
 }
 
 function getCleanSyncState(stateObj) {
@@ -216,6 +218,7 @@ function getCleanSyncState(stateObj) {
 }
 
 function silentAutoSyncFromSynology() {
+  if (predictaCoreAuthState !== 'authenticated') return;
   const activeEl = document.activeElement;
   if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA')) {
     return;
@@ -852,12 +855,100 @@ function closeLoginModal() {
   }
 }
 
+function stopAuthenticatedApplicationServices() {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+  if (telemetrySyncTimer) {
+    clearInterval(telemetrySyncTimer);
+    telemetrySyncTimer = null;
+  }
+  if (plcStatusPollingTimer) {
+    clearInterval(plcStatusPollingTimer);
+    plcStatusPollingTimer = null;
+  }
+  if (autoPullTimer) {
+    clearInterval(autoPullTimer);
+    autoPullTimer = null;
+  }
+  if (sseFallbackTimer) {
+    clearTimeout(sseFallbackTimer);
+    sseFallbackTimer = null;
+  }
+  if (sseEventSource) {
+    sseEventSource.close();
+    sseEventSource = null;
+  }
+  _plcPollInFlight = false;
+}
+
+function startAuthenticatedApplicationServices() {
+  if (predictaCoreAuthState !== 'authenticated') return;
+  loadDatabase();
+  startAutoSyncPolling();
+  startTelemetrySyncLoop();
+  startSseTelemetryEngine();
+}
+
+function applyAuthenticatedSession(result, announce = true) {
+  const authenticatedUser = result.user;
+  activeUser = {
+    id: authenticatedUser.id,
+    username: authenticatedUser.username,
+    role: authenticatedUser.role,
+    full_name: authenticatedUser.full_name
+  };
+  activePermissions = new Set(Array.isArray(result.permissions) ? result.permissions : []);
+  predictaCoreAuthState = 'authenticated';
+  predictaCoreSessionExpiredNotified = false;
+  localStorage.setItem('pm_active_user', JSON.stringify(activeUser));
+
+  const fullNameEl = document.getElementById('user-full-name');
+  const roleBadgeEl = document.getElementById('user-role-badge');
+  if (fullNameEl) fullNameEl.innerText = activeUser.full_name;
+  if (roleBadgeEl) roleBadgeEl.innerText = activeUser.role;
+
+  closeLoginModal();
+  applyRolePermissions();
+  if (hasPermission('users.manage')) loadRbacMatrix();
+  startAuthenticatedApplicationServices();
+  switchTab('dashboard');
+  if (announce) {
+    logToConsole('SYSTEM', `User ${activeUser.full_name} (${activeUser.role}) berhasil log in secara aman.`);
+  }
+  window.dispatchEvent(new CustomEvent('predictacore:authenticated', {
+    detail: { user: { ...activeUser } }
+  }));
+}
+
+async function restorePredictaCoreServerSession() {
+  predictaCoreAuthState = 'checking';
+  try {
+    const response = await fetch('/api/auth/me', { cache: 'no-store' });
+    const result = response.ok ? await response.json() : null;
+    if (response.ok && result?.status === 'success' && result.user) {
+      applyAuthenticatedSession(result, false);
+      return;
+    }
+  } catch (error) {
+    console.warn('Status sesi backend tidak dapat diperiksa:', error);
+  }
+  predictaCoreAuthState = 'anonymous';
+  predictaCoreSessionExpiredNotified = false;
+  stopAuthenticatedApplicationServices();
+  openLoginModal();
+}
+
 async function logoutActiveUser() {
   try {
     await fetch('/api/auth/logout', { method: 'POST' });
   } catch (error) {
     console.warn('Logout backend tidak dapat dikonfirmasi:', error);
   }
+  predictaCoreAuthState = 'anonymous';
+  predictaCoreSessionExpiredNotified = false;
+  stopAuthenticatedApplicationServices();
   activePermissions = new Set();
   localStorage.removeItem('pm_active_user');
   window.dispatchEvent(new CustomEvent('predictacore:logout'));
@@ -901,6 +992,8 @@ async function performDesktopLogin() {
   }
 
   try {
+    predictaCoreAuthState = 'authenticating';
+    predictaCoreSessionExpiredNotified = false;
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -912,37 +1005,9 @@ async function performDesktopLogin() {
       throw new Error(result.message || 'Username atau password tidak sesuai.');
     }
 
-    const authenticatedUser = result.user;
-    activeUser = {
-      id: authenticatedUser.id,
-      username: authenticatedUser.username,
-      role: authenticatedUser.role,
-      full_name: authenticatedUser.full_name
-    };
-    activePermissions = new Set(Array.isArray(result.permissions) ? result.permissions : []);
-
-    localStorage.setItem('pm_active_user', JSON.stringify(activeUser));
-
-    closeLoginModal();
-
-    try {
-      const fullNameEl = document.getElementById('user-full-name');
-      const roleBadgeEl = document.getElementById('user-role-badge');
-      if (fullNameEl) fullNameEl.innerText = activeUser.full_name;
-      if (roleBadgeEl) roleBadgeEl.innerText = activeUser.role;
-
-      applyRolePermissions();
-      if (hasPermission('users.manage')) loadRbacMatrix();
-      loadDatabase();
-      logToConsole('SYSTEM', `User ${activeUser.full_name} (${activeUser.role}) berhasil log in secara aman.`);
-      switchTab('dashboard');
-      window.dispatchEvent(new CustomEvent('predictacore:authenticated', {
-        detail: { user: { ...activeUser } }
-      }));
-    } catch(err) {
-      console.error('Error during post-login execution:', err);
-    }
+    applyAuthenticatedSession(result);
   } catch (error) {
+    predictaCoreAuthState = 'anonymous';
     if (errEl) {
       errEl.innerText = `⚠️ ${error.message || 'Username atau password tidak sesuai.'}`;
       errEl.style.display = 'block';
@@ -951,6 +1016,8 @@ async function performDesktopLogin() {
 }
 
 window.addEventListener('predictacore:session-expired', () => {
+  predictaCoreAuthState = 'anonymous';
+  stopAuthenticatedApplicationServices();
   activePermissions = new Set();
   localStorage.removeItem('pm_active_user');
   openLoginModal();
@@ -4443,7 +4510,9 @@ let lastDatabaseSaveTime = Date.now();
 
 function startTelemetrySyncLoop() {
   if (telemetrySyncTimer) clearInterval(telemetrySyncTimer);
+  if (predictaCoreAuthState !== 'authenticated') return;
   telemetrySyncTimer = setInterval(() => {
+    if (predictaCoreAuthState !== 'authenticated') return;
     let updatedAny = false;
     if (!dbState || !Array.isArray(dbState.machines)) return;
 
@@ -4496,6 +4565,7 @@ let sseFallbackTimer = null;
 
 // ─── INDUSTRIAL SCADA REAL-TIME SSE STREAM ENGINE ────────────────────────────
 function startSseTelemetryEngine() {
+  if (predictaCoreAuthState !== 'authenticated') return;
   if (!window.EventSource) {
     logToConsole('PLC', '⚠️ Browser tidak mendukung Server-Sent Events (SSE). Menggunakan polling HTTP cepat sebagai fallback.');
     startPlcStatusPolling();
@@ -4568,6 +4638,7 @@ function startSseTelemetryEngine() {
 
   // 3. Auto Reconnect Event
   sseEventSource.addEventListener('reconnect', function(e) {
+    if (predictaCoreAuthState !== 'authenticated') return;
     logToConsole('PLC', '🔄 Re-connecting SSE stream session...');
     setTimeout(startSseTelemetryEngine, 500);
   });
@@ -4579,7 +4650,7 @@ function startSseTelemetryEngine() {
     sseEventSource = null;
     
     // Retry SSE reconnect after 3 seconds
-    if (!sseFallbackTimer) {
+    if (predictaCoreAuthState === 'authenticated' && !sseFallbackTimer) {
       startPlcStatusPolling();
       sseFallbackTimer = setTimeout(function() {
         sseFallbackTimer = null;
@@ -4602,6 +4673,7 @@ let _plcPollInFlight = false; // Guard: prevent overlapping bulk polls
 
 function startPlcStatusPolling() {
   if (plcStatusPollingTimer) clearInterval(plcStatusPollingTimer);
+  if (predictaCoreAuthState !== 'authenticated') return;
   // Initial fast poll after 400ms
   setTimeout(pollRealTimePlcStatus, 400);
   // High-frequency real-time polling every 2 seconds (bulk single-request)
@@ -4716,6 +4788,7 @@ function _updateMachineRowInDOM(m) {
 
 // ─── MAIN POLLING FUNCTION — single bulk HTTP request ───────────────────────
 function pollRealTimePlcStatus() {
+  if (predictaCoreAuthState !== 'authenticated') return;
   if (!dbState || !Array.isArray(dbState.machines)) return;
   if (_plcPollInFlight) return; // Skip if previous poll still pending
 

@@ -14,7 +14,7 @@ import {
 export const smartNotificationQueryKey = ["smart-assistant", "notifications"] as const;
 const preferenceQueryKey = (username: string) => ["smart-assistant", "preferences", username] as const;
 
-export function useSmartAssistantData(username: string) {
+export function useSmartAssistantData(username: string, authenticated: boolean) {
   const queryClient = useQueryClient();
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttempt = useRef(0);
@@ -25,17 +25,23 @@ export function useSmartAssistantData(username: string) {
     queryFn: ({ signal }) => fetchSmartNotifications(signal),
     initialData: EMPTY_NOTIFICATION_SNAPSHOT,
     staleTime: 30_000,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    enabled: authenticated
   });
 
   const preferencesQuery = useQuery({
     queryKey: preferenceQueryKey(username),
     queryFn: ({ signal }) => fetchSmartAssistantPreferences(username, signal),
     initialData: DEFAULT_SMART_ASSISTANT_PREFERENCES,
-    staleTime: 60_000
+    staleTime: 60_000,
+    enabled: authenticated
   });
 
   useEffect(() => {
+    if (!authenticated) {
+      setConnectionState("offline");
+      return;
+    }
     let disposed = false;
     let socket: WebSocket | null = null;
 
@@ -81,7 +87,7 @@ export function useSmartAssistantData(username: string) {
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       socket?.close();
     };
-  }, [queryClient]);
+  }, [authenticated, queryClient]);
 
   async function updatePreferences(next: SmartAssistantPreferences) {
     queryClient.setQueryData(preferenceQueryKey(username), next);

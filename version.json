@@ -1,19 +1,19 @@
 {
-  "version": "v6.0.1",
-  "previousVersion": "v6.0.0",
-  "build": "20260820.28",
+  "version": "v6.0.2",
+  "previousVersion": "v6.0.1",
+  "build": "20260820.29",
   "releaseDate": "2026-08-20",
   "commitType": "fix",
   "bump": "patch",
-  "summary": "place RBAC matrix inside user management",
+  "summary": "prevent pre-login realtime requests from invalidating login sessions",
   "changes": {
     "newFeatures": [],
     "improvements": [
-      "Regression test verifies the RBAC panel hierarchy"
+      "Protected dashboard queries and realtime connections now start only after server session validation"
     ],
     "fixed": [
-      "place RBAC matrix inside user management",
-      "Role & Permission panel is visible under Kelola User"
+      "prevent pre-login realtime requests from invalidating login sessions",
+      "Login no longer gets cancelled by pre-authentication PLC or SSE 401 responses"
     ],
     "optimizations": [],
     "breakingChanges": [],

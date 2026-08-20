@@ -50,3 +50,18 @@ test('role and permission editor is available from user management', () => {
 test('legacy compatibility scripts remain identical', () => {
   assert.equal(app, legacy);
 });
+
+test('protected realtime services start only after server authentication', () => {
+  assert.match(app, /restorePredictaCoreServerSession\(\)/);
+  assert.match(app, /fetch\('\/api\/auth\/me'/);
+  assert.match(app, /function startAuthenticatedApplicationServices\(\)[\s\S]*predictaCoreAuthState !== 'authenticated'/);
+  assert.match(app, /function startSseTelemetryEngine\(\)[\s\S]*predictaCoreAuthState !== 'authenticated'/);
+  assert.match(app, /function pollRealTimePlcStatus\(\)[\s\S]*predictaCoreAuthState !== 'authenticated'/);
+});
+
+test('pre-login unauthorized responses cannot invalidate a successful login', () => {
+  assert.match(app, /response\.status === 401[\s\S]*predictaCoreAuthState === 'authenticated'/);
+  assert.match(app, /predictaCoreSessionExpiredNotified/);
+  assert.match(app, /predictaCoreAuthState = 'authenticating'[\s\S]*fetch\('\/api\/auth\/login'/);
+  assert.match(app, /predictaCoreAuthState = 'authenticated'[\s\S]*predictacore:authenticated/);
+});
