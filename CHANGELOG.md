@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [6.0.1] - 2026-08-20
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Regression test verifies the RBAC panel hierarchy
+
+### Fixed
+
+- place RBAC matrix inside user management
+- Role & Permission panel is visible under Kelola User
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [6.0.0] - 2026-08-20
 
 ### New Features

@@ -1,27 +1,24 @@
 {
-  "version": "v6.0.0",
-  "previousVersion": "v5.2.0",
-  "build": "20260820.27",
+  "version": "v6.0.1",
+  "previousVersion": "v6.0.0",
+  "build": "20260820.28",
   "releaseDate": "2026-08-20",
-  "commitType": "feat",
-  "bump": "major",
-  "summary": "implement backend RBAC and configurable role permissions",
+  "commitType": "fix",
+  "bump": "patch",
+  "summary": "place RBAC matrix inside user management",
   "changes": {
-    "newFeatures": [
-      "implement backend RBAC and configurable role permissions",
-      "Backend-enforced RBAC permission policies",
-      "Role & Permission matrix under user management"
-    ],
+    "newFeatures": [],
     "improvements": [
-      "Cookie sessions, CSRF protection, security audit, and protected domain mutations"
+      "Regression test verifies the RBAC panel hierarchy"
     ],
-    "fixed": [],
+    "fixed": [
+      "place RBAC matrix inside user management",
+      "Role & Permission panel is visible under Kelola User"
+    ],
     "optimizations": [],
     "breakingChanges": [],
     "knownIssues": [],
-    "documentation": [
-      "RBAC migration backup and rollback guide"
-    ]
+    "documentation": []
   },
   "knownIssues": []
 }

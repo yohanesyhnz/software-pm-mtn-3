@@ -39,6 +39,10 @@ test('mutating domain endpoints enforce granular permissions', () => {
 test('role and permission editor is available from user management', () => {
   assert.match(html, /id="rbac-matrix-body"/);
   assert.match(html, /id="save-rbac-matrix-button"/);
+  const machinePanel = html.slice(html.indexOf('id="panel-machines"'), html.indexOf('id="panel-spareparts"'));
+  const userPanel = html.slice(html.indexOf('id="panel-users"'), html.indexOf('id="panel-settings"'));
+  assert.doesNotMatch(machinePanel, /rbac-management/);
+  assert.match(userPanel, /rbac-management[\s\S]*id="rbac-matrix-body"/);
   assert.match(app, /fetch\('\/api\/rbac'/);
   assert.match(app, /fetch\(`\/api\/rbac\/roles\//);
 });
