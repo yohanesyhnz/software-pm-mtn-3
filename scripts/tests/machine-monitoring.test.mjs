@@ -96,6 +96,25 @@ test("stop timeout uses observed time even when the latest PostgreSQL row is unc
   assert.doesNotMatch(backend, /previous\.SourceTimestamp == sourceTimestamp && previous\.CurrentValue == currentValue/);
 });
 
+test("stale PostgreSQL rows cannot keep machines running or inflate running hours", () => {
+  const backend = read("backend/MachineMonitoring.cs");
+  const settings = read("backend/appsettings.json");
+  assert.match(backend, /SourceStaleAfterSeconds/);
+  assert.match(backend, /sourceAge\.TotalSeconds > staleAfterSeconds/);
+  assert.match(backend, /registry\.MarkUnavailable\(item, "DATA UNAVAILABLE", observedAt\)/);
+  assert.match(backend, /RunningStartedAt = null/);
+  assert.match(backend, /status == "RUNNING" && runningStartedAt is null/);
+  assert.match(settings, /"SourceStaleAfterSeconds": 30/);
+});
+
+test("legacy PLC configuration save has a safe accessible toast implementation", () => {
+  const legacy = read("app.js");
+  const publicLegacy = read("public/legacy-app.js");
+  assert.match(legacy, /function showToastNotification\(/);
+  assert.match(legacy, /aria-live/);
+  assert.equal(publicLegacy, legacy);
+});
+
 test("legacy NAS machine ids resolve to the canonical realtime configuration", () => {
   const monitoring = read("backend/MachineMonitoring.cs");
   const dashboard = read("backend/MachineDashboard.cs");

@@ -2,6 +2,38 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [6.2.1] - 2026-08-20
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Log stale PostgreSQL source timestamps with a configurable freshness limit
+
+### Fixed
+
+- reject stale PostgreSQL machine telemetry
+- Prevent stale source rows from reporting machines as RUNNING or inflating running hours
+- Restore the PLC configuration success toast
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [6.2.0] - 2026-08-20
 
 ### New Features

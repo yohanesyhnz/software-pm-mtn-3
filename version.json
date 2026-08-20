@@ -1,21 +1,21 @@
 {
-  "version": "v6.2.0",
-  "previousVersion": "v6.1.0",
-  "build": "20260820.32",
+  "version": "v6.2.1",
+  "previousVersion": "v6.2.0",
+  "build": "20260820.33",
   "releaseDate": "2026-08-20",
-  "commitType": "feat",
-  "bump": "minor",
-  "summary": "modernize the role and permission policy center",
+  "commitType": "fix",
+  "bump": "patch",
+  "summary": "reject stale PostgreSQL machine telemetry",
   "changes": {
-    "newFeatures": [
-      "modernize the role and permission policy center",
-      "Digital RBAC insight dashboard with role and permission statistics"
-    ],
+    "newFeatures": [],
     "improvements": [
-      "Role policy cards, sticky matrix headers, and accessible visual permission toggles",
-      "Responsive policy controls for desktop and narrow screens"
+      "Log stale PostgreSQL source timestamps with a configurable freshness limit"
     ],
-    "fixed": [],
+    "fixed": [
+      "reject stale PostgreSQL machine telemetry",
+      "Prevent stale source rows from reporting machines as RUNNING or inflating running hours",
+      "Restore the PLC configuration success toast"
+    ],
     "optimizations": [],
     "breakingChanges": [],
     "knownIssues": [],

@@ -152,6 +152,12 @@ public sealed class MachineStatusEngine
                 totalSeconds += Math.Max(0, (transitionAt - runningStartedAt.Value).TotalSeconds);
             runningStartedAt = status == "RUNNING" ? transitionAt : null;
         }
+        else if (status == "RUNNING" && runningStartedAt is null)
+        {
+            // Resume a new segment after a stale/offline source recovers. The unavailable
+            // interval must never be counted as productive machine runtime.
+            runningStartedAt = sourceTimestamp;
+        }
 
         var next = previous with
         {
@@ -273,6 +279,13 @@ sealed class MachineRealtimeRegistry
     public void MarkUnavailable(MachineAcquisitionConfiguration configuration, string connectionStatus, DateTimeOffset now)
     {
         var previous = GetOrCreate(configuration);
+        var totalRunningSeconds = previous.TotalRunningSeconds;
+        if (previous.OperationalStatus == "RUNNING" && previous.RunningStartedAt is not null)
+        {
+            var lastReliableAt = previous.SourceTimestamp ?? previous.LastUpdate;
+            if (lastReliableAt > now) lastReliableAt = now;
+            totalRunningSeconds += Math.Max(0, (lastReliableAt - previous.RunningStartedAt.Value).TotalSeconds);
+        }
         Set(previous with
         {
             MachineName = configuration.MachineName,
@@ -283,6 +296,8 @@ sealed class MachineRealtimeRegistry
             SecondaryParameterName = configuration.SecondaryParameterName,
             SecondaryParameterLabel = configuration.SecondaryParameterLabel,
             SecondaryParameterUnit = configuration.SecondaryParameterUnit,
+            RunningStartedAt = null,
+            TotalRunningSeconds = totalRunningSeconds,
             ConnectionStatus = connectionStatus,
             LastUpdate = now
         });
@@ -748,6 +763,7 @@ sealed class MachineDataAcquisitionService(
     private IReadOnlyList<MachineAcquisitionConfiguration> _activeConfigurations = [];
     private IReadOnlyList<MachineAcquisitionConfiguration> _validConfigurations = [];
     private readonly HashSet<string> _loggedUnavailableSources = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _loggedStaleSources = new(StringComparer.OrdinalIgnoreCase);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -841,6 +857,7 @@ sealed class MachineDataAcquisitionService(
     private async Task PollAsync(DateTimeOffset observedAt, CancellationToken cancellationToken)
     {
         if (!postgreSql.IsConfigured || _validConfigurations.Count == 0) return;
+        var staleAfterSeconds = Math.Clamp(configuration.GetValue("MachineMonitoring:SourceStaleAfterSeconds", 30), 10, 3600);
         try
         {
             await using var connection = await postgreSql.OpenConnectionAsync(cancellationToken);
@@ -877,6 +894,18 @@ sealed class MachineDataAcquisitionService(
                     registry.MarkUnavailable(item, "DATA UNAVAILABLE", observedAt);
                     continue;
                 }
+
+                var sourceAge = observedAt - sourceTimestamp;
+                if (sourceAge.TotalSeconds > staleAfterSeconds)
+                {
+                    registry.MarkUnavailable(item, "DATA UNAVAILABLE", observedAt);
+                    if (_loggedStaleSources.Add(item.MachineId))
+                        logger.LogWarning(
+                            "Stale PostgreSQL source for {MachineId}: latest {Timestamp} is {AgeSeconds:F0}s old (limit {LimitSeconds}s)",
+                            item.MachineId, sourceTimestamp, sourceAge.TotalSeconds, staleAfterSeconds);
+                    continue;
+                }
+                _loggedStaleSources.Remove(item.MachineId);
 
                 var previous = registry.GetOrCreate(item);
                 var evaluation = statusEngine.Evaluate(item, previous, currentValue, sourceTimestamp, observedAt);

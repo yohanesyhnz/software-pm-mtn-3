@@ -136,6 +136,48 @@ body {
   background: var(--text-muted);
 }
 
+.app-toast-region {
+  position: fixed;
+  inset: 18px 18px auto auto;
+  z-index: 10000;
+  display: grid;
+  width: min(390px, calc(100vw - 36px));
+  gap: 10px;
+  pointer-events: none;
+}
+
+.app-toast {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  border: 1px solid var(--predictacore-emerald);
+  border-radius: 12px;
+  box-shadow: var(--glass-shadow), var(--glow-green);
+  backdrop-filter: blur(14px);
+  animation: app-toast-enter 220ms ease-out both;
+}
+
+.app-toast span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.app-toast.is-leaving {
+  animation: app-toast-leave 220ms ease-in both;
+}
+
+@keyframes app-toast-enter {
+  from { opacity: 0; transform: translate3d(18px, -6px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes app-toast-leave {
+  to { opacity: 0; transform: translate3d(18px, -6px, 0); }
+}
+
 /* Layout Framework */
 .app-container {
   display: flex;

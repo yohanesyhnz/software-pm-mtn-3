@@ -4384,6 +4384,33 @@ function closePlcConfigModal() {
   document.getElementById('plc-config-modal').classList.remove('active');
 }
 
+function showToastNotification(title, message, tone = 'success') {
+  let region = document.getElementById('app-toast-region');
+  if (!region) {
+    region = document.createElement('div');
+    region.id = 'app-toast-region';
+    region.className = 'app-toast-region';
+    region.setAttribute('role', 'status');
+    region.setAttribute('aria-live', 'polite');
+    region.setAttribute('aria-atomic', 'false');
+    document.body.appendChild(region);
+  }
+
+  const toast = document.createElement('div');
+  toast.className = `app-toast app-toast-${tone}`;
+  const heading = document.createElement('strong');
+  heading.textContent = title;
+  const detail = document.createElement('span');
+  detail.textContent = message;
+  toast.append(heading, detail);
+  region.appendChild(toast);
+
+  window.setTimeout(() => {
+    toast.classList.add('is-leaving');
+    window.setTimeout(() => toast.remove(), 220);
+  }, 3600);
+}
+
 function savePlcConfigData() {
   const mId = Number(document.getElementById('modal-plc-machine-id').value);
   const m = dbState.machines.find(mac => Number(mac.id) === mId);
@@ -4414,7 +4441,7 @@ function savePlcConfigData() {
   closePlcConfigModal();
   renderPlcMappingTable();
   logToConsole('SYSTEM', `Konfigurasi PLC Mesin ${m.name} diperbarui: IP ${ip}:${port} [${protocol}] Bit Address: ${address}, Counter Address: ${counterAddress}. Inverted: ${isInverted ? 'YES' : 'NO'}.`);
-  showToastNotification('🔌 PLC Config Tersimpan', `${m.name} terhubung ke PLC IP: ${ip} [${address}]`);
+  showToastNotification('PLC Config Tersimpan', `${m.name} terhubung ke PLC IP: ${ip} [${address}]`);
 }
 
 function togglePlcMachineTelemetryStatus(machineId) {
