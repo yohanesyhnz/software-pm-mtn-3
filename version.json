@@ -1,22 +1,21 @@
 {
-  "version": "v6.0.3",
-  "previousVersion": "v6.0.2",
-  "build": "20260820.30",
+  "version": "v6.1.0",
+  "previousVersion": "v6.0.3",
+  "build": "20260820.31",
   "releaseDate": "2026-08-20",
-  "commitType": "fix",
-  "bump": "patch",
-  "summary": "stabilize RBAC status and expose security audit log",
+  "commitType": "feat",
+  "bump": "minor",
+  "summary": "redesign user management as a digital access workspace",
   "changes": {
     "newFeatures": [
-      "Security Audit Log viewer in User Management guarded by audit.view permission"
+      "redesign user management as a digital access workspace",
+      "Industrial Identity and Access Management overview with live user statistics"
     ],
     "improvements": [
-      "Responsive audit table with latest 100 backend security events"
+      "Responsive user directory with role avatars, security states, and mobile account cards",
+      "Unified visual hierarchy for users, permissions, and security audit"
     ],
-    "fixed": [
-      "stabilize RBAC status and expose security audit log",
-      "Role and Permission status no longer reloads every second with telemetry"
-    ],
+    "fixed": [],
     "optimizations": [],
     "breakingChanges": [],
     "knownIssues": [],

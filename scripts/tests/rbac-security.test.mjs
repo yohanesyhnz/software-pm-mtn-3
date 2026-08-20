@@ -60,6 +60,14 @@ test('telemetry refresh does not reload the RBAC editor every second', () => {
   assert.match(app, /if \(tabName === 'users'\)[\s\S]*loadRbacMatrix\(\)[\s\S]*loadSecurityAuditLog\(\)/);
 });
 
+test('user management has a responsive digital identity workspace', () => {
+  assert.match(html, /class="user-management-hero"[\s\S]*id="user-stat-total"[\s\S]*class="user-directory-card"/);
+  assert.match(html, /id="user-directory-summary"[\s\S]*class="data-table user-directory-table"/);
+  assert.match(app, /function updateUserManagementSummary\(\)/);
+  assert.match(app, /class="user-avatar \$\{roleClass\}"/);
+  assert.match(read('style.css'), /@media \(max-width: 520px\)[\s\S]*\.user-directory-table tbody tr:not\(\.user-empty-row\)/);
+});
+
 test('legacy compatibility scripts remain identical', () => {
   assert.equal(app, legacy);
 });

@@ -2,6 +2,38 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [6.1.0] - 2026-08-20
+
+### New Features
+
+- redesign user management as a digital access workspace
+- Industrial Identity and Access Management overview with live user statistics
+
+### Improvements
+
+- Responsive user directory with role avatars, security states, and mobile account cards
+- Unified visual hierarchy for users, permissions, and security audit
+
+### Fixed
+
+- Tidak ada.
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [6.0.3] - 2026-08-20
 
 ### New Features

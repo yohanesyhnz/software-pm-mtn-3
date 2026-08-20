@@ -514,16 +514,40 @@
 
       <!-- TAB 9: USER MANAGEMENT -->
       <section class="tab-panel" id="panel-users">
-        <div class="action-bar">
-          <div class="search-box">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="user-search-input" placeholder="Cari nama, username..." oninput="renderUsersTable()">
+        <section class="user-management-hero" aria-labelledby="user-management-title">
+          <div class="user-management-hero-copy">
+            <span class="user-management-eyebrow">IDENTITY &amp; ACCESS MANAGEMENT</span>
+            <h2 id="user-management-title">Pusat Kendali Akses Digital</h2>
+            <p>Kelola akun, role, permission, dan jejak aktivitas keamanan dalam satu workspace terintegrasi.</p>
           </div>
-          <button class="btn btn-success" onclick="openUserModal()">+ Tambah User Baru</button>
-        </div>
+          <div class="user-management-live"><span></span> Backend RBAC Active</div>
+          <div class="user-management-stats" aria-label="Ringkasan pengelolaan user">
+            <article class="user-stat-card"><span class="user-stat-icon">U</span><div><strong id="user-stat-total">0</strong><small>Total User</small></div></article>
+            <article class="user-stat-card"><span class="user-stat-icon admin">A</span><div><strong id="user-stat-admin">0</strong><small>Administrator</small></div></article>
+            <article class="user-stat-card"><span class="user-stat-icon role">R</span><div><strong id="user-stat-roles">0</strong><small>Role Aktif</small></div></article>
+            <article class="user-stat-card"><span class="user-stat-icon session">S</span><div><strong id="user-stat-session">--</strong><small>Sesi Saat Ini</small></div></article>
+          </div>
+        </section>
 
-        <div class="table-container">
-          <table class="data-table">
+        <section class="user-directory-card" aria-labelledby="user-directory-title">
+          <div class="user-directory-header">
+            <div>
+              <span class="user-section-kicker">USER DIRECTORY</span>
+              <h3 id="user-directory-title">Daftar Akun Pengguna</h3>
+              <p id="user-directory-summary">Kelola identitas dan hak akses pengguna PredictaCore.</p>
+            </div>
+            <button class="btn btn-success user-add-button" onclick="openUserModal()"><span aria-hidden="true">+</span> Tambah User Baru</button>
+          </div>
+          <div class="user-directory-toolbar">
+            <div class="search-box user-search-box">
+              <span class="search-icon" aria-hidden="true">⌕</span>
+              <input type="search" id="user-search-input" placeholder="Cari username atau nama lengkap..." oninput="renderUsersTable()" aria-label="Cari pengguna">
+              <span class="user-search-hint">LIVE FILTER</span>
+            </div>
+            <div class="user-directory-security"><span aria-hidden="true">✓</span> Password terenkripsi backend</div>
+          </div>
+          <div class="table-container user-table-container">
+          <table class="data-table user-directory-table">
             <thead>
               <tr>
                 <th>Username</th>
@@ -537,11 +561,13 @@
               <!-- Loaded dynamically -->
             </tbody>
           </table>
-        </div>
+          </div>
+        </section>
 
         <section class="rbac-management" aria-labelledby="rbac-management-title">
           <div class="rbac-management-header">
             <div>
+              <span class="user-section-kicker">ACCESS POLICY</span>
               <h3 id="rbac-management-title">Role &amp; Permission</h3>
               <p>Atur matriks akses backend tanpa mengubah source code. Perubahan berlaku pada request API berikutnya.</p>
             </div>

@@ -5880,6 +5880,7 @@ function renderRbacMatrix() {
 
   const roles = [...rbacSnapshot.roles].sort((a, b) => Number(a.displayOrder) - Number(b.displayOrder));
   const canManageRbac = hasPermission('rbac.manage');
+  updateUserManagementSummary();
   const saveButton = document.getElementById('save-rbac-matrix-button');
   if (saveButton) saveButton.style.display = canManageRbac ? 'inline-flex' : 'none';
   head.innerHTML = `<tr><th>Permission Backend</th>${roles.map(role => `<th>${_escapeDashboardText(role.code)}<br><small>${_escapeDashboardText(role.name)}</small></th>`).join('')}</tr>`;
@@ -5902,6 +5903,19 @@ function renderRbacMatrix() {
     }).join('');
     return `${groupRow}<tr><td class="rbac-permission-name"><strong>${_escapeDashboardText(permission.name)}</strong><small>${_escapeDashboardText(permission.description)}<br><code>${_escapeDashboardText(permission.code)}</code></small></td>${cells}</tr>`;
   }).join('');
+}
+
+function updateUserManagementSummary() {
+  const users = Array.isArray(dbState.users) ? dbState.users : [];
+  const roleCodes = new Set(users.map(user => String(user.role || '').toUpperCase()).filter(Boolean));
+  const totalEl = document.getElementById('user-stat-total');
+  const adminEl = document.getElementById('user-stat-admin');
+  const rolesEl = document.getElementById('user-stat-roles');
+  const sessionEl = document.getElementById('user-stat-session');
+  if (totalEl) totalEl.textContent = users.length.toLocaleString('id-ID');
+  if (adminEl) adminEl.textContent = users.filter(user => String(user.role || '').toUpperCase() === 'ADMIN').length.toLocaleString('id-ID');
+  if (rolesEl) rolesEl.textContent = String(rbacSnapshot?.roles?.length || roleCodes.size || 0);
+  if (sessionEl) sessionEl.textContent = String(activeUser?.role || '--').toUpperCase();
 }
 
 async function saveRbacMatrix() {
@@ -5950,31 +5964,41 @@ async function saveRbacMatrix() {
 
 function renderUsersTable() {
   const tbody = document.getElementById('users-table-tbody');
+  if (!tbody) return;
   tbody.innerHTML = '';
 
-  const searchVal = document.getElementById('user-search-input').value.toLowerCase();
+  const searchVal = document.getElementById('user-search-input')?.value.toLowerCase().trim() || '';
+  let visibleCount = 0;
 
   dbState.users.forEach(u => {
     const matchesSearch = u.username.toLowerCase().includes(searchVal) || 
                           u.full_name.toLowerCase().includes(searchVal);
 
     if (matchesSearch) {
+      visibleCount++;
       const isSelf = u.username === activeUser.username;
       const deleteBtn = isSelf 
-        ? '<span style="color:var(--text-muted); font-size:11px;">Active Session</span>'
-        : `<button class="btn-action-icon" style="color:var(--color-red);" title="Hapus User" onclick="deleteUser(${u.id})">🗑️ Hapus</button>`;
+        ? '<span class="user-session-chip"><i></i> Sesi Aktif</span>'
+        : `<button class="user-row-action danger" title="Hapus User" aria-label="Hapus ${_escapeDashboardText(u.username)}" onclick="deleteUser(${Number(u.id)})">Hapus</button>`;
       
       const maskedPass = '••••••••';
+      const safeUsername = _escapeDashboardText(u.username || '--');
+      const safeFullName = _escapeDashboardText(u.full_name || '--');
+      const safeRole = _escapeDashboardText(String(u.role || 'TECHNICIAN').toUpperCase());
+      const initials = _escapeDashboardText(String(u.full_name || u.username || 'U').split(/\s+/).slice(0, 2).map(part => part.charAt(0)).join('').toUpperCase());
+      const roleClass = String(u.role || '').toLowerCase();
 
       const tr = `
         <tr>
-          <td><strong>${u.username}</strong></td>
-          <td>${u.full_name}</td>
-          <td><code style="font-family:'JetBrains Mono';">${maskedPass}</code></td>
-          <td><span class="badge ${u.role === 'ADMIN' ? 'badge-crit-low' : (u.role === 'SUPERVISOR' ? 'badge-warning-2' : 'badge-normal')}">${u.role}</span></td>
-          <td>
-            <button class="btn-action-icon" title="Edit User" onclick="openUserModal(${u.id})">✏️ Edit</button>
-            ${deleteBtn}
+          <td data-label="Username"><div class="user-identity-cell"><span class="user-avatar ${roleClass}">${initials}</span><div><strong>${safeUsername}</strong><small>ID-${String(Number(u.id) || 0).padStart(3, '0')}</small></div></div></td>
+          <td data-label="Nama Lengkap"><strong class="user-full-name">${safeFullName}</strong><small class="user-account-state">Akun terverifikasi</small></td>
+          <td data-label="Password/PIN"><code class="user-password-mask">${maskedPass}</code><small class="user-password-state">Tersimpan aman</small></td>
+          <td data-label="Role/Hak Akses"><span class="user-role-chip ${roleClass}"><i></i>${safeRole}</span></td>
+          <td data-label="Actions">
+            <div class="user-row-actions">
+              <button class="user-row-action" title="Edit User" aria-label="Edit ${safeUsername}" onclick="openUserModal(${Number(u.id)})">Edit</button>
+              ${deleteBtn}
+            </div>
           </td>
         </tr>
       `;
@@ -5983,8 +6007,13 @@ function renderUsersTable() {
   });
 
   if (tbody.innerHTML === '') {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:20px;">Tidak ada user ditemukan.</td></tr>`;
+    tbody.innerHTML = `<tr class="user-empty-row"><td colspan="5"><strong>Tidak ada user ditemukan</strong><span>Coba gunakan kata pencarian yang berbeda.</span></td></tr>`;
   }
+  const summary = document.getElementById('user-directory-summary');
+  if (summary) summary.textContent = searchVal
+    ? `Menampilkan ${visibleCount} dari ${dbState.users.length} akun yang sesuai pencarian.`
+    : `${dbState.users.length} akun terdaftar dan dikelola melalui backend terpusat.`;
+  updateUserManagementSummary();
 }
 
 function openUserModal(id = null) {
