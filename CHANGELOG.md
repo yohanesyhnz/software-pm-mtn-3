@@ -2,6 +2,38 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [6.2.0] - 2026-08-20
+
+### New Features
+
+- modernize the role and permission policy center
+- Digital RBAC insight dashboard with role and permission statistics
+
+### Improvements
+
+- Role policy cards, sticky matrix headers, and accessible visual permission toggles
+- Responsive policy controls for desktop and narrow screens
+
+### Fixed
+
+- Tidak ada.
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [6.1.0] - 2026-08-20
 
 ### New Features

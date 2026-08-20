@@ -571,10 +571,26 @@
               <h3 id="rbac-management-title">Role &amp; Permission</h3>
               <p>Atur matriks akses backend tanpa mengubah source code. Perubahan berlaku pada request API berikutnya.</p>
             </div>
-            <button type="button" class="btn btn-success" id="save-rbac-matrix-button" onclick="saveRbacMatrix()">Simpan Matriks Permission</button>
+            <div class="rbac-header-actions">
+              <span class="rbac-sync-pill"><i></i> Policy Engine Online</span>
+              <button type="button" class="btn btn-success" id="save-rbac-matrix-button" onclick="saveRbacMatrix()">Simpan Matriks Permission</button>
+            </div>
           </div>
-          <div class="rbac-status" id="rbac-status" role="status" aria-live="polite">Memuat matriks permission...</div>
+          <div class="rbac-insight-grid" aria-label="Ringkasan kebijakan akses">
+            <article><span class="rbac-insight-code">RL</span><div><strong id="rbac-stat-roles">0</strong><small>Role Terkelola</small></div></article>
+            <article><span class="rbac-insight-code permission">PM</span><div><strong id="rbac-stat-permissions">0</strong><small>Permission Backend</small></div></article>
+            <article><span class="rbac-insight-code current">AC</span><div><strong id="rbac-stat-current">0</strong><small>Akses Sesi Aktif</small></div></article>
+            <article><span class="rbac-insight-code security">SC</span><div><strong>ENFORCED</strong><small>Security Mode</small></div></article>
+          </div>
+          <div class="rbac-status-shell">
+            <span class="rbac-status-indicator" aria-hidden="true"></span>
+            <div class="rbac-status" id="rbac-status" role="status" aria-live="polite">Memuat matriks permission...</div>
+          </div>
           <div class="rbac-role-descriptions" id="rbac-role-descriptions"></div>
+          <div class="rbac-matrix-heading">
+            <div><span class="user-section-kicker">PERMISSION MATRIX</span><h4>Kontrol Akses per Role</h4></div>
+            <div class="rbac-matrix-legend"><span><i class="granted"></i> Diizinkan</span><span><i></i> Dibatasi</span></div>
+          </div>
           <div class="table-container rbac-table-container">
             <table class="data-table rbac-matrix-table">
               <thead id="rbac-matrix-head"></thead>

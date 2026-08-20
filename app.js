@@ -5881,12 +5881,23 @@ function renderRbacMatrix() {
   const roles = [...rbacSnapshot.roles].sort((a, b) => Number(a.displayOrder) - Number(b.displayOrder));
   const canManageRbac = hasPermission('rbac.manage');
   updateUserManagementSummary();
+  const roleStat = document.getElementById('rbac-stat-roles');
+  const permissionStat = document.getElementById('rbac-stat-permissions');
+  const currentStat = document.getElementById('rbac-stat-current');
+  if (roleStat) roleStat.textContent = String(roles.length);
+  if (permissionStat) permissionStat.textContent = String(rbacSnapshot.permissions.length);
+  if (currentStat) currentStat.textContent = String(activePermissions.size);
   const saveButton = document.getElementById('save-rbac-matrix-button');
   if (saveButton) saveButton.style.display = canManageRbac ? 'inline-flex' : 'none';
   head.innerHTML = `<tr><th>Permission Backend</th>${roles.map(role => `<th>${_escapeDashboardText(role.code)}<br><small>${_escapeDashboardText(role.name)}</small></th>`).join('')}</tr>`;
   descriptions.innerHTML = roles.map(role => `
     <div class="rbac-role-description">
-      <label for="rbac-description-${_escapeDashboardText(role.code)}">${_escapeDashboardText(role.code)} — ${_escapeDashboardText(role.name)}</label>
+      <div class="rbac-role-card-header">
+        <span class="rbac-role-monogram ${_escapeDashboardText(role.code.toLowerCase())}">${_escapeDashboardText(role.code.slice(0, 2))}</span>
+        <div><strong>${_escapeDashboardText(role.code)}</strong><small>${_escapeDashboardText(role.name)}</small></div>
+        <span class="rbac-role-count">${Array.isArray(role.permissions) ? role.permissions.length : 0} akses</span>
+      </div>
+      <label for="rbac-description-${_escapeDashboardText(role.code)}">Deskripsi &amp; cakupan role</label>
       <input id="rbac-description-${_escapeDashboardText(role.code)}" data-rbac-description="${_escapeDashboardText(role.code)}" value="${_escapeDashboardText(role.description || '')}" maxlength="240" ${canManageRbac ? '' : 'disabled'}>
     </div>
   `).join('');
@@ -5899,7 +5910,7 @@ function renderRbacMatrix() {
     currentGroup = permission.group;
     const cells = roles.map(role => {
       const checked = Array.isArray(role.permissions) && role.permissions.includes(permission.code);
-      return `<td><input class="rbac-permission-toggle" type="checkbox" data-rbac-role="${_escapeDashboardText(role.code)}" data-rbac-permission="${_escapeDashboardText(permission.code)}" ${checked ? 'checked' : ''} ${canManageRbac ? '' : 'disabled'} aria-label="${_escapeDashboardText(role.code)}: ${_escapeDashboardText(permission.name)}"></td>`;
+      return `<td><label class="rbac-permission-control"><input class="rbac-permission-toggle" type="checkbox" data-rbac-role="${_escapeDashboardText(role.code)}" data-rbac-permission="${_escapeDashboardText(permission.code)}" ${checked ? 'checked' : ''} ${canManageRbac ? '' : 'disabled'} aria-label="${_escapeDashboardText(role.code)}: ${_escapeDashboardText(permission.name)}"><span aria-hidden="true"></span></label></td>`;
     }).join('');
     return `${groupRow}<tr><td class="rbac-permission-name"><strong>${_escapeDashboardText(permission.name)}</strong><small>${_escapeDashboardText(permission.description)}<br><code>${_escapeDashboardText(permission.code)}</code></small></td>${cells}</tr>`;
   }).join('');

@@ -68,6 +68,13 @@ test('user management has a responsive digital identity workspace', () => {
   assert.match(read('style.css'), /@media \(max-width: 520px\)[\s\S]*\.user-directory-table tbody tr:not\(\.user-empty-row\)/);
 });
 
+test('RBAC editor presents digital policy insights and accessible permission controls', () => {
+  assert.match(html, /class="rbac-insight-grid"[\s\S]*id="rbac-stat-permissions"[\s\S]*class="rbac-matrix-heading"/);
+  assert.match(html, /class="rbac-sync-pill"[\s\S]*Policy Engine Online/);
+  assert.match(app, /class="rbac-role-monogram \$\{_escapeDashboardText\(role\.code\.toLowerCase\(\)\)\}"/);
+  assert.match(app, /class="rbac-permission-control"[\s\S]*aria-label=/);
+});
+
 test('legacy compatibility scripts remain identical', () => {
   assert.equal(app, legacy);
 });
