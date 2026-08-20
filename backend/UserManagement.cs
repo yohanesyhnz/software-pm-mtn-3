@@ -11,9 +11,9 @@ internal static partial class UserManagementApi
 
     public static void MapUserManagementApi(this WebApplication app)
     {
-        app.MapPost("/api/users", CreateUserAsync);
-        app.MapPut("/api/users/{id:int}", UpdateUserAsync);
-        app.MapDelete("/api/users/{id:int}", DeleteUserAsync);
+        app.MapPost("/api/users", CreateUserAsync).RequirePermission(PermissionNames.UsersManage);
+        app.MapPut("/api/users/{id:int}", UpdateUserAsync).RequirePermission(PermissionNames.UsersManage);
+        app.MapDelete("/api/users/{id:int}", DeleteUserAsync).RequirePermission(PermissionNames.UsersManage);
     }
 
     private static async Task<IResult> CreateUserAsync(

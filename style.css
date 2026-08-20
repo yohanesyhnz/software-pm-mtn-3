@@ -984,6 +984,63 @@ body {
 }
 
 /* User editor remains readable, contained, and theme-aware at every width. */
+.rbac-management {
+  margin-top: 22px;
+  padding: 18px;
+  min-width: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+}
+
+.rbac-management-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.rbac-management-header h3 { margin: 0 0 5px; color: var(--text-primary); }
+.rbac-management-header p { margin: 0; color: var(--text-secondary); font-size: 12px; }
+.rbac-status { margin-bottom: 12px; color: var(--predictacore-cyan); font-size: 12px; }
+.rbac-status.error { color: var(--color-red); }
+.rbac-status.success { color: var(--color-green); }
+
+.rbac-role-descriptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.rbac-role-description {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-input);
+}
+
+.rbac-role-description label { display: block; margin-bottom: 6px; color: var(--text-primary); font-size: 11px; font-weight: 800; }
+.rbac-role-description input { width: 100%; min-width: 0; }
+.rbac-table-container { max-height: min(62vh, 720px); overflow: auto; }
+.rbac-matrix-table { min-width: 720px; }
+.rbac-matrix-table th:not(:first-child),
+.rbac-matrix-table td:not(:first-child) { width: 150px; text-align: center; }
+.rbac-matrix-table .rbac-permission-name { min-width: 280px; white-space: normal; }
+.rbac-matrix-table .rbac-permission-name strong { display: block; color: var(--text-primary); }
+.rbac-matrix-table .rbac-permission-name small { color: var(--text-secondary); line-height: 1.35; }
+.rbac-permission-toggle { width: 18px; height: 18px; accent-color: var(--predictacore-cyan); cursor: pointer; }
+.rbac-group-row td { color: var(--predictacore-cyan); background: rgba(0, 229, 255, 0.08); font-size: 10px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+
+@media (max-width: 700px) {
+  .rbac-management { padding: 12px; }
+  .rbac-management-header { flex-direction: column; }
+  .rbac-management-header .btn { width: 100%; }
+}
+
 .user-theme-modal {
   padding: clamp(12px, 3vw, 28px);
   overflow-x: hidden;

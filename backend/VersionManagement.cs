@@ -28,13 +28,13 @@ public static class VersionManagementApi
                 .ToArray();
 
             return Results.Ok(filtered);
-        });
+        }).RequirePermission(PermissionNames.SettingsView);
 
         group.MapGet("/current", async (VersionManagementStore store, CancellationToken cancellationToken) =>
         {
             var current = await store.GetCurrentAsync(cancellationToken);
             return current is null ? Results.NotFound() : Results.Ok(current);
-        });
+        }).RequirePermission(PermissionNames.SettingsView);
 
         group.MapGet("/update-check", async (
             string? current,
@@ -57,10 +57,11 @@ public static class VersionManagementApi
                 latest,
                 checkedAt = DateTimeOffset.Now
             });
-        });
+        }).RequirePermission(PermissionNames.SettingsView);
 
         group.MapGet("/audit", async (VersionManagementStore store, CancellationToken cancellationToken) =>
-            Results.Ok(await store.GetAuditAsync(cancellationToken)));
+            Results.Ok(await store.GetAuditAsync(cancellationToken)))
+            .RequirePermission(PermissionNames.AuditView);
 
         group.MapGet("/{version}", async (
             string version,
@@ -69,7 +70,7 @@ public static class VersionManagementApi
         {
             var item = await store.FindAsync(version, cancellationToken);
             return item is null ? Results.NotFound() : Results.Ok(item);
-        });
+        }).RequirePermission(PermissionNames.SettingsView);
 
         group.MapPost("/", async (
             SoftwareVersion version,
@@ -84,7 +85,7 @@ public static class VersionManagementApi
             return created
                 ? Results.Created($"/api/software-versions/{version.Version}", version)
                 : Results.Conflict(new { message = $"Version {version.Version} already exists." });
-        });
+        }).RequirePermission(PermissionNames.SettingsManage);
 
         group.MapPost("/{version}/backup", async (
             string version,
@@ -112,7 +113,7 @@ public static class VersionManagementApi
             }, cancellationToken);
 
             return Results.Ok(new { status = "success", backupFile = backup });
-        });
+        }).RequirePermission(PermissionNames.SystemBackup);
 
         group.MapPost("/{version}/install", async (
             string version,
@@ -183,7 +184,7 @@ public static class VersionManagementApi
                 }, cancellationToken);
                 return Results.Problem("Update failed and the previous version was restored.");
             }
-        });
+        }).RequirePermission(PermissionNames.SystemRestore);
 
         return endpoints;
     }

@@ -2,6 +2,38 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [6.0.0] - 2026-08-20
+
+### New Features
+
+- implement backend RBAC and configurable role permissions
+- Backend-enforced RBAC permission policies
+- Role & Permission matrix under user management
+
+### Improvements
+
+- Cookie sessions, CSRF protection, security audit, and protected domain mutations
+
+### Fixed
+
+- Tidak ada.
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- RBAC migration backup and rollback guide
+
 ## [5.2.0] - 2026-08-14
 
 ### New Features

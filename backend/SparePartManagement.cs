@@ -7,9 +7,9 @@ internal static class SparePartManagementApi
 
     public static void MapSparePartManagementApi(this WebApplication app)
     {
-        app.MapPost("/api/spare-parts", CreateAsync);
-        app.MapPut("/api/spare-parts/{id:int}", UpdateAsync);
-        app.MapDelete("/api/spare-parts/{id:int}", DeleteAsync);
+        app.MapPost("/api/spare-parts", CreateAsync).RequirePermission(PermissionNames.SparePartsManage);
+        app.MapPut("/api/spare-parts/{id:int}", UpdateAsync).RequirePermission(PermissionNames.SparePartsManage);
+        app.MapDelete("/api/spare-parts/{id:int}", DeleteAsync).RequirePermission(PermissionNames.SparePartsManage);
     }
 
     private static async Task<IResult> CreateAsync(

@@ -1,5 +1,46 @@
 /* Preventive Maintenance System - Core JS Engine */
 
+const predictaCoreNativeFetch = window.fetch.bind(window);
+let predictaCoreCsrfToken = '';
+
+async function getPredictaCoreCsrfToken(forceRefresh = false) {
+  if (predictaCoreCsrfToken && !forceRefresh) return predictaCoreCsrfToken;
+  const response = await predictaCoreNativeFetch('/api/auth/csrf', {
+    cache: 'no-store',
+    credentials: 'same-origin'
+  });
+  if (!response.ok) throw new Error('Token keamanan aplikasi tidak tersedia.');
+  const payload = await response.json();
+  predictaCoreCsrfToken = payload.token || '';
+  return predictaCoreCsrfToken;
+}
+
+window.fetch = async function predictaCoreSecureFetch(input, init = {}) {
+  const requestUrl = typeof input === 'string' ? input : input.url;
+  const target = new URL(requestUrl, window.location.href);
+  const method = String(init.method || (typeof input === 'string' ? 'GET' : input.method) || 'GET').toUpperCase();
+  const isSameOrigin = target.origin === window.location.origin;
+  const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+  const options = { ...init, credentials: isSameOrigin ? 'same-origin' : init.credentials };
+
+  if (isSameOrigin && isMutation) {
+    const headers = new Headers(init.headers || (typeof input === 'string' ? undefined : input.headers));
+    headers.set('X-CSRF-TOKEN', await getPredictaCoreCsrfToken());
+    options.headers = headers;
+  }
+
+  let response = await predictaCoreNativeFetch(input, options);
+  if (isSameOrigin && isMutation && response.status === 400 && response.headers.get('X-CSRF-Error') === '1') {
+    const retryHeaders = new Headers(options.headers);
+    retryHeaders.set('X-CSRF-TOKEN', await getPredictaCoreCsrfToken(true));
+    response = await predictaCoreNativeFetch(input, { ...options, headers: retryHeaders });
+  }
+  if (isSameOrigin && response.status === 401 && !target.pathname.startsWith('/api/auth/')) {
+    window.dispatchEvent(new CustomEvent('predictacore:session-expired'));
+  }
+  return response;
+};
+
 // Default Seed Data
 const DEFAULT_SEED_DATA = {
   users: [
@@ -41,6 +82,11 @@ const DEFAULT_SEED_DATA = {
 // Database Engine State
 let dbState = {};
 let activeUser = { username: 'tech', role: 'TECHNICIAN', full_name: 'Agus Prayitno' };
+let activePermissions = new Set();
+
+function hasPermission(permission) {
+  return activePermissions.has(permission);
+}
 let currentTab = 'dashboard';
 let apiSandboxConfig = { method: 'GET', endpoint: '/api/machines' };
 let activeConnectors = { PLC: false, MQTT: false, OPCUA: false, MODBUS: false };
@@ -495,6 +541,14 @@ function saveDatabase() {
   // 1. Simpan ke Cache Lokal browser
   localStorage.setItem('pm_system_db', JSON.stringify(dbState));
 
+  // Full-state writes are a privileged compatibility path. Normal users persist
+  // changes through permission-scoped domain APIs instead of replacing all state.
+  if (!hasPermission('system.restore')) {
+    updateUIPendingItems();
+    refreshCurrentTabView();
+    return;
+  }
+
   // 2. Sinkronkan data ke Central Synology NAS Database via api.php
   const payload = Object.assign({ action: 'save_state' }, dbState);
 
@@ -557,7 +611,10 @@ function refreshCurrentTabView() {
   if (currentTab === 'machines') renderMachinesTable();
   if (currentTab === 'spareparts') renderSparePartsTable();
   if (currentTab === 'history') loadPreventiveMaintenanceData();
-  if (currentTab === 'users') renderUsersTable();
+  if (currentTab === 'users') {
+    renderUsersTable();
+    loadRbacMatrix();
+  }
   populateLoginUserDropdown();
 }
 
@@ -702,7 +759,10 @@ function switchTab(tabName) {
   if (tabName === 'spareparts') renderSparePartsTable();
   if (tabName === 'history') loadPreventiveMaintenanceData();
   if (tabName === 'integrations') updateIntegrationsPanel();
-  if (tabName === 'users') renderUsersTable();
+  if (tabName === 'users') {
+    renderUsersTable();
+    loadRbacMatrix();
+  }
 }
 
 function applyRolePermissions() {
@@ -716,36 +776,40 @@ function applyRolePermissions() {
   
   // Sidebar elements
   const navUsers = document.getElementById('nav-users');
+  const navDashboard = document.getElementById('nav-dashboard');
+  const navMachines = document.getElementById('nav-machines');
+  const navSpareParts = document.getElementById('nav-spareparts');
+  const navHistory = document.getElementById('nav-history');
   const navIntegrations = document.getElementById('nav-integrations');
   const navSystem = document.getElementById('nav-system');
+  const navSettings = document.getElementById('nav-settings');
+  const machineOrderToggle = document.getElementById('machine-order-toggle');
 
-  const isAdmin = activeUser.role === 'ADMIN';
-
-  if (activeUser.role === 'TECHNICIAN') {
-    if (addMachineBtn) addMachineBtn.style.display = 'none';
-    if (addPartBtn) addPartBtn.style.display = 'none';
-  } else {
-    if (addMachineBtn) addMachineBtn.style.display = 'inline-flex';
-    if (addPartBtn) addPartBtn.style.display = 'inline-flex';
-  }
+  if (addMachineBtn) addMachineBtn.style.display = hasPermission('machines.manage') ? 'inline-flex' : 'none';
+  if (addPartBtn) addPartBtn.style.display = hasPermission('spare-parts.manage') ? 'inline-flex' : 'none';
 
   // EXCLUSIVE ADMIN ACCESS: Import Parts, Clear Parts, Clear History, Import Machines, Reset All Parts
-  if (importPartBtn) importPartBtn.style.display = isAdmin ? 'inline-flex' : 'none';
-  if (clearPartsBtn) clearPartsBtn.style.display = isAdmin ? 'inline-flex' : 'none';
-  if (clearHistoryBtn) clearHistoryBtn.style.display = isAdmin ? 'inline-flex' : 'none';
-  if (importMachineBtn) importMachineBtn.style.display = isAdmin ? 'inline-flex' : 'none';
-  if (resetAllPartsBtn) resetAllPartsBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+  if (importPartBtn) importPartBtn.style.display = hasPermission('imports.manage') ? 'inline-flex' : 'none';
+  if (clearPartsBtn) clearPartsBtn.style.display = hasPermission('imports.manage') ? 'inline-flex' : 'none';
+  if (clearHistoryBtn) clearHistoryBtn.style.display = hasPermission('history.clear') ? 'inline-flex' : 'none';
+  if (importMachineBtn) importMachineBtn.style.display = hasPermission('imports.manage') ? 'inline-flex' : 'none';
+  if (resetAllPartsBtn) resetAllPartsBtn.style.display = hasPermission('running-hours.reset') ? 'inline-flex' : 'none';
+  if (machineOrderToggle) machineOrderToggle.style.display = hasPermission('machines.order') ? 'inline-flex' : 'none';
 
-  // Admin exclusive tabs configurations
-  const adminOnlyTabs = [
-    { el: navUsers, id: 'users' },
-    { el: navIntegrations, id: 'integrations' },
-    { el: navSystem, id: 'system' }
+  const protectedTabs = [
+    { el: navDashboard, id: 'dashboard', allowed: hasPermission('dashboard.view') },
+    { el: navMachines, id: 'machines', allowed: hasPermission('machines.view') },
+    { el: navSpareParts, id: 'spareparts', allowed: hasPermission('spare-parts.view') },
+    { el: navHistory, id: 'history', allowed: hasPermission('maintenance.view') },
+    { el: navUsers, id: 'users', allowed: hasPermission('users.manage') },
+    { el: navIntegrations, id: 'integrations', allowed: hasPermission('integrations.manage') },
+    { el: navSystem, id: 'system', allowed: hasPermission('system.backup') || hasPermission('system.restore') },
+    { el: navSettings, id: 'settings', allowed: hasPermission('settings.view') }
   ];
 
-  adminOnlyTabs.forEach(item => {
+  protectedTabs.forEach(item => {
     if (item.el) {
-      if (activeUser.role === 'ADMIN') {
+      if (item.allowed) {
         item.el.style.display = 'flex';
       } else {
         item.el.style.display = 'none';
@@ -788,7 +852,13 @@ function closeLoginModal() {
   }
 }
 
-function logoutActiveUser() {
+async function logoutActiveUser() {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST' });
+  } catch (error) {
+    console.warn('Logout backend tidak dapat dikonfirmasi:', error);
+  }
+  activePermissions = new Set();
   localStorage.removeItem('pm_active_user');
   window.dispatchEvent(new CustomEvent('predictacore:logout'));
   openLoginModal();
@@ -830,19 +900,6 @@ async function performDesktopLogin() {
     dbState.users = JSON.parse(JSON.stringify(DEFAULT_SEED_DATA.users));
   }
 
-  const user = dbState.users.find(u => 
-    u.username.toLowerCase() === usernameVal.toLowerCase() || 
-    u.full_name.toLowerCase().includes(usernameVal.toLowerCase())
-  );
-
-  if (!user) {
-    if (errEl) {
-      errEl.innerText = `⚠️ Username "${usernameVal}" tidak ditemukan.`;
-      errEl.style.display = 'block';
-    }
-    return;
-  }
-
   try {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
@@ -862,6 +919,7 @@ async function performDesktopLogin() {
       role: authenticatedUser.role,
       full_name: authenticatedUser.full_name
     };
+    activePermissions = new Set(Array.isArray(result.permissions) ? result.permissions : []);
 
     localStorage.setItem('pm_active_user', JSON.stringify(activeUser));
 
@@ -874,7 +932,8 @@ async function performDesktopLogin() {
       if (roleBadgeEl) roleBadgeEl.innerText = activeUser.role;
 
       applyRolePermissions();
-      saveDatabase();
+      if (hasPermission('users.manage')) loadRbacMatrix();
+      loadDatabase();
       logToConsole('SYSTEM', `User ${activeUser.full_name} (${activeUser.role}) berhasil log in secara aman.`);
       switchTab('dashboard');
       window.dispatchEvent(new CustomEvent('predictacore:authenticated', {
@@ -885,11 +944,17 @@ async function performDesktopLogin() {
     }
   } catch (error) {
     if (errEl) {
-      errEl.innerText = `⚠️ Password / PIN salah untuk akun ${user.full_name}.`;
+      errEl.innerText = `⚠️ ${error.message || 'Username atau password tidak sesuai.'}`;
       errEl.style.display = 'block';
     }
   }
 }
+
+window.addEventListener('predictacore:session-expired', () => {
+  activePermissions = new Set();
+  localStorage.removeItem('pm_active_user');
+  openLoginModal();
+});
 
 // --- DYNAMIC RENDERING: DASHBOARD ---
 
@@ -1948,9 +2013,9 @@ function renderMachinesTable() {
         <td><span class="badge ${statusBadge}">${m.status}</span>${activeBadge}</td>
         <td>
           <button class="btn-action-icon" title="View details & QR" onclick="viewMachineDetails(${m.id})">👁️ Detail</button>
-          <button class="btn-action-icon" title="Copy / Duplikat Mesin" onclick="copyMachineData(${m.id})" style="color:var(--predictacore-cyan);">📋 Copy</button>
-          <button class="btn-action-icon" title="Edit" onclick="openMachineModal(${m.id})">✏️</button>
-          <button class="btn-action-icon" title="Nonaktifkan tanpa menghapus histori" style="color:var(--color-red);" onclick="deleteMachine(${m.id})">⏸ Nonaktifkan</button>
+          ${hasPermission('machines.manage') ? `<button class="btn-action-icon" title="Copy / Duplikat Mesin" onclick="copyMachineData(${m.id})" style="color:var(--predictacore-cyan);">📋 Copy</button>` : ''}
+          ${hasPermission('machines.manage') ? `<button class="btn-action-icon" title="Edit" onclick="openMachineModal(${m.id})">✏️</button>` : ''}
+          ${hasPermission('machines.manage') ? `<button class="btn-action-icon" title="Nonaktifkan tanpa menghapus histori" style="color:var(--color-red);" onclick="deleteMachine(${m.id})">⏸ Nonaktifkan</button>` : ''}
         </td>
       </tr>
     `);
@@ -2184,7 +2249,7 @@ function _populateMachineDynamicFields(machine) {
 }
 
 function openMachineModal(id = null) {
-  if (activeUser.role === 'TECHNICIAN') {
+  if (!hasPermission('machines.manage')) {
     alert('Akses Ditolak: Level user TECHNICIAN tidak diizinkan mengubah master mesin.');
     return;
   }
@@ -2228,7 +2293,7 @@ function openMachineModal(id = null) {
 }
 
 function copyMachineData(machineId) {
-  if (activeUser.role === 'TECHNICIAN') {
+  if (!hasPermission('machines.manage')) {
     alert('Akses Ditolak: Level user TECHNICIAN tidak diizinkan menduplikat master mesin.');
     return;
   }
@@ -2484,7 +2549,7 @@ async function saveMachineData() {
 }
 
 async function deleteMachine(id) {
-  if (activeUser.role === 'TECHNICIAN') {
+  if (!hasPermission('machines.manage')) {
     alert('Akses Ditolak: Level user TECHNICIAN tidak diizinkan menghapus data mesin.');
     return;
   }
@@ -2558,7 +2623,7 @@ function viewMachineDetails(id) {
       <div style="display:flex; gap:8px; align-items:center; margin-top:4px;">
         <input type="number" id="detail-added-hours" placeholder="Contoh: 1212" step="0.1" style="flex:1;">
         <button class="btn btn-primary" onclick="submitRunningHoursDetail(${m.id})">Kirim Update</button>
-        ${(activeUser.role === 'ADMIN' || activeUser.role === 'SUPERVISOR') ? `<button class="btn btn-red" onclick="resetMachineRunningHours(${m.id})" title="Reset Running Hours Mesin ke 0">🔄 Reset</button>` : ''}
+        ${hasPermission('running-hours.reset') ? `<button class="btn btn-red" onclick="resetMachineRunningHours(${m.id})" title="Reset Running Hours Mesin ke 0">🔄 Reset</button>` : ''}
       </div>
     </div>
   `;
@@ -2777,11 +2842,11 @@ function renderSparePartsTable() {
           <td data-label="Estimasi Tgl PM" class="sp-pm-date-cell" data-pm-date-part="${p.id}"><code>${calc.predicted_pm_date}</code></td>
           <td data-label="Actions">
             <div style="display:flex; gap:3px; flex-wrap:wrap; align-items:center;">
-              <button class="btn-action-icon" title="Log Replacement" onclick="openReplacementModal(${p.id})">🔧 Ganti</button>
-              ${(activeUser.role === 'ADMIN' || activeUser.role === 'SUPERVISOR') ? `<button class="btn-action-icon" title="Reset Running Hours" style="color:var(--color-orange);" onclick="resetSparePartHours(${p.id})">🔄 Reset</button>` : ''}
-              ${(activeUser.role === 'ADMIN' || activeUser.role === 'SUPERVISOR') ? `<button class="btn-action-icon" title="Salin / Duplikasi Varian Baru" style="color:var(--predictacore-cyan);" onclick="copySparePart(${p.id})">📋 Copy</button>` : ''}
-              <button class="btn-action-icon" title="Edit" onclick="openSparePartModal(${p.id})">✏️</button>
-              <button class="btn-action-icon" title="Delete" style="color:var(--color-red);" onclick="deleteSparePart(${p.id})">🗑️</button>
+              ${hasPermission('replacements.create') ? `<button class="btn-action-icon" title="Log Replacement" onclick="openReplacementModal(${p.id})">🔧 Ganti</button>` : ''}
+              ${hasPermission('running-hours.reset') ? `<button class="btn-action-icon" title="Reset Running Hours" style="color:var(--color-orange);" onclick="resetSparePartHours(${p.id})">🔄 Reset</button>` : ''}
+              ${hasPermission('spare-parts.manage') ? `<button class="btn-action-icon" title="Salin / Duplikasi Varian Baru" style="color:var(--predictacore-cyan);" onclick="copySparePart(${p.id})">📋 Copy</button>` : ''}
+              ${hasPermission('spare-parts.manage') ? `<button class="btn-action-icon" title="Edit" onclick="openSparePartModal(${p.id})">✏️</button>` : ''}
+              ${hasPermission('spare-parts.manage') ? `<button class="btn-action-icon" title="Delete" style="color:var(--color-red);" onclick="deleteSparePart(${p.id})">🗑️</button>` : ''}
             </div>
           </td>
         </tr>
@@ -2797,7 +2862,7 @@ function renderSparePartsTable() {
 }
 
 function openSparePartModal(id = null, isCopy = false) {
-  if (activeUser.role === 'TECHNICIAN') {
+  if (!hasPermission('spare-parts.manage')) {
     alert('Akses Ditolak: Level user TECHNICIAN tidak diizinkan memodifikasi master spare part.');
     return;
   }
@@ -2912,10 +2977,18 @@ function clearAllSparePartsData() {
   openResetAuthModal('CLEAR_PARTS', 'Kosongkan Data Master Spare Part', `Menghapus SELURUH ${currentCount} data master spare part saat ini untuk proses upload ulang. Membutuhkan otorisasi Password Admin.`);
 }
 
-function executeClearAllSparePartsData(authUser) {
+async function executeClearAllSparePartsData(authUser) {
   const currentCount = dbState.spare_parts ? dbState.spare_parts.length : 0;
+  try {
+    const response = await fetch('/api/master-data/spare-parts', { method: 'DELETE' });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.message || 'Backend menolak pengosongan master spare part.');
+  } catch (error) {
+    alert(error.message || String(error));
+    return;
+  }
   dbState.spare_parts = [];
-  saveDatabase();
+  localStorage.setItem('pm_system_db', JSON.stringify(dbState));
   logToConsole('SYSTEM', `SECURITY AUDIT: Seluruh data Master Spare Part (${currentCount} part) telah dikosongkan oleh ${authUser ? authUser.full_name : 'Admin'} (${authUser ? authUser.role : 'ADMIN'}) untuk upload ulang.`);
 
   renderSparePartsTable();
@@ -3198,7 +3271,7 @@ function processImportedRows(jsonRows) {
   }
 }
 
-function executeSparePartImport() {
+async function executeSparePartImport() {
   const validItems = pendingImportParts.filter(p => p.isValid);
   if (validItems.length === 0) {
     alert('Tidak ada baris data valid yang dapat diimpor.');
@@ -3224,7 +3297,19 @@ function executeSparePartImport() {
     });
   });
 
-  saveDatabase();
+  try {
+    const response = await fetch('/api/master-data/import', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ spare_parts: dbState.spare_parts })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.message || 'Backend menolak import spare part.');
+    localStorage.setItem('pm_system_db', JSON.stringify(dbState));
+  } catch (error) {
+    await loadDatabase();
+    alert(error.message || String(error));
+    return;
+  }
   logToConsole('SYSTEM', `${validItems.length} spare part baru diimpor dari file Excel/CSV oleh ${activeUser.full_name}.`);
   closeImportSparePartModal();
   alert(`Berhasil mengimpor ${validItems.length} spare part baru ke dalam Master Data!`);
@@ -3235,7 +3320,7 @@ function executeSparePartImport() {
 let pendingImportMachines = [];
 
 function openImportMachineModal() {
-  if (activeUser.role === 'TECHNICIAN') {
+  if (!hasPermission('imports.manage')) {
     alert('Akses Ditolak: Level user TECHNICIAN tidak diizinkan mengimpor master mesin.');
     return;
   }
@@ -3421,7 +3506,7 @@ function processImportedMachineRows(jsonRows) {
   }
 }
 
-function executeMachineImport() {
+async function executeMachineImport() {
   const validItems = pendingImportMachines.filter(m => m.isValid);
   if (validItems.length === 0) {
     alert('Tidak ada baris data valid yang dapat diimpor.');
@@ -3463,7 +3548,19 @@ function executeMachineImport() {
     }
   });
 
-  saveDatabase();
+  try {
+    const response = await fetch('/api/master-data/import', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ machines: dbState.machines })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.message || 'Backend menolak import master mesin.');
+    localStorage.setItem('pm_system_db', JSON.stringify(dbState));
+  } catch (error) {
+    await loadDatabase();
+    alert(error.message || String(error));
+    return;
+  }
   logToConsole('SYSTEM', `${validItems.length} Master Mesin (${newCount} Baru, ${updateCount} Diperbarui) diimpor dari Excel/CSV oleh ${activeUser.full_name}.`);
   closeImportMachineModal();
 
@@ -3577,7 +3674,7 @@ async function saveSparePartData() {
 }
 
 async function deleteSparePart(id) {
-  if (activeUser.role === 'TECHNICIAN') {
+  if (!hasPermission('spare-parts.manage')) {
     alert('Akses Ditolak: Level user TECHNICIAN tidak diizinkan menghapus spare part.');
     return;
   }
@@ -3644,7 +3741,7 @@ function closeReplacementModal() {
   document.getElementById('replacement-modal').classList.remove('active');
 }
 
-function saveReplacementDesktop() {
+async function saveReplacementDesktop() {
   const partId = parseInt(document.getElementById('desktop-replace-part-id').value);
   const qty = parseFloat(document.getElementById('desktop-replace-qty').value) || 1;
   const downtime = parseInt(document.getElementById('desktop-replace-downtime').value) || 0;
@@ -3652,9 +3749,27 @@ function saveReplacementDesktop() {
   const user = document.getElementById('desktop-replace-user').value.trim() || 'System';
   const notes = document.getElementById('desktop-replace-notes').value.trim();
 
-  replaceSparePartInDatabase(partId, user, downtime, cost, notes, '', qty);
-  closeReplacementModal();
-  renderSparePartsTable();
+  try {
+    const response = await fetch('/api/replacements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ part_id: partId, quantity: qty, downtime_minutes: downtime, cost, technician: user, notes })
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result || result.status !== 'success') {
+      throw new Error(result?.message || 'Pencatatan penggantian ditolak backend.');
+    }
+    const partIndex = dbState.spare_parts.findIndex(part => Number(part.id) === Number(partId));
+    if (partIndex >= 0 && result.spare_part) dbState.spare_parts[partIndex] = result.spare_part;
+    if (!Array.isArray(dbState.replacement_history)) dbState.replacement_history = [];
+    if (result.replacement) dbState.replacement_history.unshift(result.replacement);
+    localStorage.setItem('pm_system_db', JSON.stringify(dbState));
+    closeReplacementModal();
+    renderSparePartsTable();
+    updateUIPendingItems();
+  } catch (error) {
+    alert(`Gagal mencatat penggantian spare part:\n${error.message || error}`);
+  }
 }
 
 // Global Relational Logic for Replacement
@@ -3709,10 +3824,16 @@ function clearAllReplacementHistory() {
   openResetAuthModal('CLEAR_HISTORY', 'Kosongkan Riwayat Maintenance', `Menghapus SELURUH ${currentCount} data riwayat PM/penggantian part secara permanen. Membutuhkan otorisasi Password Admin.`);
 }
 
-function executeClearAllReplacementHistory(authUser) {
+async function executeClearAllReplacementHistory(authUser) {
   const currentCount = dbState.replacement_history ? dbState.replacement_history.length : 0;
+  const response = await fetch('/api/replacements', { method: 'DELETE' });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result || result.status !== 'success') {
+    alert(`Gagal mengosongkan riwayat: ${result?.message || 'Backend menolak permintaan.'}`);
+    return;
+  }
   dbState.replacement_history = [];
-  saveDatabase();
+  localStorage.setItem('pm_system_db', JSON.stringify(dbState));
   logToConsole('SYSTEM', `SECURITY AUDIT: Seluruh data Riwayat Maintenance (${currentCount} catatan) telah dikosongkan oleh ${authUser ? authUser.full_name : 'Admin'} (${authUser ? authUser.role : 'ADMIN'}).`);
 
   loadPreventiveMaintenanceData();
@@ -3805,6 +3926,10 @@ function viewFullPhoto(base64) {
 
 // Client Side Excel generator using Data URI Scheme
 function exportToExcel() {
+  if (!hasPermission('reports.export')) {
+    alert('Akses Ditolak: Anda tidak memiliki izin Export Laporan.');
+    return;
+  }
   let csv = 'Tanggal Penggantian,Spare Part,Kode Part,Nama Mesin,Teknisi,Downtime (Menit),Biaya Penggantian (IDR),Catatan\n';
   dbState.replacement_history.forEach(h => {
     const machine = dbState.machines.find(m => m.id === h.machine_id);
@@ -3825,6 +3950,10 @@ function exportToExcel() {
 
 // Client Side PDF export using formatted window print template
 function exportToPDF() {
+  if (!hasPermission('reports.export')) {
+    alert('Akses Ditolak: Anda tidak memiliki izin Export Laporan.');
+    return;
+  }
   // Create a beautiful print frame dynamically
   const printWindow = window.open('', '_blank');
   let tableRows = '';
@@ -5579,6 +5708,120 @@ function updateMachineSelectDropdowns() {
 
 // --- USER MANAGEMENT FUNCTIONS (ADMIN ONLY) ---
 
+let rbacSnapshot = null;
+
+function getRoleOptionsHTML(selectedRole = '') {
+  const roles = rbacSnapshot && Array.isArray(rbacSnapshot.roles)
+    ? rbacSnapshot.roles
+    : [
+        { code: 'ADMIN', name: 'Administrator' },
+        { code: 'SUPERVISOR', name: 'Supervisor' },
+        { code: 'TECHNICIAN', name: 'Technician' }
+      ];
+  return roles.map(role => `<option value="${_escapeDashboardText(role.code)}" ${role.code === selectedRole ? 'selected' : ''}>${_escapeDashboardText(role.code)} (${_escapeDashboardText(role.name)})</option>`).join('');
+}
+
+async function loadRbacMatrix() {
+  const status = document.getElementById('rbac-status');
+  if (!hasPermission('users.manage')) return;
+  if (status) {
+    status.className = 'rbac-status';
+    status.textContent = 'Memuat matriks permission dari backend...';
+  }
+
+  try {
+    const response = await fetch('/api/rbac', { cache: 'no-store' });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload) throw new Error(payload?.message || 'Matriks permission tidak dapat dimuat.');
+    rbacSnapshot = payload;
+    activePermissions = new Set(Array.isArray(payload.current_permissions) ? payload.current_permissions : Array.from(activePermissions));
+    renderRbacMatrix();
+    applyRolePermissions();
+    if (status) status.textContent = 'Matriks aktif. Perubahan akan diterapkan oleh backend pada request berikutnya.';
+  } catch (error) {
+    if (status) {
+      status.className = 'rbac-status error';
+      status.textContent = error.message || String(error);
+    }
+  }
+}
+
+function renderRbacMatrix() {
+  const head = document.getElementById('rbac-matrix-head');
+  const body = document.getElementById('rbac-matrix-body');
+  const descriptions = document.getElementById('rbac-role-descriptions');
+  if (!head || !body || !descriptions || !rbacSnapshot) return;
+
+  const roles = [...rbacSnapshot.roles].sort((a, b) => Number(a.displayOrder) - Number(b.displayOrder));
+  const canManageRbac = hasPermission('rbac.manage');
+  const saveButton = document.getElementById('save-rbac-matrix-button');
+  if (saveButton) saveButton.style.display = canManageRbac ? 'inline-flex' : 'none';
+  head.innerHTML = `<tr><th>Permission Backend</th>${roles.map(role => `<th>${_escapeDashboardText(role.code)}<br><small>${_escapeDashboardText(role.name)}</small></th>`).join('')}</tr>`;
+  descriptions.innerHTML = roles.map(role => `
+    <div class="rbac-role-description">
+      <label for="rbac-description-${_escapeDashboardText(role.code)}">${_escapeDashboardText(role.code)} — ${_escapeDashboardText(role.name)}</label>
+      <input id="rbac-description-${_escapeDashboardText(role.code)}" data-rbac-description="${_escapeDashboardText(role.code)}" value="${_escapeDashboardText(role.description || '')}" maxlength="240" ${canManageRbac ? '' : 'disabled'}>
+    </div>
+  `).join('');
+
+  let currentGroup = '';
+  body.innerHTML = rbacSnapshot.permissions.map(permission => {
+    const groupRow = permission.group !== currentGroup
+      ? `<tr class="rbac-group-row"><td colspan="${roles.length + 1}">${_escapeDashboardText(permission.group)}</td></tr>`
+      : '';
+    currentGroup = permission.group;
+    const cells = roles.map(role => {
+      const checked = Array.isArray(role.permissions) && role.permissions.includes(permission.code);
+      return `<td><input class="rbac-permission-toggle" type="checkbox" data-rbac-role="${_escapeDashboardText(role.code)}" data-rbac-permission="${_escapeDashboardText(permission.code)}" ${checked ? 'checked' : ''} ${canManageRbac ? '' : 'disabled'} aria-label="${_escapeDashboardText(role.code)}: ${_escapeDashboardText(permission.name)}"></td>`;
+    }).join('');
+    return `${groupRow}<tr><td class="rbac-permission-name"><strong>${_escapeDashboardText(permission.name)}</strong><small>${_escapeDashboardText(permission.description)}<br><code>${_escapeDashboardText(permission.code)}</code></small></td>${cells}</tr>`;
+  }).join('');
+}
+
+async function saveRbacMatrix() {
+  if (!rbacSnapshot || !hasPermission('rbac.manage')) {
+    alert('Akses Ditolak: Anda tidak memiliki permission untuk mengubah matriks RBAC.');
+    return;
+  }
+
+  const button = document.getElementById('save-rbac-matrix-button');
+  const status = document.getElementById('rbac-status');
+  const roles = [...rbacSnapshot.roles].sort((a, b) => a.code === activeUser.role ? 1 : b.code === activeUser.role ? -1 : 0);
+  if (button) button.disabled = true;
+  if (status) {
+    status.className = 'rbac-status';
+    status.textContent = 'Menyimpan dan memvalidasi matriks permission...';
+  }
+
+  try {
+    for (const role of roles) {
+      const permissions = Array.from(document.querySelectorAll(`[data-rbac-role="${role.code}"]:checked`))
+        .map(input => input.getAttribute('data-rbac-permission'))
+        .filter(Boolean);
+      const description = document.querySelector(`[data-rbac-description="${role.code}"]`)?.value || role.description;
+      const response = await fetch(`/api/rbac/roles/${encodeURIComponent(role.code)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description, permissions })
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.message || `Role ${role.code} gagal disimpan.`);
+    }
+    if (status) {
+      status.className = 'rbac-status success';
+      status.textContent = 'Matriks permission berhasil disimpan dan langsung aktif di backend.';
+    }
+    await loadRbacMatrix();
+  } catch (error) {
+    if (status) {
+      status.className = 'rbac-status error';
+      status.textContent = error.message || String(error);
+    }
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
 function renderUsersTable() {
   const tbody = document.getElementById('users-table-tbody');
   tbody.innerHTML = '';
@@ -5619,7 +5862,7 @@ function renderUsersTable() {
 }
 
 function openUserModal(id = null) {
-  if (activeUser.role !== 'ADMIN') {
+  if (!hasPermission('users.manage')) {
     alert('Akses Ditolak: Hanya Admin yang dapat mengelola user.');
     return;
   }
@@ -5632,11 +5875,7 @@ function openUserModal(id = null) {
   const passwordRequired = document.getElementById('modal-user-password-required');
   const roleIn = document.getElementById('modal-user-role');
 
-  const roleOptionsHTML = `
-    <option value="ADMIN">ADMIN (Full Access)</option>
-    <option value="SUPERVISOR">SUPERVISOR (Approval)</option>
-    <option value="TECHNICIAN">TECHNICIAN (Input &amp; Replace)</option>
-  `;
+  const roleOptionsHTML = getRoleOptionsHTML();
 
   if (id) {
     title.innerText = 'Edit Akun User';
@@ -5647,7 +5886,7 @@ function openUserModal(id = null) {
     passwordIn.value = '';
     passwordIn.placeholder = 'Kosongkan jika password tidak diubah';
     if (passwordRequired) passwordRequired.style.display = 'none';
-    roleIn.innerHTML = roleOptionsHTML;
+    roleIn.innerHTML = getRoleOptionsHTML(u.role);
     roleIn.value = u.role;
     usernameIn.disabled = false;
   } else {
@@ -5823,7 +6062,7 @@ document.addEventListener('fullscreenchange', () => {
     }
 
     // If exited fullscreen, check if it was authorized by an Admin
-    if (activeUser.role !== 'ADMIN' && !kioskBypassChange) {
+    if (!hasPermission('kiosk.manage') && !kioskBypassChange) {
       document.getElementById('kiosk-lock').classList.remove('hidden');
       document.getElementById('kiosk-admin-pass').value = '';
       document.getElementById('kiosk-lock-error').style.display = 'none';
@@ -5837,25 +6076,29 @@ function lockKioskBackToFullscreen() {
   requestKioskFullscreen();
 }
 
-function unlockKioskByAdmin() {
+async function unlockKioskByAdmin() {
   const password = document.getElementById('kiosk-admin-pass').value.trim();
   const errorEl = document.getElementById('kiosk-lock-error');
-
-  const matchedAdmin = dbState.users.find(u => u.role === 'ADMIN' && u.password === password);
-
-  if (matchedAdmin) {
+  if (!hasPermission('kiosk.manage')) {
+    errorEl.style.display = 'block';
+    return;
+  }
+  try {
+    const response = await fetch('/api/auth/reauthorize', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    if (!response.ok) throw new Error('Reautentikasi gagal.');
     kioskBypassChange = true;
     document.getElementById('kiosk-lock').classList.add('hidden');
-    logToConsole('SYSTEM', `Kiosk mode unlocked successfully by Admin: ${matchedAdmin.username}.`);
-    
-    changeUserRoleDirect(matchedAdmin);
-  } else {
+    logToConsole('SYSTEM', `Kiosk mode unlocked by ${activeUser.username}.`);
+  } catch (error) {
     errorEl.style.display = 'block';
   }
 }
 
 function kioskMinimizeApp() {
-  if (activeUser.role !== 'ADMIN') {
+  if (!hasPermission('kiosk.manage')) {
     alert('Akses Ditolak: Hanya Administrator yang dapat meminimalisir tampilan PredictaCore!');
     return;
   }
@@ -5868,7 +6111,7 @@ function kioskMinimizeApp() {
 }
 
 function kioskCloseApp() {
-  if (activeUser.role !== 'ADMIN') {
+  if (!hasPermission('kiosk.manage')) {
     alert('Akses Ditolak: Hanya Administrator yang dapat menutup/mematikan tampilan PredictaCore!');
     return;
   }
@@ -5913,14 +6156,8 @@ function openResetAuthModal(actionType, actionTitle, actionDescription, targetId
   if (descEl) descEl.innerText = actionDescription;
 
   if (userSelect) {
-    userSelect.innerHTML = '';
-    const authUsers = dbState.users.filter(u => u.role === 'ADMIN' || u.role === 'SUPERVISOR');
-    const displayUsers = authUsers.length > 0 ? authUsers : dbState.users;
-
-    displayUsers.forEach(u => {
-      const isCurrent = (activeUser && u.username === activeUser.username) ? 'selected' : '';
-      userSelect.innerHTML += `<option value="${u.username}" ${isCurrent}>${u.full_name} (${u.role}) - @${u.username}</option>`;
-    });
+    userSelect.innerHTML = `<option value="${_escapeDashboardText(activeUser.username)}" selected>${_escapeDashboardText(activeUser.full_name)} (${_escapeDashboardText(activeUser.role)}) - @${_escapeDashboardText(activeUser.username)}</option>`;
+    userSelect.disabled = true;
   }
 
   if (pwdInput) pwdInput.value = '';
@@ -5953,7 +6190,7 @@ async function confirmSecureReset() {
   const username = userSelect ? userSelect.value : '';
   const password = pwdInput ? pwdInput.value.trim() : '';
 
-  const authUser = dbState.users.find(u => u.username === username);
+  const authUser = username === activeUser.username ? activeUser : null;
 
   if (!authUser) {
     if (errorMsg) {
@@ -5963,32 +6200,38 @@ async function confirmSecureReset() {
     return;
   }
 
-  // Check role authorization
-  if (currentResetActionInfo.type === 'FACTORY_RESET' || currentResetActionInfo.type === 'IMPORT_PARTS' || currentResetActionInfo.type === 'CLEAR_PARTS' || currentResetActionInfo.type === 'CLEAR_HISTORY') {
-    if (authUser.role !== 'ADMIN') {
-      if (errorMsg) {
-        errorMsg.innerText = '⚠️ Akses Ditolak: Hanya Administrator yang memiliki wewenang untuk aktivitas ini.';
-        errorMsg.style.display = 'block';
-      }
-      return;
+  const permissionByResetAction = {
+    FACTORY_RESET: 'system.factory-reset',
+    IMPORT_PARTS: 'imports.manage',
+    CLEAR_PARTS: 'imports.manage',
+    CLEAR_HISTORY: 'history.clear',
+    BACKUP_SYSTEM: 'system.backup',
+    RESTORE_SYSTEM: 'system.restore',
+    RESET_ALL_HOURS: 'running-hours.reset',
+    RESET_ALL_PARTS_HOURS: 'running-hours.reset',
+    RESET_MACHINE_HOURS: 'running-hours.reset',
+    RESET_PART_HOURS: 'running-hours.reset'
+  };
+  const requiredPermission = permissionByResetAction[currentResetActionInfo.type];
+  const authorizingRole = rbacSnapshot?.roles?.find(role => role.code === authUser.role);
+  const authorizingPermissions = authUser.username === activeUser.username
+    ? Array.from(activePermissions)
+    : (Array.isArray(authorizingRole?.permissions) ? authorizingRole.permissions : []);
+  if (!requiredPermission || !authorizingPermissions.includes(requiredPermission)) {
+    if (errorMsg) {
+      errorMsg.innerText = '⚠️ Akses Ditolak: Role ini tidak memiliki permission untuk aktivitas tersebut.';
+      errorMsg.style.display = 'block';
     }
-  } else {
-    if (authUser.role !== 'ADMIN' && authUser.role !== 'SUPERVISOR') {
-      if (errorMsg) {
-        errorMsg.innerText = '⚠️ Akses Ditolak: Hanya Admin atau Supervisor yang dapat mengonfirmasi aktivitas ini.';
-        errorMsg.style.display = 'block';
-      }
-      return;
-    }
+    return;
   }
 
   // Validate Password / PIN using the centralized backend credential store.
   let isValidPassword = false;
   try {
-    const response = await fetch('/api/auth/login', {
+    const response = await fetch('/api/auth/reauthorize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ password })
     });
     const result = await response.json().catch(() => null);
     isValidPassword = response.ok && result?.status === 'success';
@@ -6018,6 +6261,7 @@ async function confirmSecureReset() {
       break;
 
     case 'RESET_ALL_HOURS':
+      await persistRunningHoursReset('ALL');
       dbState.machines.forEach(m => {
         m.running_hours_total = 0;
         m.running_hours_daily = 0;
@@ -6036,6 +6280,7 @@ async function confirmSecureReset() {
       break;
 
     case 'RESET_ALL_PARTS_HOURS':
+      await persistRunningHoursReset('ALL_PARTS');
       dbState.spare_parts.forEach(sp => {
         sp.current_running_hours = 0;
       });
@@ -6047,6 +6292,7 @@ async function confirmSecureReset() {
 
     case 'RESET_MACHINE_HOURS':
       if (actionInfo.targetId) {
+        await persistRunningHoursReset('MACHINE', actionInfo.targetId);
         const m = dbState.machines.find(mach => mach.id === actionInfo.targetId);
         if (m) {
           m.running_hours_total = 0;
@@ -6075,6 +6321,7 @@ async function confirmSecureReset() {
 
     case 'RESET_PART_HOURS':
       if (actionInfo.targetId) {
+        await persistRunningHoursReset('PART', actionInfo.targetId);
         const p = dbState.spare_parts.find(sp => sp.id === actionInfo.targetId);
         if (p) {
           const parentM = findMachineForSparePart(p);
@@ -6110,6 +6357,19 @@ async function confirmSecureReset() {
       executeClearAllReplacementHistory(authUser);
       break;
   }
+}
+
+async function persistRunningHoursReset(scope, targetId = null) {
+  const response = await fetch('/api/running-hours/reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scope, target_id: targetId })
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result || result.status !== 'success') {
+    throw new Error(result?.message || 'Backend menolak reset Running Hours.');
+  }
+  return result;
 }
 
 function resetAllRunningHours() {

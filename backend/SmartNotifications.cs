@@ -15,13 +15,15 @@ public static class SmartAssistantEndpoints
         group.MapGet("/notifications", async (
             SmartNotificationSource source,
             CancellationToken cancellationToken) =>
-            Results.Ok(await source.GetSnapshotAsync(cancellationToken)));
+            Results.Ok(await source.GetSnapshotAsync(cancellationToken)))
+            .RequirePermission(PermissionNames.DashboardView);
 
         group.MapGet("/preferences", async (
             string? username,
             SmartAssistantPreferenceStore preferences,
             CancellationToken cancellationToken) =>
-            Results.Ok(await preferences.ReadAsync(username, cancellationToken)));
+            Results.Ok(await preferences.ReadAsync(username, cancellationToken)))
+            .RequirePermission(PermissionNames.SettingsView);
 
         group.MapPut("/preferences", async (
             string? username,
@@ -31,7 +33,7 @@ public static class SmartAssistantEndpoints
         {
             var saved = await preferences.WriteAsync(username, request, cancellationToken);
             return Results.Ok(new { status = "success", preferences = saved });
-        });
+        }).RequirePermission(PermissionNames.SettingsManage);
 
         group.Map("/ws", async (
             HttpContext context,
@@ -81,7 +83,7 @@ public static class SmartAssistantEndpoints
                     catch (WebSocketException) { }
                 }
             }
-        });
+        }).RequirePermission(PermissionNames.DashboardView);
 
         return endpoints;
     }

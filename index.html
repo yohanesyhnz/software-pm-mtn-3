@@ -216,6 +216,24 @@
             </tbody>
           </table>
         </div>
+
+        <section class="rbac-management" aria-labelledby="rbac-management-title">
+          <div class="rbac-management-header">
+            <div>
+              <h3 id="rbac-management-title">Role &amp; Permission</h3>
+              <p>Atur matriks akses backend tanpa mengubah source code. Perubahan berlaku pada request API berikutnya.</p>
+            </div>
+            <button type="button" class="btn btn-success" id="save-rbac-matrix-button" onclick="saveRbacMatrix()">Simpan Matriks Permission</button>
+          </div>
+          <div class="rbac-status" id="rbac-status" role="status" aria-live="polite">Memuat matriks permission...</div>
+          <div class="rbac-role-descriptions" id="rbac-role-descriptions"></div>
+          <div class="table-container rbac-table-container">
+            <table class="data-table rbac-matrix-table">
+              <thead id="rbac-matrix-head"></thead>
+              <tbody id="rbac-matrix-body"></tbody>
+            </table>
+          </div>
+        </section>
       </section>
 
       <!-- TAB 3: MASTER SPARE PARTS -->

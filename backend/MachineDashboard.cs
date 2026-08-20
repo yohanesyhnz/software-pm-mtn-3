@@ -20,7 +20,8 @@ public static class MachineDashboardEndpoints
             bool? includeInactive,
             MachineDashboardSource source,
             CancellationToken cancellationToken) =>
-            Results.Ok(await source.GetSnapshotAsync(includeInactive == true, cancellationToken)));
+            Results.Ok(await source.GetSnapshotAsync(includeInactive == true, cancellationToken)))
+            .RequirePermission(PermissionNames.DashboardView);
 
         dashboard.MapPut("/order", async (
             MachineOrderRequest request,
@@ -36,7 +37,7 @@ public static class MachineDashboardEndpoints
 
             await source.SaveOrderAsync(request.MachineIds, cancellationToken);
             return Results.Ok(new { status = "success", message = "Urutan Machine Card berhasil disimpan." });
-        });
+        }).RequirePermission(PermissionNames.MachinesOrder);
 
         dashboard.Map("/ws", async (HttpContext context, MachineDashboardHub hub, MachineDashboardSource source) =>
         {
@@ -76,7 +77,7 @@ public static class MachineDashboardEndpoints
                     catch (WebSocketException) { }
                 }
             }
-        });
+        }).RequirePermission(PermissionNames.DashboardView);
 
         var machines = endpoints.MapGroup("/api/machines");
         machines.MapPut("/master/{machineId}", async (
@@ -90,7 +91,7 @@ public static class MachineDashboardEndpoints
 
             var saved = await source.SaveMasterAsync(machineId, request, cancellationToken);
             return Results.Ok(new { status = "success", machine = saved });
-        });
+        }).RequirePermission(PermissionNames.MachinesManage);
 
         machines.MapDelete("/master/{machineId}", async (
             string machineId,
@@ -101,7 +102,7 @@ public static class MachineDashboardEndpoints
             return deactivated
                 ? Results.Ok(new { status = "success", message = "Mesin dinonaktifkan. Histori dan relasi tetap dipertahankan." })
                 : Results.NotFound(new { status = "error", message = "Mesin tidak ditemukan." });
-        });
+        }).RequirePermission(PermissionNames.MachinesManage);
 
         machines.MapPost("/images", async (
             HttpRequest request,
@@ -112,7 +113,7 @@ public static class MachineDashboardEndpoints
             return result.Error is null
                 ? Results.Ok(new { status = "success", machineImageUrl = result.Url })
                 : Results.Json(new { status = "error", message = result.Error }, statusCode: result.StatusCode);
-        });
+        }).RequirePermission(PermissionNames.MachinesManage);
 
         machines.MapGet("/images/files/{fileName}", async (
             string fileName,
@@ -124,7 +125,7 @@ public static class MachineDashboardEndpoints
             if (result is null) return Results.NotFound();
             context.Response.Headers.CacheControl = "public,max-age=31536000,immutable";
             return Results.File(result.Value.Stream, result.Value.ContentType, enableRangeProcessing: true);
-        });
+        }).RequirePermission(PermissionNames.MachinesView);
 
         return endpoints;
     }

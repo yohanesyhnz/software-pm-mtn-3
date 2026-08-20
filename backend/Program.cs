@@ -1,14 +1,66 @@
 using System.Diagnostics;
 using System.Net.Sockets;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
-    policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+var dataProtectionDirectory = new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "data", "keys"));
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(dataProtectionDirectory)
+    .SetApplicationName("PredictaCore.CMMS");
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "PredictaCore.Session";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.SlidingExpiration = true;
+        options.Events.OnValidatePrincipal = async context =>
+        {
+            var rbac = context.HttpContext.RequestServices.GetRequiredService<RbacStore>();
+            if (await rbac.GetCurrentAccessAsync(context.Principal!, context.HttpContext.RequestAborted) is null)
+            {
+                context.RejectPrincipal();
+                await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            }
+        };
+        options.Events.OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        };
+    });
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
+builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-CSRF-TOKEN";
+    options.Cookie.Name = "PredictaCore.Csrf";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+});
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -25,6 +77,9 @@ builder.Services.AddRateLimiter(options =>
 });
 builder.Services.AddSingleton<StateStore>();
 builder.Services.AddSingleton<LocalUserCredentialStore>();
+builder.Services.AddSingleton<RbacStore>();
+builder.Services.AddSingleton<SecurityAuditStore>();
+builder.Services.AddHostedService<RbacBootstrapService>();
 builder.Services.AddSingleton<VersionManagementStore>();
 builder.Services.AddSingleton<VersionBackupService>();
 builder.Services.AddSingleton<SmartNotificationSource>();
@@ -42,8 +97,31 @@ builder.Services.AddSingleton<MachineStatePersistence>();
 builder.Services.AddHostedService<MachineDataAcquisitionService>();
 
 var app = builder.Build();
-app.UseCors();
 app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
+app.Use(async (context, next) =>
+{
+    if ((context.Request.Path.StartsWithSegments("/api") || context.Request.Path.Equals("/api.php")) &&
+        (HttpMethods.IsPost(context.Request.Method) ||
+         HttpMethods.IsPut(context.Request.Method) ||
+         HttpMethods.IsPatch(context.Request.Method) ||
+         HttpMethods.IsDelete(context.Request.Method)))
+    {
+        try
+        {
+            await context.RequestServices.GetRequiredService<IAntiforgery>().ValidateRequestAsync(context);
+        }
+        catch (AntiforgeryValidationException)
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.Headers["X-CSRF-Error"] = "1";
+            await context.Response.WriteAsJsonAsync(new { status = "error", message = "Token keamanan CSRF tidak valid atau telah kedaluwarsa." });
+            return;
+        }
+    }
+    await next();
+});
 app.UseWebSockets(new WebSocketOptions
 {
     KeepAliveInterval = TimeSpan.FromSeconds(20)
@@ -54,6 +132,8 @@ app.MapMachineDashboardApi();
 app.MapMachineMonitoringApi();
 app.MapUserManagementApi();
 app.MapSparePartManagementApi();
+app.MapRbacApi();
+app.MapMaintenanceOperationsApi();
 
 app.MapGet("/api/health", (StateStore store) => Results.Ok(new
 {
@@ -61,12 +141,21 @@ app.MapGet("/api/health", (StateStore store) => Results.Ok(new
     runtime = ".NET 10",
     database_exists = store.Exists,
     message = "PredictaCore ASP.NET Core Web API is ready."
-}));
+})).AllowAnonymous();
+
+app.MapGet("/api/auth/csrf", (HttpContext context, IAntiforgery antiforgery) =>
+{
+    var tokens = antiforgery.GetAndStoreTokens(context);
+    return Results.Ok(new { token = tokens.RequestToken });
+}).AllowAnonymous();
 
 app.MapPost("/api/auth/login", async (
     LoginRequest credentials,
+    HttpContext context,
     StateStore store,
     LocalUserCredentialStore credentialStore,
+    RbacStore rbacStore,
+    SecurityAuditStore auditStore,
     IConfiguration configuration,
     CancellationToken cancellationToken) =>
 {
@@ -81,13 +170,37 @@ app.MapPost("/api/auth/login", async (
             (item?["full_name"]?.GetValue<string>()?.Contains(credentials.Username.Trim(), StringComparison.OrdinalIgnoreCase) ?? false));
 
     if (user is null)
+    {
+        await auditStore.WriteAsync(new SecurityAuditEntry(DateTimeOffset.UtcNow, credentials.Username.Trim(), "UNKNOWN", "LOGIN", "session", "DENIED"), cancellationToken);
         return Results.Json(new { status = "error", message = "Username atau password tidak sesuai." }, statusCode: StatusCodes.Status401Unauthorized);
+    }
 
     var username = user["username"]?.GetValue<string>() ?? string.Empty;
     var passwordHash = await credentialStore.GetHashAsync(username, cancellationToken)
         ?? configuration[$"LocalAuthentication:Users:{username}:PasswordHash"];
     if (!LocalUserCredentialStore.VerifyPassword(credentials.Password, passwordHash))
+    {
+        await auditStore.WriteAsync(new SecurityAuditEntry(DateTimeOffset.UtcNow, username, user["role"]?.GetValue<string>() ?? "UNKNOWN", "LOGIN", "session", "DENIED"), cancellationToken);
         return Results.Json(new { status = "error", message = "Username atau password tidak sesuai." }, statusCode: StatusCodes.Status401Unauthorized);
+    }
+
+    await rbacStore.EnsureDefaultsAsync(cancellationToken);
+    var role = user["role"]?.GetValue<string>()?.Trim().ToUpperInvariant() ?? "TECHNICIAN";
+    var fullName = user["full_name"]?.GetValue<string>() ?? username;
+    var identity = new ClaimsIdentity(
+    [
+        new Claim(ClaimTypes.NameIdentifier, (user["id"]?.GetValue<int>() ?? 0).ToString()),
+        new Claim(ClaimTypes.Name, username),
+        new Claim(ClaimTypes.GivenName, fullName),
+        new Claim(ClaimTypes.Role, role)
+    ], CookieAuthenticationDefaults.AuthenticationScheme);
+    var principal = new ClaimsPrincipal(identity);
+    await context.SignInAsync(
+        CookieAuthenticationDefaults.AuthenticationScheme,
+        principal,
+        new AuthenticationProperties { IsPersistent = false, AllowRefresh = true });
+    var access = await rbacStore.GetCurrentAccessAsync(principal, cancellationToken);
+    await auditStore.WriteAsync(new SecurityAuditEntry(DateTimeOffset.UtcNow, username, role, "LOGIN", "session", "SUCCESS"), cancellationToken);
 
     return Results.Ok(new
     {
@@ -96,14 +209,59 @@ app.MapPost("/api/auth/login", async (
         {
             id = user["id"]?.GetValue<int>() ?? 0,
             username,
-            role = user["role"]?.GetValue<string>() ?? "TECHNICIAN",
-            full_name = user["full_name"]?.GetValue<string>() ?? username
-        }
+            role,
+            full_name = fullName
+        },
+        permissions = access?.Permissions ?? []
     });
-}).RequireRateLimiting("login");
+}).RequireRateLimiting("login").AllowAnonymous();
+
+app.MapGet("/api/auth/me", async (HttpContext context, RbacStore rbacStore, CancellationToken cancellationToken) =>
+{
+    var access = await rbacStore.GetCurrentAccessAsync(context.User, cancellationToken);
+    return access is null
+        ? Results.Unauthorized()
+        : Results.Ok(new
+        {
+            status = "success",
+            user = new { id = access.UserId, username = access.Username, role = access.Role, full_name = access.FullName },
+            permissions = access.Permissions
+        });
+}).RequireAuthorization();
+
+app.MapPost("/api/auth/logout", async (HttpContext context, SecurityAuditStore auditStore, CancellationToken cancellationToken) =>
+{
+    var username = context.User.Identity?.Name ?? "unknown";
+    var role = context.User.FindFirstValue(ClaimTypes.Role) ?? "UNKNOWN";
+    await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    await auditStore.WriteAsync(new SecurityAuditEntry(DateTimeOffset.UtcNow, username, role, "LOGOUT", "session", "SUCCESS"), cancellationToken);
+    return Results.Ok(new { status = "success" });
+}).RequireAuthorization();
+
+app.MapPost("/api/auth/reauthorize", async (
+    ReauthorizeRequest request,
+    HttpContext context,
+    LocalUserCredentialStore credentialStore,
+    IConfiguration configuration,
+    SecurityAuditStore auditStore,
+    CancellationToken cancellationToken) =>
+{
+    var username = context.User.Identity?.Name ?? string.Empty;
+    var role = context.User.FindFirstValue(ClaimTypes.Role) ?? "UNKNOWN";
+    var passwordHash = await credentialStore.GetHashAsync(username, cancellationToken)
+        ?? configuration[$"LocalAuthentication:Users:{username}:PasswordHash"];
+    var valid = !string.IsNullOrWhiteSpace(request.Password) &&
+                LocalUserCredentialStore.VerifyPassword(request.Password, passwordHash);
+    await auditStore.WriteAsync(new SecurityAuditEntry(
+        DateTimeOffset.UtcNow, username, role, "REAUTHORIZE", "sensitive-operation", valid ? "SUCCESS" : "DENIED"), cancellationToken);
+    return valid
+        ? Results.Ok(new { status = "success", validUntil = DateTimeOffset.UtcNow.AddMinutes(2) })
+        : Results.Json(new { status = "error", message = "Password/PIN tidak sesuai dengan session aktif." }, statusCode: StatusCodes.Status401Unauthorized);
+}).RequireAuthorization();
 
 app.MapGet("/api/state", async (StateStore store, CancellationToken cancellationToken) =>
-    Results.Json(await store.ReadAsync(cancellationToken)));
+    Results.Json(await store.ReadAsync(cancellationToken)))
+    .RequirePermission(PermissionNames.DashboardView);
 
 app.MapPut("/api/state", async (HttpRequest request, StateStore store, CancellationToken cancellationToken) =>
 {
@@ -113,7 +271,7 @@ app.MapPut("/api/state", async (HttpRequest request, StateStore store, Cancellat
 
     await store.WriteAsync(state, cancellationToken);
     return Results.Ok(new { status = "success", message = "Data terpusat berhasil tersimpan melalui ASP.NET Core Web API." });
-});
+}).RequirePermission(PermissionNames.SystemRestore);
 
 app.MapGet("/api/telemetry/poll", () => Results.Ok(new
 {
@@ -121,13 +279,15 @@ app.MapGet("/api/telemetry/poll", () => Results.Ok(new
     latency_ms = 0,
     machines = Array.Empty<object>(),
     source = "dotnet-web-api"
-}));
+})).RequirePermission(PermissionNames.DashboardView);
 
-app.MapGet("/api/plc/test", TestPlcAsync);
+app.MapGet("/api/plc/test", TestPlcAsync).RequirePermission(PermissionNames.IntegrationsManage);
 
 // Compatibility endpoint retained while the browser code is migrated from api.php URLs.
 app.MapMethods("/api.php", ["GET", "POST", "OPTIONS"], async (
     HttpRequest request,
+    HttpContext context,
+    IAuthorizationService authorizationService,
     StateStore store,
     CancellationToken cancellationToken) =>
 {
@@ -137,6 +297,15 @@ app.MapMethods("/api.php", ["GET", "POST", "OPTIONS"], async (
     var body = HttpMethods.IsPost(request.Method)
         ? await ReadJsonObjectAsync(request, cancellationToken)
         : null;
+
+    if (HttpMethods.IsPost(request.Method))
+    {
+        var authorization = await authorizationService.AuthorizeAsync(
+            context.User,
+            null,
+            new PermissionRequirement(PermissionNames.SystemRestore));
+        if (!authorization.Succeeded) return Results.Forbid();
+    }
 
     var action = request.Query["action"].FirstOrDefault()
         ?? body?["action"]?.GetValue<string>()
@@ -163,10 +332,10 @@ app.MapMethods("/api.php", ["GET", "POST", "OPTIONS"], async (
         "test_plc_ping" => await TestPlcAsync(request, cancellationToken),
         _ => Results.Json(await store.ReadAsync(cancellationToken))
     };
-});
+}).RequireAuthorization();
 
-app.MapGet("/sse.php", StreamTelemetryAsync);
-app.MapGet("/api/telemetry/stream", StreamTelemetryAsync);
+app.MapGet("/sse.php", StreamTelemetryAsync).RequirePermission(PermissionNames.DashboardView);
+app.MapGet("/api/telemetry/stream", StreamTelemetryAsync).RequirePermission(PermissionNames.DashboardView);
 
 app.Run();
 
@@ -323,6 +492,7 @@ static async Task<JsonObject?> ReadJsonObjectAsync(HttpRequest request, Cancella
 }
 
 sealed record LoginRequest(string Username, string Password);
+sealed record ReauthorizeRequest(string Password);
 
 sealed class StateStore(IWebHostEnvironment environment)
 {

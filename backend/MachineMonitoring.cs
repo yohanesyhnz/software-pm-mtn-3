@@ -997,7 +997,7 @@ public static class MachineMonitoringEndpoints
                     state.ConnectionStatus
                 })
             });
-        });
+        }).RequirePermission(PermissionNames.IntegrationsManage);
         return endpoints;
     }
 }
