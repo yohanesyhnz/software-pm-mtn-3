@@ -616,7 +616,6 @@ function refreshCurrentTabView() {
   if (currentTab === 'history') loadPreventiveMaintenanceData();
   if (currentTab === 'users') {
     renderUsersTable();
-    loadRbacMatrix();
   }
   populateLoginUserDropdown();
 }
@@ -765,6 +764,7 @@ function switchTab(tabName) {
   if (tabName === 'users') {
     renderUsersTable();
     loadRbacMatrix();
+    loadSecurityAuditLog();
   }
 }
 
@@ -787,8 +787,10 @@ function applyRolePermissions() {
   const navSystem = document.getElementById('nav-system');
   const navSettings = document.getElementById('nav-settings');
   const machineOrderToggle = document.getElementById('machine-order-toggle');
+  const securityAuditPanel = document.getElementById('security-audit-panel');
 
   if (addMachineBtn) addMachineBtn.style.display = hasPermission('machines.manage') ? 'inline-flex' : 'none';
+  if (securityAuditPanel) securityAuditPanel.style.display = hasPermission('audit.view') ? 'block' : 'none';
   if (addPartBtn) addPartBtn.style.display = hasPermission('spare-parts.manage') ? 'inline-flex' : 'none';
 
   // EXCLUSIVE ADMIN ACCESS: Import Parts, Clear Parts, Clear History, Import Machines, Reset All Parts
@@ -5816,6 +5818,57 @@ async function loadRbacMatrix() {
       status.className = 'rbac-status error';
       status.textContent = error.message || String(error);
     }
+  }
+}
+
+async function loadSecurityAuditLog() {
+  const panel = document.getElementById('security-audit-panel');
+  const status = document.getElementById('security-audit-status');
+  const tbody = document.getElementById('security-audit-body');
+  const button = document.getElementById('refresh-security-audit-button');
+  if (!panel || !status || !tbody) return;
+
+  if (!hasPermission('audit.view')) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = 'block';
+  status.className = 'security-audit-status';
+  status.textContent = 'Memuat aktivitas keamanan terbaru...';
+  if (button) button.disabled = true;
+
+  try {
+    const response = await fetch('/api/security/audit?limit=100', { cache: 'no-store' });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload || !Array.isArray(payload.entries)) {
+      throw new Error(payload?.message || 'Audit log keamanan tidak dapat dimuat.');
+    }
+
+    tbody.innerHTML = payload.entries.length > 0
+      ? payload.entries.map(entry => {
+          const timestamp = new Date(entry.timestamp);
+          const displayTime = Number.isNaN(timestamp.getTime())
+            ? '--'
+            : timestamp.toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium' });
+          const resultClass = String(entry.result || '').toUpperCase() === 'SUCCESS' ? 'success' : 'denied';
+          return `
+            <tr>
+              <td><time datetime="${_escapeDashboardText(entry.timestamp || '')}">${_escapeDashboardText(displayTime)}</time></td>
+              <td><strong>${_escapeDashboardText(entry.username || '--')}</strong><small>${_escapeDashboardText(entry.role || '--')}</small></td>
+              <td><code>${_escapeDashboardText(entry.action || '--')}</code></td>
+              <td>${_escapeDashboardText(entry.resource || '--')}</td>
+              <td><span class="security-audit-result ${resultClass}">${_escapeDashboardText(entry.result || '--')}</span></td>
+            </tr>`;
+        }).join('')
+      : '<tr><td colspan="5" class="security-audit-empty">Belum ada aktivitas keamanan yang tercatat.</td></tr>';
+    status.textContent = `${payload.entries.length} aktivitas terbaru ditampilkan. Catatan tersimpan permanen di backend.`;
+  } catch (error) {
+    status.className = 'security-audit-status error';
+    status.textContent = error.message || String(error);
+    tbody.innerHTML = '<tr><td colspan="5" class="security-audit-empty">Audit log belum tersedia.</td></tr>';
+  } finally {
+    if (button) button.disabled = false;
   }
 }
 

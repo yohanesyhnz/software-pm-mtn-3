@@ -1,19 +1,21 @@
 {
-  "version": "v6.0.2",
-  "previousVersion": "v6.0.1",
-  "build": "20260820.29",
+  "version": "v6.0.3",
+  "previousVersion": "v6.0.2",
+  "build": "20260820.30",
   "releaseDate": "2026-08-20",
   "commitType": "fix",
   "bump": "patch",
-  "summary": "prevent pre-login realtime requests from invalidating login sessions",
+  "summary": "stabilize RBAC status and expose security audit log",
   "changes": {
-    "newFeatures": [],
+    "newFeatures": [
+      "Security Audit Log viewer in User Management guarded by audit.view permission"
+    ],
     "improvements": [
-      "Protected dashboard queries and realtime connections now start only after server session validation"
+      "Responsive audit table with latest 100 backend security events"
     ],
     "fixed": [
-      "prevent pre-login realtime requests from invalidating login sessions",
-      "Login no longer gets cancelled by pre-authentication PLC or SSE 401 responses"
+      "stabilize RBAC status and expose security audit log",
+      "Role and Permission status no longer reloads every second with telemetry"
     ],
     "optimizations": [],
     "breakingChanges": [],

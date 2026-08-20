@@ -305,6 +305,36 @@ internal sealed class SecurityAuditStore(IWebHostEnvironment environment)
             _gate.Release();
         }
     }
+
+    public async Task<IReadOnlyList<SecurityAuditEntry>> ReadLatestAsync(int limit, CancellationToken cancellationToken)
+    {
+        var safeLimit = Math.Clamp(limit, 1, 500);
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (!File.Exists(_path)) return [];
+            var lines = await File.ReadAllLinesAsync(_path, cancellationToken);
+            var entries = new List<SecurityAuditEntry>(Math.Min(safeLimit, lines.Length));
+            for (var index = lines.Length - 1; index >= 0 && entries.Count < safeLimit; index--)
+            {
+                if (string.IsNullOrWhiteSpace(lines[index])) continue;
+                try
+                {
+                    var entry = System.Text.Json.JsonSerializer.Deserialize<SecurityAuditEntry>(lines[index]);
+                    if (entry is not null) entries.Add(entry);
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    // Keep the readable audit history available even if one legacy line is malformed.
+                }
+            }
+            return entries;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
 }
 
 internal static class RbacApi
@@ -314,6 +344,17 @@ internal static class RbacApi
         app.MapGet("/api/rbac", async (HttpContext context, RbacStore store, CancellationToken cancellationToken) =>
             Results.Ok(await store.GetSnapshotAsync(context.User, cancellationToken)))
             .RequirePermission(PermissionNames.UsersManage);
+
+        app.MapGet("/api/security/audit", async (
+            int? limit,
+            SecurityAuditStore auditStore,
+            CancellationToken cancellationToken) =>
+            Results.Ok(new
+            {
+                status = "success",
+                entries = await auditStore.ReadLatestAsync(limit ?? 100, cancellationToken)
+            }))
+            .RequirePermission(PermissionNames.AuditView);
 
         app.MapPut("/api/rbac/roles/{roleCode}", async (
             string roleCode,

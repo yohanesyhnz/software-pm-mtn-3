@@ -47,6 +47,19 @@ test('role and permission editor is available from user management', () => {
   assert.match(app, /fetch\(`\/api\/rbac\/roles\//);
 });
 
+test('security audit log is readable from user management with backend permission enforcement', () => {
+  assert.match(html, /id="security-audit-panel"[\s\S]*id="security-audit-body"/);
+  assert.match(app, /fetch\('\/api\/security\/audit\?limit=100'/);
+  assert.match(security, /MapGet\("\/api\/security\/audit"[\s\S]*PermissionNames\.AuditView/);
+  assert.match(security, /ReadLatestAsync\(int limit/);
+});
+
+test('telemetry refresh does not reload the RBAC editor every second', () => {
+  const refreshBlock = app.slice(app.indexOf('function refreshCurrentTabView()'), app.indexOf('function resetDbState()'));
+  assert.doesNotMatch(refreshBlock, /loadRbacMatrix/);
+  assert.match(app, /if \(tabName === 'users'\)[\s\S]*loadRbacMatrix\(\)[\s\S]*loadSecurityAuditLog\(\)/);
+});
+
 test('legacy compatibility scripts remain identical', () => {
   assert.equal(app, legacy);
 });

@@ -1004,7 +1004,14 @@ body {
 
 .rbac-management-header h3 { margin: 0 0 5px; color: var(--text-primary); }
 .rbac-management-header p { margin: 0; color: var(--text-secondary); font-size: 12px; }
-.rbac-status { margin-bottom: 12px; color: var(--predictacore-cyan); font-size: 12px; }
+.rbac-status {
+  min-height: 34px;
+  margin-bottom: 12px;
+  color: var(--predictacore-cyan);
+  font-size: 12px;
+  line-height: 17px;
+  overflow-wrap: anywhere;
+}
 .rbac-status.error { color: var(--color-red); }
 .rbac-status.success { color: var(--color-green); }
 
@@ -1035,10 +1042,43 @@ body {
 .rbac-permission-toggle { width: 18px; height: 18px; accent-color: var(--predictacore-cyan); cursor: pointer; }
 .rbac-group-row td { color: var(--predictacore-cyan); background: rgba(0, 229, 255, 0.08); font-size: 10px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
 
+.security-audit-panel {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-color);
+}
+
+.security-audit-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.security-audit-header h4 { margin: 0 0 5px; color: var(--text-primary); font-size: 15px; }
+.security-audit-header p { margin: 0; color: var(--text-secondary); font-size: 12px; }
+.security-audit-status { min-height: 20px; margin-bottom: 10px; color: var(--predictacore-cyan); font-size: 11px; line-height: 16px; }
+.security-audit-status.error { color: var(--color-red); }
+.security-audit-table-container { max-height: min(48vh, 520px); overflow: auto; }
+.security-audit-table { min-width: 760px; }
+.security-audit-table td { white-space: normal; vertical-align: top; }
+.security-audit-table td:first-child { min-width: 150px; }
+.security-audit-table td:nth-child(2) { min-width: 130px; }
+.security-audit-table td:nth-child(2) strong,
+.security-audit-table td:nth-child(2) small { display: block; }
+.security-audit-table td:nth-child(2) small { margin-top: 3px; color: var(--text-secondary); }
+.security-audit-result { display: inline-flex; padding: 3px 7px; border-radius: 999px; font-size: 9px; font-weight: 900; letter-spacing: .04em; }
+.security-audit-result.success { color: var(--color-green); background: rgba(16, 185, 129, .12); }
+.security-audit-result.denied { color: var(--color-red); background: rgba(244, 63, 94, .12); }
+.security-audit-empty { padding: 20px !important; color: var(--text-secondary); text-align: center; }
+
 @media (max-width: 700px) {
   .rbac-management { padding: 12px; }
   .rbac-management-header { flex-direction: column; }
   .rbac-management-header .btn { width: 100%; }
+  .security-audit-header { flex-direction: column; }
+  .security-audit-header .btn { width: 100%; }
 }
 
 .user-theme-modal {

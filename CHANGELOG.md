@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [6.0.3] - 2026-08-20
+
+### New Features
+
+- Security Audit Log viewer in User Management guarded by audit.view permission
+
+### Improvements
+
+- Responsive audit table with latest 100 backend security events
+
+### Fixed
+
+- stabilize RBAC status and expose security audit log
+- Role and Permission status no longer reloads every second with telemetry
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [6.0.2] - 2026-08-20
 
 ### New Features

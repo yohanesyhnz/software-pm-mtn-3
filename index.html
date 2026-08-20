@@ -555,6 +555,33 @@
               <tbody id="rbac-matrix-body"></tbody>
             </table>
           </div>
+
+          <section class="security-audit-panel" id="security-audit-panel" aria-labelledby="security-audit-title">
+            <div class="security-audit-header">
+              <div>
+                <h4 id="security-audit-title">Audit Log Keamanan</h4>
+                <p>Riwayat login, logout, otorisasi, dan perubahan Role &amp; Permission dari backend.</p>
+              </div>
+              <button type="button" class="btn btn-outline" id="refresh-security-audit-button" onclick="loadSecurityAuditLog()">Muat Ulang Audit</button>
+            </div>
+            <div class="security-audit-status" id="security-audit-status" role="status" aria-live="polite">Audit log siap dimuat.</div>
+            <div class="table-container security-audit-table-container">
+              <table class="data-table security-audit-table">
+                <thead>
+                  <tr>
+                    <th>Waktu</th>
+                    <th>User / Role</th>
+                    <th>Aktivitas</th>
+                    <th>Resource</th>
+                    <th>Hasil</th>
+                  </tr>
+                </thead>
+                <tbody id="security-audit-body">
+                  <tr><td colspan="5" class="security-audit-empty">Memuat audit log...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
         </section>
       </section>
 
