@@ -232,27 +232,9 @@ function silentAutoSyncFromSynology() {
         const newHash = getCleanSyncState(data);
 
         if (curHash !== newHash) {
-          // Merge data to preserve local running telemetry stats for both machines and spare parts
-          if (Array.isArray(data.machines)) {
-            data.machines.forEach(newM => {
-              const localM = dbState.machines.find(m => 
-                Number(m.id) === Number(newM.id) || 
-                m.id == newM.id || 
-                (m.asset_number && newM.asset_number && m.asset_number.trim().toLowerCase() === newM.asset_number.trim().toLowerCase())
-              );
-              if (localM) {
-                if (localM.plc_enabled !== false) {
-                  newM.running_hours_total = localM.running_hours_total !== undefined ? localM.running_hours_total : newM.running_hours_total;
-                  newM.running_hours_daily = localM.running_hours_daily !== undefined ? localM.running_hours_daily : newM.running_hours_daily;
-                  newM.running_hours_weekly = localM.running_hours_weekly !== undefined ? localM.running_hours_weekly : newM.running_hours_weekly;
-                  newM.running_hours_monthly = localM.running_hours_monthly !== undefined ? localM.running_hours_monthly : newM.running_hours_monthly;
-                  newM.counter_product = localM.counter_product !== undefined ? localM.counter_product : newM.counter_product;
-                  newM.status = localM.status || newM.status;
-                  newM.telemetry_status = localM.telemetry_status || newM.telemetry_status;
-                }
-              }
-            });
-          }
+          // Status, nilai proses, dan running hours adalah milik backend. Jangan
+          // mempertahankan telemetry browser lama karena dapat menimpa STOPPED
+          // terbaru dengan RUNNING yang tersimpan di localStorage.
           if (Array.isArray(data.spare_parts)) {
             data.spare_parts.forEach(newSp => {
               const localSp = dbState.spare_parts.find(sp => 
@@ -266,6 +248,7 @@ function silentAutoSyncFromSynology() {
             });
           }
           dbState = data;
+          applyLastMachineRealtimeSnapshot();
           localStorage.setItem('pm_system_db', JSON.stringify(dbState));
           refreshCurrentTabView();
           updateMachineSelectDropdowns();
@@ -506,6 +489,7 @@ function fallbackLocalDb() {
       const parsed = JSON.parse(localDb);
       if (parsed.machines) {
         dbState = parsed;
+        applyLastMachineRealtimeSnapshot();
       } else {
         resetDbState();
       }
@@ -861,7 +845,164 @@ function closeLoginModal() {
   }
 }
 
+let machineRealtimeSocket = null;
+let machineRealtimeReconnectTimer = null;
+let machineRealtimeFallbackTimer = null;
+let lastMachineRealtimeSnapshot = null;
+let machineRealtimeGeneration = 0;
+
+function normalizeAuthoritativeMachineStatus(value) {
+  const normalized = String(value || 'DATA UNAVAILABLE').trim().toUpperCase().replaceAll('_', ' ');
+  const supported = new Set([
+    'RUNNING', 'STOPPED', 'IDLE', 'ALARM', 'MAINTENANCE',
+    'DATA OFFLINE', 'DATA UNAVAILABLE', 'DATABASE OFFLINE'
+  ]);
+  return supported.has(normalized) ? normalized : 'DATA UNAVAILABLE';
+}
+
+function findLegacyMachineForRealtime(remoteMachine) {
+  if (!remoteMachine || !Array.isArray(dbState.machines)) return null;
+  const remoteId = String(remoteMachine.machineId || '').trim().toLowerCase();
+  const remoteCode = String(remoteMachine.machineCode || '').trim().toLowerCase();
+  const remoteLegacyId = Number(remoteMachine.legacyId);
+
+  return dbState.machines.find(machine => {
+    if (Number.isFinite(remoteLegacyId) && Number(machine.id) === remoteLegacyId) return true;
+    const candidates = [machine.machine_id, machine.machine_code, machine.asset_number]
+      .map(value => String(value || '').trim().toLowerCase())
+      .filter(Boolean);
+    return (remoteId && candidates.includes(remoteId)) || (remoteCode && candidates.includes(remoteCode));
+  }) || null;
+}
+
+function finiteRealtimeNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function applyMachineRealtimeSnapshot(snapshot) {
+  if (!snapshot || !Array.isArray(snapshot.machines) || !Array.isArray(dbState.machines)) return false;
+  lastMachineRealtimeSnapshot = snapshot;
+  let changed = false;
+  let statusChanged = false;
+  const synchronizedMachines = [];
+
+  snapshot.machines.forEach(remoteMachine => {
+    const machine = findLegacyMachineForRealtime(remoteMachine);
+    if (!machine) return;
+
+    const nextStatus = normalizeAuthoritativeMachineStatus(remoteMachine.status);
+    const nextRunningHours = finiteRealtimeNumber(remoteMachine.runningHours);
+    const nextParameterValue = finiteRealtimeNumber(remoteMachine.parameterValue);
+    const nextCounter = finiteRealtimeNumber(remoteMachine.counter);
+    const nextSpeed = finiteRealtimeNumber(remoteMachine.speed);
+    const previousStatus = normalizeAuthoritativeMachineStatus(machine.status);
+    const previousRunningHours = Number(machine.running_hours_total);
+
+    machine.status = nextStatus;
+    machine.telemetry_status = nextStatus;
+    machine.connection_status = remoteMachine.connectionStatus || 'DATA UNAVAILABLE';
+    machine.realtime_updated_at = remoteMachine.realtimeUpdatedAt || snapshot.updatedAt || null;
+    machine.source_timestamp = remoteMachine.sourceTimestamp || null;
+    machine.parameter_name = remoteMachine.parameterName || machine.parameter_name || '';
+    machine.parameter_type = remoteMachine.parameterType || machine.parameter_type || '';
+    machine.parameter_unit = remoteMachine.parameterUnit || machine.parameter_unit || '';
+
+    if (nextRunningHours !== null) machine.running_hours_total = Math.max(0, nextRunningHours);
+    if (nextParameterValue !== null) machine.parameter_value = nextParameterValue;
+    if (nextCounter !== null) machine.counter = nextCounter;
+    if (nextSpeed !== null) machine.speed = nextSpeed;
+    if (nextParameterValue !== null) machine.counter_product = nextParameterValue;
+    const nextSecondaryValue = finiteRealtimeNumber(remoteMachine.secondaryParameterValue);
+    if (nextSecondaryValue !== null) {
+      machine.secondary_parameter_value = nextSecondaryValue;
+    }
+
+    changed = changed || previousStatus !== nextStatus ||
+      (nextRunningHours !== null && previousRunningHours !== nextRunningHours);
+    statusChanged = statusChanged || previousStatus !== nextStatus;
+    synchronizedMachines.push(machine);
+  });
+
+  // Spare-part usage always derives from the same authoritative machine hours.
+  syncAllSparePartsWithMachineRunningHours();
+  try { localStorage.setItem('pm_system_db', JSON.stringify(dbState)); } catch (error) {
+    console.warn('Cache realtime mesin tidak dapat diperbarui:', error);
+  }
+
+  if (currentTab === 'machines') {
+    if (statusChanged) renderMachinesTable();
+    else synchronizedMachines.forEach(_updateMachineRowInDOM);
+  }
+  if (currentTab === 'spareparts') {
+    dbState.spare_parts.forEach(_updateSparePartRunningHoursInDOM);
+  }
+  if (currentTab === 'integrations' && changed) renderPlcMappingTable();
+  return changed;
+}
+
+function applyLastMachineRealtimeSnapshot() {
+  if (lastMachineRealtimeSnapshot) applyMachineRealtimeSnapshot(lastMachineRealtimeSnapshot);
+}
+
+async function fetchMachineRealtimeSnapshot() {
+  if (predictaCoreAuthState !== 'authenticated') return;
+  try {
+    const response = await fetch('/api/machine-dashboard', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    applyMachineRealtimeSnapshot(await response.json());
+  } catch (error) {
+    console.warn('Snapshot realtime mesin belum tersedia:', error);
+  }
+}
+
+function startMachineRealtimeSynchronization() {
+  stopMachineRealtimeSynchronization();
+  if (predictaCoreAuthState !== 'authenticated') return;
+  const generation = ++machineRealtimeGeneration;
+
+  fetchMachineRealtimeSnapshot();
+  machineRealtimeFallbackTimer = setInterval(() => {
+    if (!machineRealtimeSocket || machineRealtimeSocket.readyState !== WebSocket.OPEN) {
+      fetchMachineRealtimeSnapshot();
+    }
+  }, 2000);
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  machineRealtimeSocket = new WebSocket(`${protocol}//${window.location.host}/api/machine-dashboard/ws`);
+  machineRealtimeSocket.addEventListener('message', event => {
+    try {
+      const payload = JSON.parse(event.data);
+      if (payload && payload.type === 'snapshot' && payload.data) applyMachineRealtimeSnapshot(payload.data);
+    } catch (error) {
+      console.error('Snapshot realtime mesin tidak valid:', error);
+    }
+  });
+  machineRealtimeSocket.addEventListener('close', () => {
+    machineRealtimeSocket = null;
+    if (predictaCoreAuthState === 'authenticated' && machineRealtimeGeneration === generation) {
+      machineRealtimeReconnectTimer = setTimeout(startMachineRealtimeSynchronization, 3000);
+    }
+  });
+  machineRealtimeSocket.addEventListener('error', () => machineRealtimeSocket?.close());
+}
+
+function stopMachineRealtimeSynchronization() {
+  machineRealtimeGeneration += 1;
+  if (machineRealtimeReconnectTimer) clearTimeout(machineRealtimeReconnectTimer);
+  if (machineRealtimeFallbackTimer) clearInterval(machineRealtimeFallbackTimer);
+  machineRealtimeReconnectTimer = null;
+  machineRealtimeFallbackTimer = null;
+  if (machineRealtimeSocket) {
+    const socket = machineRealtimeSocket;
+    machineRealtimeSocket = null;
+    socket.close();
+  }
+}
+
 function stopAuthenticatedApplicationServices() {
+  stopMachineRealtimeSynchronization();
   if (autoRefreshTimer) {
     clearInterval(autoRefreshTimer);
     autoRefreshTimer = null;
@@ -893,8 +1034,9 @@ function startAuthenticatedApplicationServices() {
   if (predictaCoreAuthState !== 'authenticated') return;
   loadDatabase();
   startAutoSyncPolling();
-  startTelemetrySyncLoop();
-  startSseTelemetryEngine();
+  // Dashboard, Master Mesin, dan Master Spare Part menggunakan snapshot backend
+  // yang sama. Browser tidak lagi menghitung status/running hours sendiri.
+  startMachineRealtimeSynchronization();
 }
 
 function applyAuthenticatedSession(result, announce = true) {

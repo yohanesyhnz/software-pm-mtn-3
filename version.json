@@ -1,19 +1,19 @@
 {
-  "version": "v7.1.1",
-  "previousVersion": "v7.1.0",
-  "build": "20260821.36",
+  "version": "v7.1.2",
+  "previousVersion": "v7.1.1",
+  "build": "20260821.37",
   "releaseDate": "2026-08-21",
   "commitType": "fix",
   "bump": "patch",
-  "summary": "restore production line filter in machine master",
+  "summary": "synchronize machine status across dashboard and maintenance masters",
   "changes": {
     "newFeatures": [],
     "improvements": [
-      "Consolidated machine dropdown population into one source of truth"
+      "Removed browser-side status and running-hours drift"
     ],
     "fixed": [
-      "restore production line filter in machine master",
-      "LINE 07 and LINE 08 options remain available in Master Mesin"
+      "synchronize machine status across dashboard and maintenance masters",
+      "Dashboard, Master Mesin, and Master Spare Part now consume one authoritative backend realtime snapshot"
     ],
     "optimizations": [],
     "breakingChanges": [],

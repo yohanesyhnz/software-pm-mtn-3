@@ -124,6 +124,19 @@ test("legacy NAS machine ids resolve to the canonical realtime configuration", (
   assert.match(dashboard, /TryGet\(item\.MachineId, item\.LegacyId, out var runtime\)/);
 });
 
+test("dashboard, machine master and spare-part usage share the authoritative backend snapshot", () => {
+  const legacy = read("app.js");
+  assert.match(legacy, /new WebSocket\(`\$\{protocol\}\/\/\$\{window\.location\.host\}\/api\/machine-dashboard\/ws`\)/);
+  assert.match(legacy, /machine\.status = nextStatus;/);
+  assert.match(legacy, /machine\.telemetry_status = nextStatus;/);
+  assert.match(legacy, /machine\.running_hours_total = Math\.max\(0, nextRunningHours\)/);
+  assert.match(legacy, /syncAllSparePartsWithMachineRunningHours\(\);/);
+  assert.match(legacy, /synchronizedMachines\.forEach\(_updateMachineRowInDOM\)/);
+  assert.match(legacy, /dbState\.spare_parts\.forEach\(_updateSparePartRunningHoursInDOM\)/);
+  assert.doesNotMatch(legacy, /startAuthenticatedApplicationServices\(\)[\s\S]{0,300}startTelemetrySyncLoop\(\)/);
+  assert.doesNotMatch(legacy, /newM\.status = localM\.status \|\| newM\.status/);
+});
+
 test("WebSocket clients may disconnect without polluting server error logs", () => {
   const sockets = read("backend/MachineDashboard.cs") + read("backend/SmartNotifications.cs");
   assert.equal((sockets.match(/catch \(WebSocketException\)/g) ?? []).length, 4);

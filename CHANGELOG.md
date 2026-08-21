@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [7.1.2] - 2026-08-21
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Removed browser-side status and running-hours drift
+
+### Fixed
+
+- synchronize machine status across dashboard and maintenance masters
+- Dashboard, Master Mesin, and Master Spare Part now consume one authoritative backend realtime snapshot
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [7.1.1] - 2026-08-21
 
 ### New Features
