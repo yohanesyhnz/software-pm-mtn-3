@@ -66,6 +66,30 @@ test("spare-parts table is readable in light mode and adapts locally", () => {
   assert.match(css, /#panel-spareparts \.spareparts-responsive-table tbody td::before\s*\{[^}]*content:\s*attr\(data-label\);/s);
 });
 
+test("master machine uses a responsive digital asset control center", () => {
+  const html = sourceFiles.find(({ path }) => path.endsWith("index.html"))?.contents ?? "";
+  const css = sourceFiles.find(({ path }) => path.endsWith("style.css"))?.contents ?? "";
+  const app = sourceFiles.find(({ path }) => path.endsWith("app.js"))?.contents ?? "";
+  const machinePanel = html.slice(html.indexOf('id="panel-machines"'), html.indexOf('id="panel-spareparts"'));
+
+  assert.match(machinePanel, /class="machine-master-hero"/);
+  assert.match(machinePanel, /DIGITAL ASSET REGISTRY/);
+  assert.match(machinePanel, /id="machine-stat-total"/);
+  assert.match(machinePanel, /id="machine-stat-active"/);
+  assert.match(machinePanel, /id="machine-stat-lines"/);
+  assert.match(machinePanel, /id="machine-stat-running"/);
+  assert.match(machinePanel, /id="machine-filter-status"/);
+  assert.match(machinePanel, /class="data-table machine-registry-table"/);
+  assert.match(css, /\.machine-master-stats\s*\{[^}]*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\);/s);
+  assert.match(css, /@media \(max-width: 700px\)[^{]*\{[\s\S]*?#panel-machines \.machine-registry-table tbody tr\s*\{[^}]*display:\s*grid;/s);
+  assert.match(css, /#panel-machines \.machine-registry-table td::before\s*\{[^}]*content:\s*attr\(data-label\);/s);
+  assert.match(css, /:root\[data-theme="light"\] \.machine-master-hero/);
+  assert.match(app, /'machine-stat-total': allMachines\.length/);
+  assert.match(app, /statusFilter === 'INACTIVE'/);
+  assert.match(app, /class="machine-row-actions"/);
+  assert.match(app, /data-label="Nama Mesin"/);
+});
+
 test("real-time machine status sits directly below the KPI summary and adapts to narrow screens", () => {
   const html = sourceFiles.find(({ path }) => path.endsWith("index.html"))?.contents ?? "";
   const css = sourceFiles.find(({ path }) => path.endsWith("style.css"))?.contents ?? "";

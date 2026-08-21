@@ -182,23 +182,89 @@
 
       <!-- TAB 2: MASTER MESIN -->
       <section class="tab-panel" id="panel-machines">
-        <div class="action-bar">
-          <div class="search-box">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="machine-search-input" placeholder="Cari nama mesin, asset number..." oninput="renderMachinesTable()">
-          </div>
-          <div class="filter-group" style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <select id="machine-filter-line" onchange="renderMachinesTable()" style="min-width: 170px;">
-              <option value="">Semua Line Produksi</option>
-            </select>
-          </div>
-          <button class="btn btn-orange" onclick="syncDatabaseToSynologyManual()" style="display:inline-flex; align-items:center; gap:6px;">☁️ Sync Database ke Synology</button>
-          <button class="btn btn-primary" id="import-machine-btn" onclick="openImportMachineModal()" style="display: inline-flex; align-items: center; gap: 6px;">📥 Import Excel / CSV</button>
-          <button class="btn btn-success" id="add-machine-btn" onclick="openMachineModal()">+ Tambah Mesin</button>
-        </div>
+        <div class="machine-master-shell">
+          <header class="machine-master-hero">
+            <div class="machine-master-hero-copy">
+              <div class="machine-master-emblem" aria-hidden="true"><span>⚙</span></div>
+              <div>
+                <span class="machine-master-eyebrow">DIGITAL ASSET REGISTRY</span>
+                <h2>Machine Master Control Center</h2>
+                <p>Kelola identitas, konektivitas, dan kesiapan seluruh aset produksi dari satu workspace.</p>
+              </div>
+            </div>
+            <div class="machine-master-live" role="status" aria-live="polite">
+              <span class="machine-master-live-dot" aria-hidden="true"></span>
+              MASTER DATA ONLINE
+            </div>
+          </header>
 
-        <div class="table-container">
-          <table class="data-table">
+          <div class="machine-master-stats" aria-label="Ringkasan master mesin">
+            <article class="machine-stat-card machine-stat-card-cyan">
+              <span class="machine-stat-icon" aria-hidden="true">▦</span>
+              <div><span>Total Mesin</span><strong id="machine-stat-total">0</strong></div>
+              <small>Asset terdaftar</small>
+            </article>
+            <article class="machine-stat-card machine-stat-card-green">
+              <span class="machine-stat-icon" aria-hidden="true">✓</span>
+              <div><span>Asset Aktif</span><strong id="machine-stat-active">0</strong></div>
+              <small>Siap dipantau</small>
+            </article>
+            <article class="machine-stat-card machine-stat-card-violet">
+              <span class="machine-stat-icon" aria-hidden="true">⌁</span>
+              <div><span>Line Produksi</span><strong id="machine-stat-lines">0</strong></div>
+              <small>Area terhubung</small>
+            </article>
+            <article class="machine-stat-card machine-stat-card-amber">
+              <span class="machine-stat-icon" aria-hidden="true">◉</span>
+              <div><span>Sedang Running</span><strong id="machine-stat-running">0</strong></div>
+              <small>Status realtime</small>
+            </article>
+          </div>
+
+          <section class="machine-master-workspace" aria-labelledby="machine-registry-title">
+            <div class="machine-master-toolbar">
+              <div class="machine-master-discovery">
+                <label class="machine-filter-field machine-search-field" for="machine-search-input">
+                  <span>Pencarian Aset</span>
+                  <span class="machine-search-control">
+                    <span class="search-icon" aria-hidden="true">⌕</span>
+                    <input type="search" id="machine-search-input" placeholder="Nama mesin, kode aset, line..." oninput="renderMachinesTable()">
+                  </span>
+                </label>
+                <label class="machine-filter-field" for="machine-filter-line">
+                  <span>Line Produksi</span>
+                  <select id="machine-filter-line" onchange="renderMachinesTable()">
+                    <option value="">Semua Line Produksi</option>
+                  </select>
+                </label>
+                <label class="machine-filter-field" for="machine-filter-status">
+                  <span>Status Mesin</span>
+                  <select id="machine-filter-status" onchange="renderMachinesTable()">
+                    <option value="">Semua Status</option>
+                    <option value="RUNNING">Running</option>
+                    <option value="STOPPED">Stopped</option>
+                    <option value="DATA UNAVAILABLE">Data Unavailable</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                </label>
+              </div>
+              <div class="machine-master-actions" aria-label="Aksi master mesin">
+                <button class="btn machine-btn machine-btn-sync" onclick="syncDatabaseToSynologyManual()"><span aria-hidden="true">↻</span> Sync NAS</button>
+                <button class="btn machine-btn machine-btn-import" id="import-machine-btn" onclick="openImportMachineModal()"><span aria-hidden="true">⇩</span> Import Data</button>
+                <button class="btn machine-btn machine-btn-add" id="add-machine-btn" onclick="openMachineModal()"><span aria-hidden="true">＋</span> Tambah Mesin</button>
+              </div>
+            </div>
+
+            <div class="machine-registry-heading">
+              <div>
+                <span class="machine-registry-kicker">ASSET DIRECTORY</span>
+                <h3 id="machine-registry-title">Daftar Mesin Produksi</h3>
+              </div>
+              <span class="machine-result-count" id="machine-result-count">0 mesin ditampilkan</span>
+            </div>
+
+            <div class="table-container machine-registry-table-wrap">
+              <table class="data-table machine-registry-table">
             <thead>
               <tr>
                 <th>Nama Mesin</th>
@@ -214,9 +280,10 @@
             <tbody id="machines-table-tbody">
               <!-- Loaded dynamically -->
             </tbody>
-          </table>
+              </table>
+            </div>
+          </section>
         </div>
-
       </section>
 
       <!-- TAB 3: MASTER SPARE PARTS -->

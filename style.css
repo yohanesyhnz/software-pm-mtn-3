@@ -4364,4 +4364,637 @@ input:checked + .slider:before {
   font-family: 'JetBrains Mono', monospace;
 }
 
+/* ==========================================================================
+   MASTER MESIN — DIGITAL ASSET CONTROL CENTER
+   ========================================================================== */
+#panel-machines {
+  min-width: 0;
+  isolation: isolate;
+}
+
+.machine-master-shell {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+.machine-master-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 136px;
+  padding: 24px 28px;
+  color: var(--text-primary);
+  background:
+    linear-gradient(115deg, rgba(0, 229, 255, 0.12), transparent 48%),
+    radial-gradient(circle at 84% 20%, rgba(74, 130, 255, 0.16), transparent 32%),
+    var(--bg-card);
+  border: 1px solid rgba(0, 229, 255, 0.26);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16);
+}
+
+.machine-master-hero::before,
+.machine-master-hero::after {
+  position: absolute;
+  content: '';
+  pointer-events: none;
+}
+
+.machine-master-hero::before {
+  inset: 0;
+  opacity: 0.22;
+  background-image:
+    linear-gradient(rgba(0, 229, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 229, 255, 0.12) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(90deg, transparent, #000 55%, #000);
+}
+
+.machine-master-hero::after {
+  right: -52px;
+  top: -72px;
+  width: 250px;
+  height: 250px;
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 24px rgba(0, 229, 255, 0.025), inset 0 0 0 52px rgba(0, 229, 255, 0.02);
+}
+
+.machine-master-hero-copy,
+.machine-master-live {
+  position: relative;
+  z-index: 1;
+}
+
+.machine-master-hero-copy {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+
+.machine-master-emblem {
+  display: grid;
+  flex: 0 0 66px;
+  width: 66px;
+  height: 66px;
+  place-items: center;
+  color: #06131d;
+  font-size: 30px;
+  background: linear-gradient(145deg, #7bf5ff, var(--predictacore-cyan));
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 18px;
+  box-shadow: 0 0 0 7px rgba(0, 229, 255, 0.08), 0 12px 26px rgba(0, 229, 255, 0.2);
+  transform: rotate(-3deg);
+}
+
+.machine-master-emblem span { transform: rotate(3deg); }
+
+.machine-master-eyebrow,
+.machine-registry-kicker {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--predictacore-cyan);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+}
+
+.machine-master-hero h2 {
+  margin: 0 0 7px;
+  font-size: clamp(19px, 2vw, 27px);
+  line-height: 1.15;
+  letter-spacing: -0.4px;
+}
+
+.machine-master-hero p {
+  max-width: 720px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.machine-master-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  flex: 0 0 auto;
+  padding: 9px 13px;
+  color: #39efa0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  background: rgba(8, 33, 29, 0.74);
+  border: 1px solid rgba(57, 239, 160, 0.32);
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+}
+
+.machine-master-live-dot {
+  width: 8px;
+  height: 8px;
+  background: #39efa0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(57, 239, 160, 0.6);
+  animation: master-live-pulse 2s ease-in-out infinite;
+}
+
+@keyframes master-live-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(57, 239, 160, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(57, 239, 160, 0); }
+}
+
+.machine-master-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.machine-stat-card {
+  --machine-stat-accent: var(--predictacore-cyan);
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  grid-template-rows: auto auto;
+  gap: 4px 12px;
+  min-width: 0;
+  padding: 16px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--machine-stat-accent) 7%, var(--bg-card)), var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--machine-stat-accent) 26%, var(--border-color));
+  border-radius: 13px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.11);
+}
+
+.machine-stat-card::after {
+  position: absolute;
+  right: -18px;
+  bottom: -26px;
+  width: 82px;
+  height: 82px;
+  content: '';
+  background: radial-gradient(circle, color-mix(in srgb, var(--machine-stat-accent) 16%, transparent), transparent 68%);
+}
+
+.machine-stat-card-green { --machine-stat-accent: #30e698; }
+.machine-stat-card-violet { --machine-stat-accent: #8c7bff; }
+.machine-stat-card-amber { --machine-stat-accent: #ffbd4a; }
+
+.machine-stat-icon {
+  display: grid;
+  grid-row: 1 / 3;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  align-self: center;
+  color: var(--machine-stat-accent);
+  font-size: 19px;
+  background: color-mix(in srgb, var(--machine-stat-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--machine-stat-accent) 30%, transparent);
+  border-radius: 11px;
+}
+
+.machine-stat-card > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.machine-stat-card > div span,
+.machine-stat-card small {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.55px;
+  text-transform: uppercase;
+}
+
+.machine-stat-card strong {
+  color: var(--machine-stat-accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+}
+
+.machine-master-workspace {
+  min-width: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.13);
+}
+
+.machine-master-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  background: linear-gradient(180deg, rgba(0, 229, 255, 0.035), transparent);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.machine-master-discovery {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.7fr) minmax(160px, 0.8fr) minmax(160px, 0.8fr);
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 700px;
+}
+
+.machine-filter-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+
+.machine-filter-field select,
+.machine-search-control input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.machine-filter-field select { padding: 0 34px 0 12px; font-size: 11px; }
+
+.machine-search-control { position: relative; display: block; }
+.machine-search-control .search-icon {
+  left: 13px;
+  color: var(--predictacore-cyan);
+  font-size: 18px;
+}
+.machine-search-control input {
+  padding: 0 12px 0 39px;
+  font-size: 11px;
+  text-transform: none;
+}
+
+.machine-filter-field select:focus,
+.machine-search-control input:focus {
+  border-color: rgba(0, 229, 255, 0.72);
+  box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.09);
+}
+
+.machine-master-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.machine-btn {
+  min-height: 40px;
+  padding: 0 13px;
+  font-size: 10px;
+  letter-spacing: 0.2px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  white-space: nowrap;
+}
+
+.machine-btn span { font-size: 15px; }
+.machine-btn-sync { color: #ffca69; background: rgba(255, 174, 43, 0.09); border-color: rgba(255, 174, 43, 0.28); }
+.machine-btn-import { color: #82e8ff; background: rgba(0, 190, 229, 0.09); border-color: rgba(0, 190, 229, 0.28); }
+.machine-btn-add { color: #031713; background: linear-gradient(135deg, #36eea1, #09c98b); box-shadow: 0 8px 18px rgba(9, 201, 139, 0.18); }
+.machine-btn:hover { transform: translateY(-1px); filter: brightness(1.08); }
+
+.machine-registry-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 17px 18px 12px;
+}
+
+.machine-registry-heading h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.machine-registry-kicker { margin-bottom: 3px; font-size: 8px; }
+
+.machine-result-count {
+  padding: 6px 10px;
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  background: rgba(0, 229, 255, 0.06);
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  border-radius: 999px;
+}
+
+.machine-registry-table-wrap {
+  margin: 0 12px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+#panel-machines .machine-registry-table {
+  min-width: 1100px;
+  table-layout: auto;
+}
+
+#panel-machines .machine-registry-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 11px 13px;
+  color: var(--text-muted);
+  font-size: 9px;
+  background: color-mix(in srgb, var(--bg-card) 92%, #0b2438);
+  border-bottom: 1px solid rgba(0, 229, 255, 0.16);
+}
+
+#panel-machines .machine-registry-table td {
+  padding: 12px 13px;
+  font-size: 11px;
+  border-bottom-color: color-mix(in srgb, var(--border-color) 76%, transparent);
+}
+
+#panel-machines .machine-registry-table tbody tr {
+  position: relative;
+  background: transparent;
+}
+
+#panel-machines .machine-registry-table tbody tr::after {
+  position: absolute;
+  inset: 6px auto 6px 0;
+  width: 2px;
+  content: '';
+  background: var(--machine-row-accent, var(--text-muted));
+  border-radius: 0 4px 4px 0;
+  opacity: 0.72;
+}
+
+#panel-machines .machine-registry-table tbody tr.machine-status-running { --machine-row-accent: #30e698; }
+#panel-machines .machine-registry-table tbody tr.machine-status-stopped { --machine-row-accent: #ff476f; }
+#panel-machines .machine-registry-table tbody tr.machine-status-data-unavailable { --machine-row-accent: #ffbd4a; }
+#panel-machines .machine-registry-table tbody tr:hover { background: rgba(0, 229, 255, 0.035); }
+#panel-machines .machine-registry-table tbody tr:last-child td { border-bottom: 0; }
+
+.machine-identity-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 180px;
+}
+
+.machine-identity-icon {
+  display: grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: var(--machine-row-accent, var(--predictacore-cyan));
+  font-size: 15px;
+  background: color-mix(in srgb, var(--machine-row-accent, var(--predictacore-cyan)) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--machine-row-accent, var(--predictacore-cyan)) 24%, transparent);
+  border-radius: 9px;
+}
+
+.machine-identity-cell > div { display: grid; gap: 3px; min-width: 0; }
+.machine-identity-cell strong { color: var(--text-primary); font-size: 11px; line-height: 1.35; }
+.machine-identity-cell small { color: var(--text-muted); font-size: 8px; letter-spacing: 0.45px; text-transform: uppercase; }
+
+.machine-asset-code {
+  display: inline-block;
+  max-width: 240px;
+  padding: 5px 7px;
+  overflow-wrap: anywhere;
+  color: #71dcf3;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  line-height: 1.45;
+  background: rgba(0, 170, 210, 0.06);
+  border: 1px solid rgba(0, 190, 229, 0.14);
+  border-radius: 6px;
+}
+
+.machine-line-chip {
+  display: inline-flex;
+  padding: 5px 8px;
+  color: var(--predictacore-cyan);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  font-weight: 800;
+  white-space: nowrap;
+  background: rgba(0, 229, 255, 0.07);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  border-radius: 999px;
+}
+
+.machine-manufacturer,
+.machine-install-date { color: var(--text-secondary); font-size: 10px; }
+.machine-hours-value { color: var(--text-primary); font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 800; }
+.machine-hours-unit { color: var(--text-muted); font-size: 8px; text-transform: uppercase; }
+
+.machine-status-stack { display: grid; justify-items: start; gap: 5px; }
+.machine-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 140px;
+  padding: 5px 7px;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.machine-status-dot {
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  border-radius: 50%;
+  box-shadow: 0 0 7px currentColor;
+}
+
+.badge-data-unavailable,
+.badge-data-offline { color: #ffbd4a; background: rgba(255, 189, 74, 0.1); border: 1px solid rgba(255, 189, 74, 0.28); }
+.badge-idle { color: #ffd54f; background: rgba(255, 213, 79, 0.1); border: 1px solid rgba(255, 213, 79, 0.28); }
+.badge-alarm { color: #ff476f; background: rgba(255, 71, 111, 0.12); border: 1px solid rgba(255, 71, 111, 0.32); }
+
+.machine-asset-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+}
+.machine-asset-state span { width: 5px; height: 5px; background: currentColor; border-radius: 50%; }
+.machine-asset-state-active { color: #30e698; }
+.machine-asset-state-inactive { color: #ff718e; }
+.machine-row-inactive { opacity: 0.66; }
+
+.machine-row-actions {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  justify-content: start;
+  gap: 5px;
+  min-width: 155px;
+}
+
+#panel-machines .machine-row-actions .btn-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 27px;
+  padding: 4px 7px;
+  color: var(--text-secondary);
+  font-size: 9px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+}
+
+#panel-machines .machine-row-actions .btn-action-icon:hover {
+  color: var(--predictacore-cyan);
+  background: rgba(0, 229, 255, 0.08);
+  border-color: rgba(0, 229, 255, 0.32);
+}
+#panel-machines .machine-row-actions .machine-action-edit { color: #8fdfff; }
+#panel-machines .machine-row-actions .machine-action-disable { color: #ff718e; }
+
+.machine-empty-row::after { display: none; }
+.machine-empty-row td {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 48px 20px !important;
+  color: var(--text-muted);
+  text-align: center;
+}
+.machine-empty-row strong { color: var(--text-primary); font-size: 13px; }
+.machine-empty-row small { font-size: 10px; }
+.machine-empty-icon { color: var(--predictacore-cyan); font-size: 30px; }
+
+:root[data-theme="light"] .machine-master-hero {
+  background: linear-gradient(115deg, rgba(0, 167, 196, 0.1), transparent 48%), radial-gradient(circle at 84% 20%, rgba(67, 106, 214, 0.09), transparent 32%), #f9fcff;
+  box-shadow: 0 16px 36px rgba(36, 74, 106, 0.1);
+}
+:root[data-theme="light"] .machine-master-live { color: #087b58; background: rgba(225, 252, 242, 0.88); border-color: rgba(8, 123, 88, 0.24); }
+:root[data-theme="light"] .machine-master-live-dot { background: #0ca875; }
+:root[data-theme="light"] .machine-stat-card,
+:root[data-theme="light"] .machine-master-workspace { box-shadow: 0 12px 30px rgba(36, 74, 106, 0.08); }
+:root[data-theme="light"] #panel-machines .machine-registry-table th { background: #eef5fa; color: #4c6478; }
+:root[data-theme="light"] #panel-machines .machine-registry-table tbody tr:hover { background: rgba(0, 151, 184, 0.045); }
+:root[data-theme="light"] .machine-asset-code { color: #006a82; background: #eef8fb; }
+:root[data-theme="light"] #panel-machines .machine-row-actions .btn-action-icon { background: #f5f9fc; }
+
+@media (max-width: 1280px) {
+  .machine-master-toolbar { align-items: stretch; flex-direction: column; }
+  .machine-master-actions { justify-content: flex-start; }
+  .machine-master-discovery { flex-basis: auto; }
+}
+
+@media (max-width: 900px) {
+  .machine-master-hero { align-items: flex-start; flex-direction: column; min-height: 0; padding: 21px; }
+  .machine-master-live { align-self: flex-start; }
+  .machine-master-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .machine-master-discovery { grid-template-columns: minmax(0, 1fr) minmax(145px, 0.55fr); }
+  .machine-search-field { grid-column: 1 / -1; }
+}
+
+@media (max-width: 700px) {
+  .machine-master-shell { gap: 12px; }
+  .machine-master-hero { padding: 18px; border-radius: 13px; }
+  .machine-master-emblem { flex-basis: 52px; width: 52px; height: 52px; font-size: 23px; border-radius: 14px; }
+  .machine-master-hero-copy { align-items: flex-start; gap: 14px; }
+  .machine-master-hero h2 { font-size: 18px; }
+  .machine-master-stats { gap: 8px; }
+  .machine-stat-card { grid-template-columns: 34px 1fr; gap: 3px 9px; padding: 12px; }
+  .machine-stat-icon { width: 34px; height: 34px; font-size: 15px; }
+  .machine-stat-card > div { align-items: flex-start; flex-direction: column; gap: 1px; }
+  .machine-stat-card strong { font-size: 18px; }
+  .machine-master-workspace { border-radius: 13px; }
+  .machine-master-toolbar { padding: 13px; }
+  .machine-master-discovery { grid-template-columns: minmax(0, 1fr); }
+  .machine-search-field { grid-column: auto; }
+  .machine-master-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .machine-btn { width: 100%; }
+  .machine-btn-add { grid-column: 1 / -1; }
+  .machine-registry-heading { align-items: flex-start; flex-direction: column; gap: 9px; padding: 15px 13px 10px; }
+  .machine-registry-table-wrap { overflow: visible; margin: 0 10px 10px; border: 0; }
+  #panel-machines .machine-registry-table { display: block; min-width: 0; }
+  #panel-machines .machine-registry-table thead { display: none; }
+  #panel-machines .machine-registry-table tbody { display: grid; gap: 10px; }
+  #panel-machines .machine-registry-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--bg-card) 95%, var(--machine-row-accent, transparent));
+    border: 1px solid color-mix(in srgb, var(--machine-row-accent, var(--border-color)) 32%, var(--border-color));
+    border-radius: 11px;
+  }
+  #panel-machines .machine-registry-table tbody tr::after { inset: 0 auto 0 0; width: 3px; }
+  #panel-machines .machine-registry-table td {
+    display: grid;
+    align-content: start;
+    gap: 7px;
+    min-width: 0;
+    padding: 11px 12px 11px 14px;
+    border-bottom: 1px solid var(--border-color);
+  }
+  #panel-machines .machine-registry-table td::before {
+    content: attr(data-label);
+    color: var(--text-muted);
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+  }
+  #panel-machines .machine-registry-table td:first-child,
+  #panel-machines .machine-registry-table td:last-child { grid-column: 1 / -1; }
+  #panel-machines .machine-registry-table td:first-child::before { display: none; }
+  #panel-machines .machine-registry-table td:last-child { border-bottom: 0; }
+  .machine-identity-cell { min-width: 0; }
+  .machine-asset-code { max-width: 100%; }
+  .machine-row-actions { display: flex; flex-wrap: wrap; min-width: 0; }
+  .machine-empty-row { display: block !important; }
+  .machine-empty-row td { display: grid !important; }
+  .machine-empty-row td::before { display: none; }
+}
+
+@media (max-width: 430px) {
+  .machine-master-stats { grid-template-columns: minmax(0, 1fr); }
+  .machine-stat-card > div { align-items: baseline; flex-direction: row; }
+  .machine-master-hero-copy { flex-direction: column; }
+  .machine-master-actions { grid-template-columns: minmax(0, 1fr); }
+  .machine-btn-add { grid-column: auto; }
+  #panel-machines .machine-registry-table tbody tr { grid-template-columns: minmax(0, 1fr); }
+  #panel-machines .machine-registry-table td,
+  #panel-machines .machine-registry-table td:first-child,
+  #panel-machines .machine-registry-table td:last-child { grid-column: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .machine-master-live-dot { animation: none; }
+  .machine-btn { transition: none; }
+}
+
 

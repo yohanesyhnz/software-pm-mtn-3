@@ -1,29 +1,25 @@
 {
-  "version": "v7.0.0",
-  "previousVersion": "v6.2.1",
-  "build": "20260820.34",
-  "releaseDate": "2026-08-20",
+  "version": "v7.1.0",
+  "previousVersion": "v7.0.0",
+  "build": "20260821.35",
+  "releaseDate": "2026-08-21",
   "commitType": "feat",
-  "bump": "major",
-  "summary": "introduce five-role access governance",
+  "bump": "minor",
+  "summary": "redesign master machine digital asset control center",
   "changes": {
     "newFeatures": [
-      "introduce five-role access governance",
-      "Add Administrator, Manager, Supervisor, Technician/Operator, and Viewer roles",
-      "Apply a persistent least-privilege permission matrix editable from User Management"
+      "redesign master machine digital asset control center",
+      "Master Mesin digital control center with realtime asset summary"
     ],
     "improvements": [
-      "Audit user creation, updates, and deletion in the backend security log"
+      "Responsive searchable machine registry with line and status filters",
+      "Industrial dark and light visual treatment for machine management"
     ],
-    "fixed": [
-      "Protect the last administrator from role downgrade, self-deletion, and deletion"
-    ],
+    "fixed": [],
     "optimizations": [],
     "breakingChanges": [],
     "knownIssues": [],
-    "documentation": [
-      "Document RBAC schema v2 migration and NAS rollback path"
-    ]
+    "documentation": []
   },
   "knownIssues": []
 }

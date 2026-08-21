@@ -2038,6 +2038,15 @@ function renderTopReplacedParts() {
 
 // --- DYNAMIC RENDERING: MACHINES PANEL ---
 
+function _escapeMachineTableHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
 function renderMachinesTable() {
   const tbody = document.getElementById('machines-table-tbody');
   if (!tbody) return;
@@ -2047,55 +2056,99 @@ function renderMachinesTable() {
   const searchVal = searchInput ? searchInput.value.toLowerCase() : '';
   const lineFilterEl = document.getElementById('machine-filter-line');
   const lineFilter = lineFilterEl ? lineFilterEl.value : '';
+  const statusFilterEl = document.getElementById('machine-filter-status');
+  const statusFilter = statusFilterEl ? statusFilterEl.value : '';
 
   if (!dbState.machines || !Array.isArray(dbState.machines)) {
     dbState.machines = [];
   }
 
-  const filtered = dbState.machines.filter(m => {
-    const matchesSearch = m.name.toLowerCase().includes(searchVal) || 
-                          m.asset_number.toLowerCase().includes(searchVal) ||
-                          (m.line_code && m.line_code.toLowerCase().includes(searchVal));
-    const matchesLine = lineFilter === '' || (m.line_code && m.line_code === lineFilter);
-    return matchesSearch && matchesLine;
+  const allMachines = dbState.machines;
+  const activeMachines = allMachines.filter(m => m.is_active !== false);
+  const lineCount = new Set(allMachines.map(m => String(m.line_code || '').trim()).filter(Boolean)).size;
+  const runningCount = activeMachines.filter(m => String(m.status || '').toUpperCase() === 'RUNNING').length;
+  const statValues = {
+    'machine-stat-total': allMachines.length,
+    'machine-stat-active': activeMachines.length,
+    'machine-stat-lines': lineCount,
+    'machine-stat-running': runningCount
+  };
+  Object.entries(statValues).forEach(([id, value]) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = String(value);
   });
+
+  const filtered = allMachines.filter(m => {
+    const name = String(m.name || '').toLowerCase();
+    const assetNumber = String(m.asset_number || '').toLowerCase();
+    const lineCode = String(m.line_code || '').toLowerCase();
+    const manufacturer = String(m.manufacturer || '').toLowerCase();
+    const machineStatus = String(m.status || 'DATA UNAVAILABLE').toUpperCase();
+    const matchesSearch = name.includes(searchVal) ||
+                          assetNumber.includes(searchVal) ||
+                          lineCode.includes(searchVal) ||
+                          manufacturer.includes(searchVal);
+    const matchesLine = lineFilter === '' || (m.line_code && m.line_code === lineFilter);
+    const matchesStatus = statusFilter === '' ||
+      (statusFilter === 'INACTIVE' ? m.is_active === false : (m.is_active !== false && machineStatus === statusFilter));
+    return matchesSearch && matchesLine && matchesStatus;
+  });
+
+  const resultCount = document.getElementById('machine-result-count');
+  if (resultCount) {
+    resultCount.textContent = `${filtered.length} dari ${allMachines.length} mesin ditampilkan`;
+  }
 
   const rowsHtml = [];
   filtered.forEach(m => {
-    const health = getMachineOverallHealth(m.id);
-    let healthBadge = 'badge-normal';
-    if (health === 'ACTION REQUIRED') healthBadge = 'badge-action';
-    if (health === 'WARNING LEVEL 2') healthBadge = 'badge-warning-2';
-    if (health === 'WARNING LEVEL 1') healthBadge = 'badge-warning-1';
-
-    const statusBadge = `badge-${m.status.toLowerCase()}`;
+    const statusText = String(m.status || 'DATA UNAVAILABLE').toUpperCase();
+    const statusKey = statusText.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const statusBadge = `badge-${statusKey}`;
+    const machineId = Number(m.id);
+    const safeMachineId = Number.isFinite(machineId) ? machineId : 0;
+    const runningHours = Number(m.running_hours_total);
+    const runningHoursDisplay = Number.isFinite(runningHours) ? runningHours.toFixed(1) : '0.0';
+    const isActive = m.is_active !== false;
     const activeBadge = m.is_active === false
-      ? '<span class="badge" style="margin-left:5px;color:var(--color-red);border:1px solid currentColor;">INACTIVE</span>'
-      : '<span class="badge badge-normal" style="margin-left:5px;">ACTIVE</span>';
+      ? '<span class="machine-asset-state machine-asset-state-inactive"><span></span>INACTIVE</span>'
+      : '<span class="machine-asset-state machine-asset-state-active"><span></span>ACTIVE</span>';
 
     rowsHtml.push(`
-      <tr>
-        <td>
-          <strong>${m.name}</strong>
+      <tr class="machine-registry-row machine-status-${statusKey}${isActive ? '' : ' machine-row-inactive'}" data-machine-id="${safeMachineId}">
+        <td data-label="Nama Mesin">
+          <div class="machine-identity-cell">
+            <span class="machine-identity-icon" aria-hidden="true">⚙</span>
+            <div>
+              <strong>${_escapeMachineTableHtml(m.name || 'Mesin Tanpa Nama')}</strong>
+              <small>${_escapeMachineTableHtml(m.area || m.department || m.machine_type || 'Production Asset')}</small>
+            </div>
+          </div>
         </td>
-        <td><code style="font-family:'JetBrains Mono';">${m.asset_number}</code></td>
-        <td>${m.line_code}</td>
-        <td>${m.manufacturer}</td>
-        <td>${m.install_date}</td>
-        <td>${m.running_hours_total.toFixed(1)} Hrs</td>
-        <td><span class="badge ${statusBadge}">${m.status}</span>${activeBadge}</td>
-        <td>
-          <button class="btn-action-icon" title="View details & QR" onclick="viewMachineDetails(${m.id})">👁️ Detail</button>
-          ${hasPermission('machines.manage') ? `<button class="btn-action-icon" title="Copy / Duplikat Mesin" onclick="copyMachineData(${m.id})" style="color:var(--predictacore-cyan);">📋 Copy</button>` : ''}
-          ${hasPermission('machines.manage') ? `<button class="btn-action-icon" title="Edit" onclick="openMachineModal(${m.id})">✏️</button>` : ''}
-          ${hasPermission('machines.manage') ? `<button class="btn-action-icon" title="Nonaktifkan tanpa menghapus histori" style="color:var(--color-red);" onclick="deleteMachine(${m.id})">⏸ Nonaktifkan</button>` : ''}
+        <td data-label="Asset Number"><code class="machine-asset-code">${_escapeMachineTableHtml(m.asset_number || m.machine_code || '—')}</code></td>
+        <td data-label="Line Produksi"><span class="machine-line-chip">${_escapeMachineTableHtml(m.line_code || 'UNASSIGNED')}</span></td>
+        <td data-label="Manufacturer"><span class="machine-manufacturer">${_escapeMachineTableHtml(m.manufacturer || '—')}</span></td>
+        <td data-label="Tgl Install"><time class="machine-install-date">${_escapeMachineTableHtml(m.install_date || '—')}</time></td>
+        <td data-label="Running Hours"><span class="machine-hours-value">${runningHoursDisplay}</span><small class="machine-hours-unit"> Hrs</small></td>
+        <td data-label="Status">
+          <div class="machine-status-stack">
+            <span class="badge machine-status-badge ${statusBadge}"><span class="machine-status-dot" aria-hidden="true"></span>${_escapeMachineTableHtml(statusText)}</span>
+            ${activeBadge}
+          </div>
+        </td>
+        <td data-label="Actions">
+          <div class="machine-row-actions">
+            <button class="btn-action-icon machine-action-detail" aria-label="Lihat detail ${_escapeMachineTableHtml(m.name)}" title="Lihat detail & QR" onclick="viewMachineDetails(${safeMachineId})"><span aria-hidden="true">◎</span> Detail</button>
+            ${hasPermission('machines.manage') ? `<button class="btn-action-icon" aria-label="Duplikat ${_escapeMachineTableHtml(m.name)}" title="Copy / Duplikat Mesin" onclick="copyMachineData(${safeMachineId})"><span aria-hidden="true">▣</span> Copy</button>` : ''}
+            ${hasPermission('machines.manage') ? `<button class="btn-action-icon machine-action-edit" aria-label="Edit ${_escapeMachineTableHtml(m.name)}" title="Edit data mesin" onclick="openMachineModal(${safeMachineId})"><span aria-hidden="true">✎</span> Edit</button>` : ''}
+            ${hasPermission('machines.manage') ? `<button class="btn-action-icon machine-action-disable" aria-label="Nonaktifkan ${_escapeMachineTableHtml(m.name)}" title="Nonaktifkan tanpa menghapus histori" onclick="deleteMachine(${safeMachineId})"><span aria-hidden="true">⏸</span></button>` : ''}
+          </div>
         </td>
       </tr>
     `);
   });
 
   if (rowsHtml.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:20px;">Tidak ada mesin ditemukan.</td></tr>`;
+    tbody.innerHTML = `<tr class="machine-empty-row"><td colspan="8"><span class="machine-empty-icon" aria-hidden="true">⌕</span><strong>Tidak ada mesin ditemukan</strong><small>Coba ubah kata pencarian atau filter yang digunakan.</small></td></tr>`;
   } else {
     tbody.innerHTML = rowsHtml.join('');
   }
@@ -4800,22 +4853,31 @@ function _applyMachineTelemetry(m, isConnected, rawBit, rawCounterVal, unitStr) 
 function _updateMachineRowInDOM(m) {
   const tbody = document.getElementById('machines-table-tbody');
   if (!tbody) return;
-  const rows = tbody.querySelectorAll('tr');
+  const machineId = Number(m.id);
+  const rows = Number.isFinite(machineId)
+    ? tbody.querySelectorAll(`tr[data-machine-id="${machineId}"]`)
+    : tbody.querySelectorAll('tr');
   rows.forEach(tr => {
     const assetCell = tr.querySelector('td:nth-child(2) code');
-    if (!assetCell) return;
-    if (assetCell.textContent.trim() !== m.asset_number) return;
+    if (!Number.isFinite(machineId) && (!assetCell || assetCell.textContent.trim() !== m.asset_number)) return;
+
+    const statusText = String(m.status || 'DATA UNAVAILABLE').toUpperCase();
+    const statusKey = statusText.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    Array.from(tr.classList)
+      .filter(className => className.startsWith('machine-status-'))
+      .forEach(className => tr.classList.remove(className));
+    tr.classList.add(`machine-status-${statusKey}`);
 
     // Update status badge (col 7)
-    const statusCell = tr.querySelector('td:nth-child(7) .badge');
+    const statusCell = tr.querySelector('td:nth-child(7) .machine-status-badge');
     if (statusCell) {
-      statusCell.className = `badge badge-${m.status.toLowerCase()}`;
-      statusCell.textContent = m.status;
+      statusCell.className = `badge machine-status-badge badge-${statusKey}`;
+      statusCell.innerHTML = `<span class="machine-status-dot" aria-hidden="true"></span>${_escapeMachineTableHtml(statusText)}`;
     }
 
     // Update running hours (col 6)
-    const rhCell = tr.querySelector('td:nth-child(6)');
-    if (rhCell) rhCell.textContent = `${(m.running_hours_total || 0).toFixed(1)} Hrs`;
+    const rhValue = tr.querySelector('td:nth-child(6) .machine-hours-value');
+    if (rhValue) rhValue.textContent = `${(Number(m.running_hours_total) || 0).toFixed(1)}`;
   });
 }
 

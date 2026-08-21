@@ -2,6 +2,38 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [7.1.0] - 2026-08-21
+
+### New Features
+
+- redesign master machine digital asset control center
+- Master Mesin digital control center with realtime asset summary
+
+### Improvements
+
+- Responsive searchable machine registry with line and status filters
+- Industrial dark and light visual treatment for machine management
+
+### Fixed
+
+- Tidak ada.
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [7.0.0] - 2026-08-20
 
 ### New Features
