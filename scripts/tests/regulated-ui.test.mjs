@@ -88,6 +88,9 @@ test("master machine uses a responsive digital asset control center", () => {
   assert.match(app, /statusFilter === 'INACTIVE'/);
   assert.match(app, /class="machine-row-actions"/);
   assert.match(app, /data-label="Nama Mesin"/);
+  assert.equal((app.match(/function updateMachineSelectDropdowns\(\)/g) ?? []).length, 1);
+  assert.match(app, /const productionLines = Array\.from\(new Set\(/);
+  assert.match(app, /machineLineSelect\.innerHTML = '<option value="">Semua Line Produksi<\/option>' \+ productionLines/);
 });
 
 test("real-time machine status sits directly below the KPI summary and adapts to narrow screens", () => {

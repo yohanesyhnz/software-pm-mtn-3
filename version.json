@@ -1,21 +1,20 @@
 {
-  "version": "v7.1.0",
-  "previousVersion": "v7.0.0",
-  "build": "20260821.35",
+  "version": "v7.1.1",
+  "previousVersion": "v7.1.0",
+  "build": "20260821.36",
   "releaseDate": "2026-08-21",
-  "commitType": "feat",
-  "bump": "minor",
-  "summary": "redesign master machine digital asset control center",
+  "commitType": "fix",
+  "bump": "patch",
+  "summary": "restore production line filter in machine master",
   "changes": {
-    "newFeatures": [
-      "redesign master machine digital asset control center",
-      "Master Mesin digital control center with realtime asset summary"
-    ],
+    "newFeatures": [],
     "improvements": [
-      "Responsive searchable machine registry with line and status filters",
-      "Industrial dark and light visual treatment for machine management"
+      "Consolidated machine dropdown population into one source of truth"
     ],
-    "fixed": [],
+    "fixed": [
+      "restore production line filter in machine master",
+      "LINE 07 and LINE 08 options remain available in Master Mesin"
+    ],
     "optimizations": [],
     "breakingChanges": [],
     "knownIssues": [],

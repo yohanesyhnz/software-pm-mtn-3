@@ -2,6 +2,37 @@
 
 Semua perubahan penting pada project ini didokumentasikan mengikuti Semantic Versioning dan Conventional Commits.
 
+## [7.1.1] - 2026-08-21
+
+### New Features
+
+- Tidak ada.
+
+### Improvements
+
+- Consolidated machine dropdown population into one source of truth
+
+### Fixed
+
+- restore production line filter in machine master
+- LINE 07 and LINE 08 options remain available in Master Mesin
+
+### Optimizations
+
+- Tidak ada.
+
+### Breaking Changes
+
+- Tidak ada.
+
+### Known Issues
+
+- Tidak ada.
+
+### Documentation
+
+- Tidak ada.
+
 ## [7.1.0] - 2026-08-21
 
 ### New Features

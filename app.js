@@ -2157,36 +2157,6 @@ function renderMachinesTable() {
   updateMachineSelectDropdowns();
 }
 
-function updateMachineSelectDropdowns() {
-  // Populate Machine Filter for Spare Parts
-  const partMachineSelect = document.getElementById('part-filter-machine');
-  if (partMachineSelect) {
-    const curVal = partMachineSelect.value;
-    partMachineSelect.innerHTML = '<option value="">Semua Mesin</option>';
-    dbState.machines.filter(m => m.is_active !== false).forEach(m => {
-      partMachineSelect.innerHTML += `<option value="${m.id}">${m.name} (${m.asset_number})</option>`;
-    });
-    partMachineSelect.value = curVal;
-  }
-
-  // Populate Production Line Filter for Master Mesin
-  const machineLineSelect = document.getElementById('machine-filter-line');
-  if (machineLineSelect) {
-    const curLineVal = machineLineSelect.value;
-    const linesSet = new Set();
-    dbState.machines.forEach(m => {
-      if (m.line_code && m.line_code.trim()) {
-        linesSet.add(m.line_code.trim());
-      }
-    });
-    machineLineSelect.innerHTML = '<option value="">Semua Line Produksi</option>';
-    Array.from(linesSet).sort().forEach(line => {
-      machineLineSelect.innerHTML += `<option value="${line}">${line}</option>`;
-    });
-    machineLineSelect.value = curLineVal;
-  }
-}
-
 function refreshMachinesTable() {
   const searchInput = document.getElementById('machine-search-input');
   if (searchInput) searchInput.value = '';
@@ -5855,11 +5825,14 @@ function resetSystemToDefault() {
 
 // Helper to fill select elements
 function updateMachineSelectDropdowns() {
+  const machines = Array.isArray(dbState.machines) ? dbState.machines : [];
+  const activeMachines = machines.filter(m => m.is_active !== false);
+
   const mSelect = document.getElementById('modal-part-machine-id');
   if (mSelect) {
     mSelect.innerHTML = '';
-    dbState.machines.forEach(m => {
-      mSelect.innerHTML += `<option value="${m.id}">${m.name} (${m.asset_number})</option>`;
+    activeMachines.forEach(m => {
+      mSelect.innerHTML += `<option value="${m.id}">${_escapeMachineTableHtml(m.name)} (${_escapeMachineTableHtml(m.asset_number)})</option>`;
     });
   }
 
@@ -5867,10 +5840,22 @@ function updateMachineSelectDropdowns() {
   if (partFilterMachine) {
     const currentVal = partFilterMachine.value;
     partFilterMachine.innerHTML = '<option value="">Semua Mesin</option>';
-    dbState.machines.forEach(m => {
-      partFilterMachine.innerHTML += `<option value="${m.id}">${m.name} (${m.asset_number})</option>`;
+    activeMachines.forEach(m => {
+      partFilterMachine.innerHTML += `<option value="${m.id}">${_escapeMachineTableHtml(m.name)} (${_escapeMachineTableHtml(m.asset_number)})</option>`;
     });
     partFilterMachine.value = currentVal;
+  }
+
+  const machineLineSelect = document.getElementById('machine-filter-line');
+  if (machineLineSelect) {
+    const currentLine = machineLineSelect.value;
+    const productionLines = Array.from(new Set(
+      machines.map(m => String(m.line_code || '').trim()).filter(Boolean)
+    )).sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
+    machineLineSelect.innerHTML = '<option value="">Semua Line Produksi</option>' + productionLines
+      .map(line => `<option value="${_escapeMachineTableHtml(line)}">${_escapeMachineTableHtml(line)}</option>`)
+      .join('');
+    machineLineSelect.value = productionLines.includes(currentLine) ? currentLine : '';
   }
 }
 
